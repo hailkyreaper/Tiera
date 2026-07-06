@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { bookFieldsFromFormData, findOrCreateBook } from "@/lib/db/books";
 
 type IdRow = { id: string };
 
@@ -29,6 +30,40 @@ export async function createTierList(formData: FormData) {
   }
 
   redirect(`/lists/${data.id}`);
+}
+
+export async function addSearchResultToList(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const tierListId = formData.get("tierListId") as string;
+  const bookId = await findOrCreateBook(supabase, bookFieldsFromFormData(formData));
+
+  if (!bookId) {
+    return;
+  }
+
+  await supabase
+    .from("user_books")
+    .upsert(
+      { user_id: user.id, book_id: bookId },
+      { onConflict: "user_id,book_id", ignoreDuplicates: true },
+    );
+
+  await supabase
+    .from("tier_list_items")
+    .upsert(
+      { tier_list_id: tierListId, book_id: bookId, tier: "unranked" },
+      { onConflict: "tier_list_id,book_id" },
+    );
+
+  revalidatePath(`/lists/${tierListId}`);
 }
 
 export async function addBookToTier(

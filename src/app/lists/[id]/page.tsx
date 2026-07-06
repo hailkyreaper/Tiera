@@ -1,6 +1,11 @@
 import { notFound, redirect } from "next/navigation";
+import { addSearchResultToList } from "../actions";
 import { createClient } from "@/lib/supabase/server";
+import { searchGoogleBooks } from "@/lib/google-books";
 import { TierBoard } from "@/components/tier-list/tier-board";
+import { SearchResultCard } from "@/components/search-result-card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { Tier } from "@/lib/tiers";
 import type { Card, Columns } from "@/components/tier-list/types";
 
@@ -24,10 +29,13 @@ type UserBookRow = {
 
 export default async function TierListPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { id } = await params;
+  const { q } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -95,6 +103,8 @@ export default async function TierListPage({
     });
   }
 
+  const searchResults = q ? await searchGoogleBooks(q) : [];
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
       <h1 className="text-2xl font-semibold text-foreground">
@@ -104,6 +114,43 @@ export default async function TierListPage({
         Drag books between tiers to rank them, or drag out to the library row
         to remove them from this list.
       </p>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+          Find a new book to add
+        </h2>
+        <form className="flex gap-2">
+          <Input
+            name="q"
+            type="search"
+            placeholder="Search by title, author..."
+            defaultValue={q}
+            className="flex-1"
+          />
+          <Button type="submit">Search</Button>
+        </form>
+
+        {q && searchResults.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No results for &quot;{q}&quot;.
+          </p>
+        )}
+
+        {searchResults.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {searchResults.map((book) => (
+              <SearchResultCard
+                key={book.id}
+                book={book}
+                action={addSearchResultToList}
+                extraFields={{ tierListId: id }}
+                buttonLabel="Add to Unranked"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       <TierBoard tierListId={id} initialColumns={initialColumns} />
     </div>
   );

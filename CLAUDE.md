@@ -56,7 +56,7 @@ Top-level sections: Explore, Lists, Search, Compare, Profile.
 
 ## Current sprint
 
-Sprint 1 (active): project setup, authentication, deployment.
+Sprint 3 (active): Explore feed, public list viewing, likes/comments, basic search.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -65,12 +65,12 @@ Do not implement features from future sprints until explicitly instructed.
 ### Sprint 1 — Foundation ✅ COMPLETE
 Authentication, Database, Deployment
 
-### Sprint 2 — Core Data Model & Tier Lists (CURRENT)
+### Sprint 2 — Core Data Model & Tier Lists ✅ COMPLETE
 - Book data model + external book API integration
 - Create/edit tier list (S/A/B/C/D/F, drag-and-drop)
 - Save and view own lists
 
-### Sprint 3 — Explore & Discovery
+### Sprint 3 — Explore & Discovery (CURRENT)
 - Explore feed (Trending/Recent/Most Matches)
 - Public list viewing, likes/comments
 - Basic search

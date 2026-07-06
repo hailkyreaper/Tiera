@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -36,6 +36,11 @@ export function TierBoard({
 }) {
   const [columns, setColumns] = useState<Columns>(initialColumns);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const startContainerRef = useRef<ContainerId | null>(null);
+
+  useEffect(() => {
+    setColumns(initialColumns);
+  }, [initialColumns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -53,6 +58,7 @@ export function TierBoard({
   function handleDragStart(event: DragStartEvent) {
     const container = findContainer(String(event.active.id));
     if (!container) return;
+    startContainerRef.current = container;
     const card = columns[container].find(
       (c) => c.bookId === event.active.id,
     );
@@ -90,37 +96,34 @@ export function TierBoard({
     });
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveCard(null);
-    if (!over) return;
 
-    const activeContainer = findContainer(String(active.id));
-    let overContainer = findContainer(String(over.id));
-    if (!activeContainer || !overContainer) return;
+    const startContainer = startContainerRef.current;
+    startContainerRef.current = null;
+    if (!over || !startContainer) return;
+
+    const overContainer = findContainer(String(over.id));
+    if (!overContainer) return;
 
     let workingColumns = columns;
 
-    if (activeContainer === overContainer) {
-      const items = columns[activeContainer];
+    if (startContainer === overContainer) {
+      const items = columns[overContainer];
       const oldIndex = items.findIndex((c) => c.bookId === active.id);
       const newIndex = items.findIndex((c) => c.bookId === over.id);
       if (oldIndex !== newIndex && newIndex !== -1) {
         workingColumns = {
           ...columns,
-          [activeContainer]: arrayMove(items, oldIndex, newIndex),
+          [overContainer]: arrayMove(items, oldIndex, newIndex),
         };
         setColumns(workingColumns);
       }
-    } else {
-      overContainer = activeContainer;
-      for (const key of CONTAINERS) {
-        if (workingColumns[key].some((c) => c.bookId === active.id)) {
-          overContainer = key;
-          break;
-        }
-      }
     }
+    // If startContainer !== overContainer, handleDragOver already moved the
+    // card into overContainer's array in state, so workingColumns already
+    // reflects the final placement — nothing more to do here.
 
     const card = workingColumns[overContainer].find(
       (c) => c.bookId === active.id,
@@ -129,24 +132,24 @@ export function TierBoard({
 
     if (overContainer === "library") {
       if (card.itemId) {
-        void removeBookFromList(card.itemId, tierListId);
+        await removeBookFromList(card.itemId, tierListId);
       }
       return;
     }
 
     if (card.itemId) {
-      if (activeContainer !== overContainer) {
-        void moveBookToTier(card.itemId, tierListId, overContainer);
+      if (startContainer !== overContainer) {
+        await moveBookToTier(card.itemId, tierListId, overContainer);
       }
     } else {
-      void addBookToTier(tierListId, card.bookId, overContainer);
+      await addBookToTier(tierListId, card.bookId, overContainer);
     }
 
     const orderedItemIds = workingColumns[overContainer]
       .map((c) => c.itemId)
       .filter((v): v is string => Boolean(v));
     if (orderedItemIds.length > 0) {
-      void reorderTierItems(tierListId, orderedItemIds);
+      await reorderTierItems(tierListId, orderedItemIds);
     }
   }
 

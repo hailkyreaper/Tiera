@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { addBookToLibrary } from "./actions";
-import { searchGoogleBooks, secureThumbnail } from "@/lib/google-books";
-import { createClient } from "@/lib/supabase/server";
-import { BookCover } from "@/components/book-cover";
+import { searchGoogleBooks } from "@/lib/google-books";
+import { SearchResultCard } from "@/components/search-result-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,11 +11,6 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const books = q ? await searchGoogleBooks(q) : [];
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
@@ -41,85 +34,14 @@ export default async function SearchPage({
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        {books.map((book) => {
-          const thumbnail = secureThumbnail(
-            book.volumeInfo.imageLinks?.thumbnail,
-          );
-          const authors = book.volumeInfo.authors?.join(", ");
-
-          return (
-            <div key={book.id} className="flex flex-col gap-2">
-              <BookCover src={thumbnail} alt={book.volumeInfo.title} />
-
-              <div className="flex flex-col gap-0.5">
-                <p className="line-clamp-2 text-sm font-medium text-foreground">
-                  {book.volumeInfo.title}
-                </p>
-                {authors && (
-                  <p className="line-clamp-1 text-xs text-muted-foreground">
-                    {authors}
-                  </p>
-                )}
-              </div>
-
-              {user ? (
-                <form action={addBookToLibrary}>
-                  <input
-                    type="hidden"
-                    name="googleVolumeId"
-                    value={book.id}
-                  />
-                  <input
-                    type="hidden"
-                    name="title"
-                    value={book.volumeInfo.title}
-                  />
-                  <input type="hidden" name="authors" value={authors ?? ""} />
-                  <input
-                    type="hidden"
-                    name="description"
-                    value={book.volumeInfo.description ?? ""}
-                  />
-                  <input
-                    type="hidden"
-                    name="thumbnailUrl"
-                    value={thumbnail ?? ""}
-                  />
-                  <input
-                    type="hidden"
-                    name="publishedDate"
-                    value={book.volumeInfo.publishedDate ?? ""}
-                  />
-                  <input
-                    type="hidden"
-                    name="pageCount"
-                    value={book.volumeInfo.pageCount?.toString() ?? ""}
-                  />
-                  <input
-                    type="hidden"
-                    name="averageRating"
-                    value={book.volumeInfo.averageRating?.toString() ?? ""}
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Add to library
-                  </Button>
-                </form>
-              ) : (
-                <Link
-                  href="/login"
-                  className="text-center text-xs text-primary underline underline-offset-4"
-                >
-                  Log in to save
-                </Link>
-              )}
-            </div>
-          );
-        })}
+        {books.map((book) => (
+          <SearchResultCard
+            key={book.id}
+            book={book}
+            action={addBookToLibrary}
+            buttonLabel="Add to library"
+          />
+        ))}
       </div>
     </div>
   );

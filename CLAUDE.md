@@ -56,7 +56,7 @@ Top-level sections: Explore, Lists, Search, Compare, Profile.
 
 ## Current sprint
 
-Sprint 3 (active): Explore feed, public list viewing, likes/comments, basic search.
+Sprint 4 (active): Profile page with stats, Top Favorites, Taste Insights by genre.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -70,12 +70,12 @@ Authentication, Database, Deployment
 - Create/edit tier list (S/A/B/C/D/F, drag-and-drop)
 - Save and view own lists
 
-### Sprint 3 — Explore & Discovery (CURRENT)
-- Explore feed (Trending/Recent/Most Matches)
+### Sprint 3 — Explore & Discovery ✅ COMPLETE
+- Explore feed (For You/Following/Recent)
 - Public list viewing, likes/comments
-- Basic search
+- Basic search (books + people)
 
-### Sprint 4 — Profile & Taste Insights
+### Sprint 4 — Profile & Taste Insights (CURRENT)
 - Profile page with stats
 - Top Favorites
 - Taste Insights by genre

@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { addBookToLibrary } from "./actions";
 import { searchGoogleBooks, secureThumbnail } from "@/lib/google-books";
 import { createClient } from "@/lib/supabase/server";
+import { BookCover } from "@/components/book-cover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -49,19 +49,8 @@ export default async function SearchPage({
 
           return (
             <div key={book.id} className="flex flex-col gap-2">
-              {thumbnail ? (
-                <Image
-                  src={thumbnail}
-                  alt={book.volumeInfo.title}
-                  width={200}
-                  height={300}
-                  className="h-auto w-full rounded-2xl object-cover"
-                />
-              ) : (
-                <div className="flex aspect-2/3 w-full items-center justify-center rounded-2xl bg-muted text-xs text-muted-foreground">
-                  No cover
-                </div>
-              )}
+              <BookCover src={thumbnail} alt={book.volumeInfo.title} />
+
               <div className="flex flex-col gap-0.5">
                 <p className="line-clamp-2 text-sm font-medium text-foreground">
                   {book.volumeInfo.title}

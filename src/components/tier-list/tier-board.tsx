@@ -18,7 +18,7 @@ import {
   moveBookToTier,
   removeBookFromList,
   reorderTierItems,
-} from "@/app/lists/actions";
+} from "@/app/(app)/lists/actions";
 import { BookCover } from "@/components/book-cover";
 import { TIERS } from "@/lib/tiers";
 import { TierRow } from "./tier-row";

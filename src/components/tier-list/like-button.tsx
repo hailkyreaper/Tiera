@@ -1,5 +1,5 @@
 import { Heart } from "lucide-react";
-import { toggleLike } from "@/app/lists/social-actions";
+import { toggleLike } from "@/app/(app)/lists/social-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

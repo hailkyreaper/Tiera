@@ -1,0 +1,211 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import Image from "next/image";
+import { MapPin, CalendarDays } from "lucide-react";
+import { logout } from "@/app/auth/actions";
+import { updateProfile } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/server";
+
+type ProfileRow = {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  location: string | null;
+};
+
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; edit?: string }>;
+}) {
+  const { error, edit } = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username, display_name, avatar_url, bio, location")
+    .eq("id", user.id)
+    .maybeSingle<ProfileRow>();
+
+  const { data: myLists } = await supabase
+    .from("tier_lists")
+    .select("id")
+    .eq("user_id", user.id);
+
+  const listIds = (myLists ?? []).map((list) => list.id);
+  const listsCount = listIds.length;
+
+  const { count: booksRankedCount } =
+    listIds.length > 0
+      ? await supabase
+          .from("tier_list_items")
+          .select("id", { count: "exact", head: true })
+          .in("tier_list_id", listIds)
+          .neq("tier", "unranked")
+      : { count: 0 };
+
+  const joinedDate = new Date(user.created_at).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      <div className="relative flex h-40 items-center justify-center rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950">
+        {edit !== "true" && (
+          <Link href="/profile?edit=true" className="absolute top-4 right-4">
+            <Button type="button" variant="outline" size="sm">
+              Edit Profile
+            </Button>
+          </Link>
+        )}
+
+        {profile?.avatar_url ? (
+          <Image
+            src={profile.avatar_url}
+            alt={profile.username}
+            width={96}
+            height={96}
+            className="size-24 rounded-full object-cover ring-4 ring-primary"
+          />
+        ) : (
+          <div className="flex size-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground ring-4 ring-primary">
+            {profile?.username?.[0]?.toUpperCase() ?? "?"}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col items-center gap-6 px-6 pb-12 pt-6 text-center">
+        <div>
+          {profile?.display_name && (
+            <p className="text-lg font-semibold text-foreground">
+              {profile.display_name}
+            </p>
+          )}
+          <p
+            className={
+              profile?.display_name
+                ? "text-sm text-muted-foreground"
+                : "text-lg font-semibold text-foreground"
+            }
+          >
+            @{profile?.username}
+          </p>
+        </div>
+
+        <div className="flex w-full justify-around">
+          <div className="flex flex-col">
+            <span className="text-xl font-semibold text-foreground">
+              {listsCount}
+            </span>
+            <span className="text-xs text-muted-foreground uppercase">
+              Lists
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl font-semibold text-foreground">
+              {booksRankedCount ?? 0}
+            </span>
+            <span className="text-xs text-muted-foreground uppercase">
+              Books Ranked
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl font-semibold text-muted-foreground">
+              —
+            </span>
+            <span className="text-xs text-muted-foreground uppercase">
+              Avg Match
+            </span>
+          </div>
+        </div>
+
+        {edit === "true" ? (
+          <form
+            action={updateProfile}
+            className="flex w-full flex-col gap-4 text-left"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="displayName">Display name</Label>
+              <Input
+                id="displayName"
+                name="displayName"
+                maxLength={50}
+                defaultValue={profile?.display_name ?? ""}
+                placeholder="Your name"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="avatar">Profile picture</Label>
+              <Input id="avatar" type="file" name="avatar" accept="image/*" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Input
+                id="bio"
+                name="bio"
+                maxLength={160}
+                defaultValue={profile?.bio ?? ""}
+                placeholder="Fantasy, sci-fi, and anything with great characters."
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                name="location"
+                maxLength={100}
+                defaultValue={profile?.location ?? ""}
+                placeholder="Seattle, WA"
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1">
+                Save
+              </Button>
+              <Link href="/profile" className="flex-1">
+                <Button type="button" variant="outline" className="w-full">
+                  Cancel
+                </Button>
+              </Link>
+            </div>
+          </form>
+        ) : (
+          <div className="flex w-full flex-col items-start gap-1 text-left">
+            {profile?.bio && (
+              <p className="text-sm text-foreground">{profile.bio}</p>
+            )}
+            {profile?.location && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="size-3.5" />
+                {profile.location}
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <CalendarDays className="size-3.5" />
+              Joined {joinedDate}
+            </span>
+          </div>
+        )}
+
+        <form action={logout} className="mt-auto pt-6">
+          <Button type="submit" variant="ghost" size="sm">
+            Log out
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}

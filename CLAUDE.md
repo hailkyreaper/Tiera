@@ -52,7 +52,26 @@ Top-level sections: Explore, Lists, Search, Compare, Profile.
 - Recommendations
 
 ## Design References
-   See /design/explore-wireframe.png for the Explore screen layout.
+
+Reference images live in `/design/`. Before building or restyling any screen, look at 
+its matching reference image below and match layout, spacing, and styling as closely 
+as possible — not just the general rules above.
+
+- `/design/Explorepage.png` — Explore feed (list cards, tabs, tier previews)
+- `/design/search.png` — Search page (books/people tabs, recent/popular searches)
+- `/design/createlist.png` — Create/edit tier list screen (tiers, unranked books, 
+  visibility toggle)
+- `/design/profile.png` — Own profile page (stats, top favorites, bio)
+- `/design/otheruser.png` — Another user's public profile view (e.g. Follow button 
+  instead of Edit Profile)
+- `/design/compare.png` — Compare page (match %, Summary/Favorites/Disagreements)
+- `/design/rec.png` — Recommendations screen
+- `/design/tasteinsights.png` — Taste Insights tab (genre match breakdown)
+- `/design/main.png` — Landing/logged-out screen (Get Started/Log In)
+
+When building a feature, always check the matching image above first. If a screen 
+doesn't have an exact match, use the closest reference plus the general Design rules 
+above.
 
 ## Current sprint
 

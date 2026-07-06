@@ -1,4 +1,4 @@
-import { addComment, deleteComment } from "@/app/lists/social-actions";
+import { addComment, deleteComment } from "@/app/(app)/lists/social-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

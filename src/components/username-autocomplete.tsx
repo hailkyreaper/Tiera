@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { searchUsernames } from "@/app/search/actions";
+import { searchUsernames } from "@/app/(app)/search/actions";
 import { Input } from "@/components/ui/input";
 
 export function UsernameAutocomplete({

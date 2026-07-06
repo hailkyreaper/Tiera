@@ -2,7 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { removeFromLibrary } from "@/app/lists/actions";
+import { removeFromLibrary } from "@/app/(app)/lists/actions";
 import { Button } from "@/components/ui/button";
 import { SortableBookCard } from "./sortable-book-card";
 import type { Card } from "./types";

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { searchGoogleBooks } from "@/lib/google-books";
 import { TierBoard } from "@/components/tier-list/tier-board";
 import { ReadOnlyTierBoard } from "@/components/tier-list/read-only-board";
+import { LikeButton } from "@/components/tier-list/like-button";
+import { CommentsSection, type CommentView } from "@/components/tier-list/comments-section";
 import { SearchResultCard } from "@/components/search-result-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,8 @@ type TierListRow = {
   title: string;
   user_id: string;
   is_public: boolean;
+  like_count: number;
+  comment_count: number;
 };
 
 type TierListItemRow = {
@@ -34,6 +38,14 @@ type UserBookRow = {
   book_id: string;
   books: BookInfo;
 };
+
+type CommentRow = {
+  id: string;
+  body: string;
+  user_id: string;
+};
+
+type ProfileRow = { id: string; username: string };
 
 export default async function TierListPage({
   params,
@@ -52,7 +64,7 @@ export default async function TierListPage({
 
   const { data: tierList } = await supabase
     .from("tier_lists")
-    .select("id, title, user_id, is_public")
+    .select("id, title, user_id, is_public, like_count, comment_count")
     .eq("id", id)
     .maybeSingle<TierListRow>();
 
@@ -90,6 +102,45 @@ export default async function TierListPage({
     initialColumns[item.tier].push(card);
   }
 
+  const [{ data: comments }, isLiked] = await Promise.all([
+    supabase
+      .from("list_comments")
+      .select("id, body, user_id")
+      .eq("tier_list_id", id)
+      .order("created_at", { ascending: true })
+      .returns<CommentRow[]>(),
+    user
+      ? supabase
+          .from("list_likes")
+          .select("tier_list_id")
+          .eq("tier_list_id", id)
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data }) => Boolean(data))
+      : Promise.resolve(false),
+  ]);
+
+  const commenterIds = [...new Set((comments ?? []).map((c) => c.user_id))];
+  const { data: commenterProfiles } =
+    commenterIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", commenterIds)
+          .returns<ProfileRow[]>()
+      : { data: [] as ProfileRow[] };
+
+  const usernameByUserId = new Map(
+    (commenterProfiles ?? []).map((profile) => [profile.id, profile.username]),
+  );
+
+  const commentViews: CommentView[] = (comments ?? []).map((comment) => ({
+    id: comment.id,
+    body: comment.body,
+    username: usernameByUserId.get(comment.user_id) ?? "unknown",
+    isOwn: comment.user_id === user?.id,
+  }));
+
   if (!isOwner) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
@@ -101,7 +152,17 @@ export default async function TierListPage({
             Public list
           </span>
         </div>
+        <LikeButton
+          tierListId={id}
+          likeCount={tierList.like_count}
+          isLiked={isLiked}
+        />
         <ReadOnlyTierBoard columns={initialColumns} />
+        <CommentsSection
+          tierListId={id}
+          comments={commentViews}
+          canComment={Boolean(user)}
+        />
       </div>
     );
   }
@@ -144,6 +205,13 @@ export default async function TierListPage({
           </Button>
         </form>
       </div>
+
+      <LikeButton
+        tierListId={id}
+        likeCount={tierList.like_count}
+        isLiked={isLiked}
+      />
+
       <p className="text-sm text-muted-foreground">
         Drag books between tiers to rank them, or drag out to the library row
         to remove them from this list.
@@ -186,6 +254,12 @@ export default async function TierListPage({
       </div>
 
       <TierBoard tierListId={id} initialColumns={initialColumns} />
+
+      <CommentsSection
+        tierListId={id}
+        comments={commentViews}
+        canComment={Boolean(user)}
+      />
     </div>
   );
 }

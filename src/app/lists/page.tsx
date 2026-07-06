@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 type TierListRow = {
   id: string;
   title: string;
+  is_public: boolean;
 };
 
 export default async function ListsPage() {
@@ -23,7 +24,7 @@ export default async function ListsPage() {
 
   const { data: tierLists } = await supabase
     .from("tier_lists")
-    .select("id, title")
+    .select("id, title, is_public")
     .order("created_at", { ascending: false })
     .returns<TierListRow[]>();
 
@@ -45,8 +46,11 @@ export default async function ListsPage() {
           tierLists.map((list) => (
             <Link key={list.id} href={`/lists/${list.id}`}>
               <Card className="transition-colors hover:bg-muted">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <CardTitle className="text-base">{list.title}</CardTitle>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">
+                    {list.is_public ? "Public" : "Private"}
+                  </span>
                 </CardHeader>
               </Card>
             </Link>

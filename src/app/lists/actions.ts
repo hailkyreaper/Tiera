@@ -32,6 +32,28 @@ export async function createTierList(formData: FormData) {
   redirect(`/lists/${data.id}`);
 }
 
+export async function setListVisibility(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const tierListId = formData.get("tierListId") as string;
+  const isPublic = formData.get("isPublic") === "true";
+
+  await supabase
+    .from("tier_lists")
+    .update({ is_public: isPublic })
+    .eq("id", tierListId);
+
+  revalidatePath(`/lists/${tierListId}`);
+  revalidatePath("/lists");
+}
+
 export async function addSearchResultToList(formData: FormData) {
   const supabase = await createClient();
   const {

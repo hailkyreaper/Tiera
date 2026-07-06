@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
-import { addSearchResultToList } from "../actions";
+import { notFound } from "next/navigation";
+import { addSearchResultToList, setListVisibility } from "../actions";
 import { createClient } from "@/lib/supabase/server";
 import { searchGoogleBooks } from "@/lib/google-books";
 import { TierBoard } from "@/components/tier-list/tier-board";
+import { ReadOnlyTierBoard } from "@/components/tier-list/read-only-board";
 import { SearchResultCard } from "@/components/search-result-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,13 @@ type BookInfo = {
   id: string;
   title: string;
   thumbnail_url: string | null;
+};
+
+type TierListRow = {
+  id: string;
+  title: string;
+  user_id: string;
+  is_public: boolean;
 };
 
 type TierListItemRow = {
@@ -42,20 +50,17 @@ export default async function TierListPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
   const { data: tierList } = await supabase
     .from("tier_lists")
-    .select("id, title")
+    .select("id, title, user_id, is_public")
     .eq("id", id)
-    .eq("user_id", user.id)
-    .maybeSingle<{ id: string; title: string }>();
+    .maybeSingle<TierListRow>();
 
   if (!tierList) {
     notFound();
   }
+
+  const isOwner = user?.id === tierList.user_id;
 
   const { data: items } = await supabase
     .from("tier_list_items")
@@ -63,14 +68,6 @@ export default async function TierListPage({
     .eq("tier_list_id", id)
     .order("position", { ascending: true })
     .returns<TierListItemRow[]>();
-
-  const itemBookIds = new Set((items ?? []).map((item) => item.books.id));
-
-  const { data: libraryBooks } = await supabase
-    .from("user_books")
-    .select("book_id, books(id, title, thumbnail_url)")
-    .eq("user_id", user.id)
-    .returns<UserBookRow[]>();
 
   const initialColumns: Columns = {
     S: [],
@@ -93,6 +90,30 @@ export default async function TierListPage({
     initialColumns[item.tier].push(card);
   }
 
+  if (!isOwner) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold text-foreground">
+            {tierList.title}
+          </h1>
+          <span className="text-xs font-semibold text-muted-foreground uppercase">
+            Public list
+          </span>
+        </div>
+        <ReadOnlyTierBoard columns={initialColumns} />
+      </div>
+    );
+  }
+
+  const itemBookIds = new Set((items ?? []).map((item) => item.books.id));
+
+  const { data: libraryBooks } = await supabase
+    .from("user_books")
+    .select("book_id, books(id, title, thumbnail_url)")
+    .eq("user_id", user!.id)
+    .returns<UserBookRow[]>();
+
   for (const entry of libraryBooks ?? []) {
     if (itemBookIds.has(entry.books.id)) continue;
     initialColumns.library.push({
@@ -107,9 +128,22 @@ export default async function TierListPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold text-foreground">
-        {tierList.title}
-      </h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-foreground">
+          {tierList.title}
+        </h1>
+        <form action={setListVisibility}>
+          <input type="hidden" name="tierListId" value={id} />
+          <input
+            type="hidden"
+            name="isPublic"
+            value={(!tierList.is_public).toString()}
+          />
+          <Button type="submit" variant="outline" size="sm">
+            {tierList.is_public ? "Make Private" : "Make Public"}
+          </Button>
+        </form>
+      </div>
       <p className="text-sm text-muted-foreground">
         Drag books between tiers to rank them, or drag out to the library row
         to remove them from this list.

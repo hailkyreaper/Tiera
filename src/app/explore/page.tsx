@@ -3,7 +3,7 @@ import { ExploreListCard } from "@/components/explore/list-card";
 import { ExploreTabs } from "@/components/explore/tabs";
 import type { Tier } from "@/lib/tiers";
 
-type ExploreTab = "for-you" | "popular" | "recent";
+type ExploreTab = "for-you" | "following" | "recent";
 
 type TierListRow = {
   id: string;
@@ -34,7 +34,7 @@ export default async function ExplorePage({
 }) {
   const { tab: rawTab } = await searchParams;
   const tab: ExploreTab =
-    rawTab === "recent" || rawTab === "popular" ? rawTab : "for-you";
+    rawTab === "recent" || rawTab === "following" ? rawTab : "for-you";
 
   const supabase = await createClient();
 
@@ -45,7 +45,7 @@ export default async function ExplorePage({
     .limit(20);
 
   // "For You" is a placeholder until real taste-match scoring exists
-  // (Sprint 5) — for now it sorts the same way as Popular.
+  // (Sprint 5) — for now it sorts the same way as following.
   listsQuery =
     tab === "recent"
       ? listsQuery.order("created_at", { ascending: false })
@@ -111,7 +111,7 @@ export default async function ExplorePage({
       <ExploreTabs
         tabs={[
           { value: "for-you", label: "For You" },
-          { value: "popular", label: "Popular" },
+          { value: "following", label: "Following" },
           { value: "recent", label: "Recent" },
         ]}
         current={tab}

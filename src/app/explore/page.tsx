@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ExploreListCard } from "@/components/explore/list-card";
-import { ExploreTabs } from "@/components/explore/tabs";
+import { SegmentedTabs } from "@/components/segmented-tabs";
 import type { Tier } from "@/lib/tiers";
 
 type ExploreTab = "for-you" | "following" | "recent";
@@ -108,7 +108,8 @@ export default async function ExplorePage({
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
       <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
 
-      <ExploreTabs
+      <SegmentedTabs
+        basePath="/explore"
         tabs={[
           { value: "for-you", label: "For You" },
           { value: "following", label: "Following" },

@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export function ExploreTabs<T extends string>({
+export function SegmentedTabs<T extends string>({
+  basePath,
+  paramName = "tab",
   tabs,
   current,
 }: {
+  basePath: string;
+  paramName?: string;
   tabs: { value: T; label: string }[];
   current: T;
 }) {
@@ -16,7 +20,7 @@ export function ExploreTabs<T extends string>({
         return (
           <Link
             key={tab.value}
-            href={`/explore?tab=${tab.value}`}
+            href={`${basePath}?${paramName}=${tab.value}`}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
               isActive

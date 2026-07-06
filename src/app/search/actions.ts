@@ -34,3 +34,21 @@ export async function addBookToLibrary(formData: FormData) {
 
   revalidatePath("/search");
 }
+
+export async function searchUsernames(
+  query: string,
+): Promise<{ id: string; username: string }[]> {
+  if (!query.trim()) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, username")
+    .ilike("username", `%${query}%`)
+    .limit(8)
+    .returns<{ id: string; username: string }[]>();
+
+  return data ?? [];
+}

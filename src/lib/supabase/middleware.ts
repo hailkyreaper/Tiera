@@ -1,6 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+const ONBOARDING_EXEMPT_PATHS = [
+  "/onboard/username",
+  "/login",
+  "/signup",
+  "/signup/check-email",
+  "/auth/confirm",
+  "/error",
+];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -26,7 +35,29 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Refresh the session if expired — required for Server Components.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const isExempt = ONBOARDING_EXEMPT_PATHS.some((path) =>
+    pathname.startsWith(path),
+  );
+
+  if (user && !isExempt) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboard/username";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
 
   return supabaseResponse;
 }

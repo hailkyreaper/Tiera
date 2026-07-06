@@ -85,7 +85,7 @@ export async function addSearchResultToList(formData: FormData) {
       { onConflict: "tier_list_id,book_id" },
     );
 
-  revalidatePath(`/lists/${tierListId}`);
+  redirect(`/lists/${tierListId}`);
 }
 
 export async function addBookToTier(
@@ -167,4 +167,38 @@ export async function removeBookFromList(itemId: string, tierListId: string) {
 
   await supabase.from("tier_list_items").delete().eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
+}
+
+export async function removeFromLibrary(bookId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: myLists } = await supabase
+    .from("tier_lists")
+    .select("id")
+    .eq("user_id", user.id);
+
+  const listIds = (myLists ?? []).map((list) => list.id);
+
+  if (listIds.length > 0) {
+    await supabase
+      .from("tier_list_items")
+      .delete()
+      .eq("book_id", bookId)
+      .in("tier_list_id", listIds);
+  }
+
+  await supabase
+    .from("user_books")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("book_id", bookId);
+
+  revalidatePath("/lists", "layout");
 }

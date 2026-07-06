@@ -2,11 +2,24 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
+import { removeFromLibrary } from "@/app/lists/actions";
+import { Button } from "@/components/ui/button";
 import { SortableBookCard } from "./sortable-book-card";
 import type { Card } from "./types";
 
 export function LibraryRow({ cards }: { cards: Card[] }) {
   const { setNodeRef } = useDroppable({ id: "library" });
+
+  function handleRemove(card: Card) {
+    if (
+      !window.confirm(
+        `Permanently remove "${card.title}" from your library? This also removes it from any tier lists it's ranked in.`,
+      )
+    ) {
+      return;
+    }
+    void removeFromLibrary(card.bookId);
+  }
 
   return (
     <SortableContext
@@ -24,12 +37,22 @@ export function LibraryRow({ cards }: { cards: Card[] }) {
           </p>
         )}
         {cards.map((card) => (
-          <SortableBookCard
-            key={card.bookId}
-            bookId={card.bookId}
-            title={card.title}
-            thumbnail={card.thumbnail}
-          />
+          <div key={card.bookId} className="flex flex-col gap-1">
+            <SortableBookCard
+              bookId={card.bookId}
+              title={card.title}
+              thumbnail={card.thumbnail}
+            />
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => handleRemove(card)}
+            >
+              Remove from library
+            </Button>
+          </div>
         ))}
       </div>
     </SortableContext>

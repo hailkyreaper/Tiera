@@ -59,3 +59,49 @@ Top-level sections: Explore, Lists, Search, Compare, Profile.
 Sprint 1 (active): project setup, authentication, deployment.
 
 Do not implement features from future sprints until explicitly instructed.
+
+## Roadmap
+
+### Sprint 1 — Foundation ✅ COMPLETE
+Authentication, Database, Deployment
+
+### Sprint 2 — Core Data Model & Tier Lists (CURRENT)
+- Book data model + external book API integration
+- Create/edit tier list (S/A/B/C/D/F, drag-and-drop)
+- Save and view own lists
+
+### Sprint 3 — Explore & Discovery
+- Explore feed (Trending/Recent/Most Matches)
+- Public list viewing, likes/comments
+- Basic search
+
+### Sprint 4 — Profile & Taste Insights
+- Profile page with stats
+- Top Favorites
+- Taste Insights by genre
+
+### Sprint 5 — Compare & Matching
+- Taste match % algorithm
+- Compare page (Summary/Favorites/Disagreements)
+- Recommendations
+
+### Sprint 6 — Social Layer
+- Follow system
+- Comments
+- "People you might vibe with"
+
+### Sprint 7 — Import & Search Polish
+- Goodreads CSV import
+- Search filters/history
+
+### Sprint 8 — Mobile Packaging & Polish
+- PWA setup
+- Capacitor app wrap (optional)
+- Responsive polish
+
+### Sprint 9 — Launch Prep
+- Performance, error/empty states
+- Final QA
+
+## Sprint Rule
+Only work on the sprint marked CURRENT. Do not start future sprints unless explicitly told to. After finishing a sprint, mark it ✅ COMPLETE and wait for the next sprint to be marked CURRENT before proceeding.

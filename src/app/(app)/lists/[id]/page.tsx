@@ -6,6 +6,7 @@ import { TierBoard } from "@/components/tier-list/tier-board";
 import { ReadOnlyTierBoard } from "@/components/tier-list/read-only-board";
 import { LikeButton } from "@/components/tier-list/like-button";
 import { CommentsSection, type CommentView } from "@/components/tier-list/comments-section";
+import { DeleteListButton } from "@/components/tier-list/delete-list-button";
 import { SearchResultCard } from "@/components/search-result-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -193,17 +194,20 @@ export default async function TierListPage({
         <h1 className="text-2xl font-semibold text-foreground">
           {tierList.title}
         </h1>
-        <form action={setListVisibility}>
-          <input type="hidden" name="tierListId" value={id} />
-          <input
-            type="hidden"
-            name="isPublic"
-            value={(!tierList.is_public).toString()}
-          />
-          <Button type="submit" variant="outline" size="sm">
-            {tierList.is_public ? "Make Private" : "Make Public"}
-          </Button>
-        </form>
+        <div className="flex items-center gap-2">
+          <form action={setListVisibility}>
+            <input type="hidden" name="tierListId" value={id} />
+            <input
+              type="hidden"
+              name="isPublic"
+              value={(!tierList.is_public).toString()}
+            />
+            <Button type="submit" variant="outline" size="sm">
+              {tierList.is_public ? "Make Private" : "Make Public"}
+            </Button>
+          </form>
+          <DeleteListButton tierListId={id} />
+        </div>
       </div>
 
       <LikeButton

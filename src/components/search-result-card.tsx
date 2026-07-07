@@ -54,6 +54,11 @@ export function SearchResultCard({
           name="averageRating"
           value={book.volumeInfo.averageRating?.toString() ?? ""}
         />
+        <input
+          type="hidden"
+          name="categories"
+          value={book.volumeInfo.categories?.join("|") ?? ""}
+        />
         {extraFields &&
           Object.entries(extraFields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />

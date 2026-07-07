@@ -75,7 +75,7 @@ above.
 
 ## Current sprint
 
-Sprint 4 (active): Profile page with stats, Top Favorites, Taste Insights by genre.
+Sprint 5 (active): Taste match % algorithm, Compare page (Summary/Favorites/Disagreements), Recommendations.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -94,15 +94,18 @@ Authentication, Database, Deployment
 - Public list viewing, likes/comments
 - Basic search (books + people)
 
-### Sprint 4 — Profile & Taste Insights (CURRENT)
+### Sprint 4 — Profile & Taste Insights ✅ COMPLETE
 - Profile page with stats
 - Top Favorites
 - Taste Insights by genre
 
-### Sprint 5 — Compare & Matching
+### Sprint 5 — Compare & Matching (CURRENT)
 - Taste match % algorithm
 - Compare page (Summary/Favorites/Disagreements)
 - Recommendations
+- "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
+  comparison bit ("You and X agree on 94% of books..."), depends on the
+  match % algorithm above
 
 ### Sprint 6 — Social Layer
 - Follow system
@@ -124,3 +127,7 @@ Authentication, Database, Deployment
 
 ## Sprint Rule
 Only work on the sprint marked CURRENT. Do not start future sprints unless explicitly told to. After finishing a sprint, mark it ✅ COMPLETE and wait for the next sprint to be marked CURRENT before proceeding.
+
+## To Do
+
+- No place to view books when added to library except for going into lists and scrolling down to library.

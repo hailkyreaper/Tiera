@@ -138,6 +138,12 @@ export default async function ProfilePage({
           </div>
         </div>
 
+        {edit !== "true" && (
+          <Link href="/profile/insights" className="text-sm text-primary">
+            View Taste Insights →
+          </Link>
+        )}
+
         {edit === "true" ? (
           <form
             action={updateProfile}

@@ -7,6 +7,7 @@ export type GoogleBookVolume = {
     publishedDate?: string;
     pageCount?: number;
     averageRating?: number;
+    categories?: string[];
     imageLinks?: {
       thumbnail?: string;
       smallThumbnail?: string;
@@ -40,4 +41,13 @@ export async function searchGoogleBooks(
 
 export function secureThumbnail(url: string | undefined): string | undefined {
   return url?.replace("http://", "https://");
+}
+
+export function normalizeCategory(raw: string): string {
+  const segments = raw
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length >= 2) return segments[1];
+  return segments[0] ?? raw;
 }

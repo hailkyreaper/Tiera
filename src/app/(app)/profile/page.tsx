@@ -7,7 +7,11 @@ import { updateProfile } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FavoritesRow } from "@/components/favorites-row";
+import { ExploreListCard } from "@/components/explore/list-card";
 import { createClient } from "@/lib/supabase/server";
+import { getFavoriteBooks } from "@/lib/db/favorites";
+import { getUserListCards } from "@/lib/db/list-cards";
 
 type ProfileRow = {
   username: string;
@@ -59,6 +63,9 @@ export default async function ProfilePage({
     month: "long",
     year: "numeric",
   });
+
+  const favoriteBooks = await getFavoriteBooks(supabase, user.id, 5);
+  const listCards = await getUserListCards(supabase, user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
@@ -198,6 +205,38 @@ export default async function ProfilePage({
               Joined {joinedDate}
             </span>
           </div>
+        )}
+
+        {edit !== "true" && (
+          <>
+            <FavoritesRow
+              books={favoriteBooks}
+              viewMoreHref="/profile/favorites"
+            />
+
+            <div className="flex w-full flex-col gap-3">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+                Lists
+              </h2>
+              {listCards.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  You don&apos;t have any tier lists yet.
+                </p>
+              ) : (
+                listCards.map((list) => (
+                  <ExploreListCard
+                    key={list.id}
+                    id={list.id}
+                    title={list.title}
+                    username={profile?.username ?? ""}
+                    likeCount={list.likeCount}
+                    commentCount={list.commentCount}
+                    preview={list.preview}
+                  />
+                ))
+              )}
+            </div>
+          </>
         )}
 
         <form action={logout} className="mt-auto pt-6">

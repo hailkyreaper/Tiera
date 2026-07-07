@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { FavoritesRow } from "@/components/favorites-row";
+import { ExploreListCard } from "@/components/explore/list-card";
+import { getFavoriteBooks } from "@/lib/db/favorites";
+import { getUserListCards } from "@/lib/db/list-cards";
 
 type ProfileRow = { id: string; username: string };
-type TierListRow = { id: string; title: string };
 
 export default async function PublicUserPage({
   params,
@@ -24,15 +25,10 @@ export default async function PublicUserPage({
     notFound();
   }
 
-  const { data: tierLists } = await supabase
-    .from("tier_lists")
-    .select("id, title")
-    .eq("user_id", profile.id)
-    .eq("is_public", true)
-    .order("created_at", { ascending: false })
-    .returns<TierListRow[]>();
-
-  const lists = tierLists ?? [];
+  const favoriteBooks = await getFavoriteBooks(supabase, profile.id, 5);
+  const listCards = await getUserListCards(supabase, profile.id, {
+    publicOnly: true,
+  });
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
@@ -40,23 +36,31 @@ export default async function PublicUserPage({
         @{profile.username}
       </h1>
 
-      {lists.length === 0 ? (
-        <p className="text-muted-foreground">
-          No public tier lists yet.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {lists.map((list) => (
-            <Link key={list.id} href={`/lists/${list.id}`}>
-              <Card className="transition-colors hover:bg-muted">
-                <CardHeader>
-                  <CardTitle className="text-base">{list.title}</CardTitle>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+      <FavoritesRow
+        books={favoriteBooks}
+        viewMoreHref={`/u/${profile.username}/favorites`}
+      />
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+          Lists
+        </h2>
+        {listCards.length === 0 ? (
+          <p className="text-muted-foreground">No public tier lists yet.</p>
+        ) : (
+          listCards.map((list) => (
+            <ExploreListCard
+              key={list.id}
+              id={list.id}
+              title={list.title}
+              username={profile.username}
+              likeCount={list.likeCount}
+              commentCount={list.commentCount}
+              preview={list.preview}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }

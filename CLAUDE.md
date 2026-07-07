@@ -64,7 +64,9 @@ as possible — not just the general rules above.
 - `/design/profile.png` — Own profile page (stats, top favorites, bio)
 - `/design/otheruser.png` — Another user's public profile view (e.g. Follow button 
   instead of Edit Profile)
-- `/design/compare.png` — Compare page (match %, Summary/Favorites/Disagreements)
+- `/design/compare.png` — Compare page (match %, Summary — You Both Love / You
+  Disagree On; no separate Favorites/Disagreements tabs, that content is
+  folded into the single Summary view)
 - `/design/rec.png` — Recommendations screen
 - `/design/tasteinsights.png` — Taste Insights tab (genre match breakdown)
 - `/design/main.png` — Landing/logged-out screen (Get Started/Log In)
@@ -100,9 +102,10 @@ Authentication, Database, Deployment
 - Taste Insights by genre
 
 ### Sprint 5 — Compare & Matching (CURRENT)
-- Taste match % algorithm
-- Compare page (Summary/Favorites/Disagreements)
-- Recommendations
+- Taste match % algorithm ✅ done
+- Compare page ✅ done — match %, You Both Love / You Disagree On (disagreements
+  require a 2+ tier gap to filter out normal variance)
+- Recommendations — up next
 - "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
   comparison bit ("You and X agree on 94% of books..."), depends on the
   match % algorithm above

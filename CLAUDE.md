@@ -104,8 +104,10 @@ Authentication, Database, Deployment
 ### Sprint 5 — Compare & Matching (CURRENT)
 - Taste match % algorithm ✅ done
 - Compare page ✅ done — match %, You Both Love / You Disagree On (disagreements
-  require a 2+ tier gap to filter out normal variance)
-- Recommendations — up next
+  require a 2+ tier gap to filter out normal variance), Top Recommendation
+  For You card (their highest-rated book you don't already have in your
+  library, with an Add to List button)
+- Recommendations (standalone screen, per rec.png) — up next
 - "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
   comparison bit ("You and X agree on 94% of books..."), depends on the
   match % algorithm above

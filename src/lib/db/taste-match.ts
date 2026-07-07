@@ -146,3 +146,68 @@ export async function getComparisonSummary(
 
   return { match, bothLove, disagreeOn };
 }
+
+const SCORE_TO_TIER: Record<number, string> = Object.fromEntries(
+  Object.entries(TIER_SCORES).map(([tier, score]) => [score, tier]),
+);
+
+export type Recommendation = {
+  bookId: string;
+  title: string;
+  authors: string[] | null;
+  thumbnail: string | null;
+  tier: string;
+};
+
+type RecommendationBookRow = {
+  id: string;
+  title: string;
+  authors: string[] | null;
+  thumbnail_url: string | null;
+};
+
+// The other user's highest-rated book that the viewer doesn't already have
+// in their library (so we never "recommend" something they already know).
+export async function getTopRecommendation(
+  supabase: SupabaseServerClient,
+  viewerId: string,
+  otherId: string,
+): Promise<Recommendation | null> {
+  const [otherScores, { data: libraryRows }] = await Promise.all([
+    getBookScores(supabase, otherId),
+    supabase.from("user_books").select("book_id").eq("user_id", viewerId),
+  ]);
+
+  const viewerLibrary = new Set(
+    (libraryRows ?? []).map((row) => row.book_id as string),
+  );
+
+  let bestBookId: string | null = null;
+  let bestScore = -Infinity;
+
+  for (const [bookId, score] of otherScores) {
+    if (viewerLibrary.has(bookId)) continue;
+    if (score > bestScore) {
+      bestScore = score;
+      bestBookId = bookId;
+    }
+  }
+
+  if (!bestBookId) return null;
+
+  const { data: book } = await supabase
+    .from("books")
+    .select("id, title, authors, thumbnail_url")
+    .eq("id", bestBookId)
+    .maybeSingle<RecommendationBookRow>();
+
+  if (!book) return null;
+
+  return {
+    bookId: book.id,
+    title: book.title,
+    authors: book.authors,
+    thumbnail: book.thumbnail_url,
+    tier: SCORE_TO_TIER[Math.round(bestScore)] ?? "?",
+  };
+}

@@ -3,8 +3,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getComparisonSummary } from "@/lib/db/taste-match";
+import { getComparisonSummary, getTopRecommendation } from "@/lib/db/taste-match";
 import { CompareBookRow } from "@/components/compare-book-row";
+import { TopRecommendationCard } from "@/components/top-recommendation-card";
 
 type ProfileRow = {
   id: string;
@@ -74,11 +75,10 @@ export default async function CompareWithUserPage({
     );
   }
 
-  const { match, bothLove, disagreeOn } = await getComparisonSummary(
-    supabase,
-    me.id,
-    them.id,
-  );
+  const [{ match, bothLove, disagreeOn }, recommendation] = await Promise.all([
+    getComparisonSummary(supabase, me.id, them.id),
+    getTopRecommendation(supabase, me.id, them.id),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-8">
@@ -133,6 +133,14 @@ export default async function CompareWithUserPage({
           <CompareBookRow title="You Disagree On" books={disagreeOn} />
         </div>
       </div>
+
+      {recommendation && (
+        <TopRecommendationCard
+          recommendation={recommendation}
+          theirUsername={them.username}
+          path={`/compare/${username}`}
+        />
+      )}
     </div>
   );
 }

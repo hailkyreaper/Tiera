@@ -25,6 +25,7 @@ export default async function ListsPage() {
   const { data: tierLists } = await supabase
     .from("tier_lists")
     .select("id, title, is_public")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .returns<TierListRow[]>();
 

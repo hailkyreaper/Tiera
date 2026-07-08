@@ -107,7 +107,12 @@ Authentication, Database, Deployment
   require a 2+ tier gap to filter out normal variance), Top Recommendation
   For You card (their highest-rated book you don't already have in your
   library, with an Add to List button)
-- Recommendations (standalone screen, per rec.png) — up next
+- Recommendations ✅ done — standalone screen (rec.png), draws from the
+  top 5 most-similar users (85%+ preferred, falls back to closest matches),
+  deduped by book and title (catalog can have duplicate rows for the same
+  book), excludes anything already ranked or in your library. Linked from
+  Explore.
+- "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
 - "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
   comparison bit ("You and X agree on 94% of books..."), depends on the
   match % algorithm above

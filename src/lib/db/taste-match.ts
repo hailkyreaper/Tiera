@@ -1,8 +1,8 @@
 import type { createClient } from "@/lib/supabase/server";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+export type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const TIER_SCORES: Record<string, number> = {
+export const TIER_SCORES: Record<string, number> = {
   S: 6,
   A: 5,
   B: 4,
@@ -16,7 +16,7 @@ const MIN_SHARED_BOOKS = 3;
 
 type RankedRow = { book_id: string; tier: string };
 
-async function getBookScores(
+export async function getBookScores(
   supabase: SupabaseServerClient,
   userId: string,
 ): Promise<Map<string, number>> {
@@ -60,6 +60,33 @@ export type TasteMatch = {
   sharedBookCount: number;
 };
 
+// Pure comparison of two users' book-score maps — shared by Compare's
+// per-pair summary and Recommendations' scan across many candidate users.
+export function computeMatch(
+  scoresA: Map<string, number>,
+  scoresB: Map<string, number>,
+): TasteMatch {
+  let totalAgreement = 0;
+  let sharedBookCount = 0;
+
+  for (const [bookId, scoreA] of scoresA) {
+    const scoreB = scoresB.get(bookId);
+    if (scoreB === undefined) continue;
+
+    totalAgreement += 1 - Math.abs(scoreA - scoreB) / MAX_DIFF;
+    sharedBookCount += 1;
+  }
+
+  if (sharedBookCount < MIN_SHARED_BOOKS) {
+    return { percentage: null, sharedBookCount };
+  }
+
+  return {
+    percentage: Math.round((totalAgreement / sharedBookCount) * 100),
+    sharedBookCount,
+  };
+}
+
 export type SharedBook = {
   bookId: string;
   title: string;
@@ -93,8 +120,8 @@ export async function getComparisonSummary(
     getBookScores(supabase, userIdB),
   ]);
 
-  let totalAgreement = 0;
-  let sharedBookCount = 0;
+  const match = computeMatch(scoresA, scoresB);
+
   const sharedIds: string[] = [];
   const rawShared = new Map<string, { scoreA: number; scoreB: number }>();
 
@@ -102,19 +129,9 @@ export async function getComparisonSummary(
     const scoreB = scoresB.get(bookId);
     if (scoreB === undefined) continue;
 
-    totalAgreement += 1 - Math.abs(scoreA - scoreB) / MAX_DIFF;
-    sharedBookCount += 1;
     sharedIds.push(bookId);
     rawShared.set(bookId, { scoreA, scoreB });
   }
-
-  const match: TasteMatch =
-    sharedBookCount < MIN_SHARED_BOOKS
-      ? { percentage: null, sharedBookCount }
-      : {
-          percentage: Math.round((totalAgreement / sharedBookCount) * 100),
-          sharedBookCount,
-        };
 
   if (sharedIds.length === 0) {
     return { match, bothLove: [], disagreeOn: [] };
@@ -173,41 +190,61 @@ export async function getTopRecommendation(
   viewerId: string,
   otherId: string,
 ): Promise<Recommendation | null> {
-  const [otherScores, { data: libraryRows }] = await Promise.all([
+  const [otherScores, viewerScores, { data: libraryRows }] = await Promise.all([
     getBookScores(supabase, otherId),
+    getBookScores(supabase, viewerId),
     supabase.from("user_books").select("book_id").eq("user_id", viewerId),
   ]);
 
-  const viewerLibrary = new Set(
-    (libraryRows ?? []).map((row) => row.book_id as string),
+  // Exclude anything already in the viewer's library *or* already ranked by
+  // them directly — covers older rows from before library-syncing existed.
+  const viewerLibrary = new Set([
+    ...(libraryRows ?? []).map((row) => row.book_id as string),
+    ...viewerScores.keys(),
+  ]);
+
+  const candidateIds = [...otherScores.keys()].filter(
+    (bookId) => !viewerLibrary.has(bookId),
   );
 
-  let bestBookId: string | null = null;
-  let bestScore = -Infinity;
+  if (candidateIds.length === 0) return null;
 
-  for (const [bookId, score] of otherScores) {
-    if (viewerLibrary.has(bookId)) continue;
-    if (score > bestScore) {
-      bestScore = score;
-      bestBookId = bookId;
-    }
-  }
+  const { data: viewerBookRows } =
+    viewerLibrary.size > 0
+      ? await supabase
+          .from("books")
+          .select("id, title")
+          .in("id", [...viewerLibrary])
+          .returns<{ id: string; title: string }[]>()
+      : { data: [] as { id: string; title: string }[] };
 
-  if (!bestBookId) return null;
+  // The catalog can contain duplicate rows for the same real book (e.g. two
+  // different editions added separately) — exclude by title too, so a book
+  // the viewer already has under one row's id doesn't resurface under the
+  // other row's id.
+  const viewerTitles = new Set(
+    (viewerBookRows ?? []).map((book) => book.title.trim().toLowerCase()),
+  );
 
-  const { data: book } = await supabase
+  const { data: candidateBooks } = await supabase
     .from("books")
     .select("id, title, authors, thumbnail_url")
-    .eq("id", bestBookId)
-    .maybeSingle<RecommendationBookRow>();
+    .in("id", candidateIds)
+    .returns<RecommendationBookRow[]>();
 
-  if (!book) return null;
+  const best = (candidateBooks ?? [])
+    .filter((book) => !viewerTitles.has(book.title.trim().toLowerCase()))
+    .sort(
+      (a, b) => otherScores.get(b.id)! - otherScores.get(a.id)!,
+    )[0];
+
+  if (!best) return null;
 
   return {
-    bookId: book.id,
-    title: book.title,
-    authors: book.authors,
-    thumbnail: book.thumbnail_url,
-    tier: SCORE_TO_TIER[Math.round(bestScore)] ?? "?",
+    bookId: best.id,
+    title: best.title,
+    authors: best.authors,
+    thumbnail: best.thumbnail_url,
+    tier: SCORE_TO_TIER[Math.round(otherScores.get(best.id)!)] ?? "?",
   };
 }

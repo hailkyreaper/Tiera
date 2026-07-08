@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
@@ -106,7 +107,12 @@ export default async function ExplorePage({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
+        <Link href="/recommendations" className="text-sm font-medium text-primary">
+          Recommendations
+        </Link>
+      </div>
 
       <SegmentedTabs
         basePath="/explore"

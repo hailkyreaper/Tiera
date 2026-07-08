@@ -1,6 +1,6 @@
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
-import { addRecommendationToLibrary } from "@/app/(app)/compare/actions";
+import { addRecommendationToLibrary } from "@/lib/actions/library";
 import type { Recommendation } from "@/lib/db/taste-match";
 
 export function TopRecommendationCard({

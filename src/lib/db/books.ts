@@ -156,10 +156,20 @@ function clusterBySeriesAuthor(books: GoogleBookVolume[]): GoogleBookVolume[] {
   return [...sameAuthor, ...rest];
 }
 
-// Local results and the live Google search results are merged first (deduped
-// by volume id), then ranked by rating across all sources combined — a
-// well-known book should lead regardless of which source found it — with
+function byAverageRating(a: GoogleBookVolume, b: GoogleBookVolume): number {
+  return (b.volumeInfo.averageRating ?? 0) - (a.volumeInfo.averageRating ?? 0);
+}
+
+// Local results lead, then the live Google search results, each sorted
+// internally by the best rating signal available for that source, with
 // same-author companion volumes clustered right behind the top result.
+//
+// Local results don't have (and never will, without our own review system)
+// a ratingsCount from Google — sorting the whole combined pool by
+// ratingsCount together would unfairly bury an exact, already-vetted local
+// match below literally any Google result with a few ratings at all, even
+// an irrelevant special edition (sheet music, coloring books, etc. all
+// still match a loose text query and often outrank a clean match this way).
 export async function searchBooks(
   supabase: SupabaseServerClient,
   query: string,
@@ -172,13 +182,15 @@ export async function searchBooks(
 
   const seen = new Set<string>();
   const merged: GoogleBookVolume[] = [];
-  for (const book of [...localResults, ...googleResults]) {
+  for (const book of [
+    ...localResults.slice().sort(byAverageRating),
+    ...googleResults.slice().sort(byPopularity),
+  ]) {
     if (!seen.has(book.id)) {
       seen.add(book.id);
       merged.push(book);
     }
   }
 
-  const byRating = merged.sort(byPopularity);
-  return clusterBySeriesAuthor(byRating).slice(0, limit);
+  return clusterBySeriesAuthor(merged).slice(0, limit);
 }

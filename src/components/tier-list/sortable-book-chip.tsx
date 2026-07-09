@@ -8,15 +8,10 @@ export function SortableBookChip({
   bookId,
   title,
   thumbnail,
-  large,
 }: {
   bookId: string;
   title: string;
   thumbnail: string | null;
-  /** Unranked books render bigger since there's no title text next to them
-   * to identify a cover by — once dragged into a ranked tier, they shrink
-   * back to the standard chip size. */
-  large?: boolean;
 }) {
   const {
     attributes,
@@ -39,9 +34,11 @@ export function SortableBookChip({
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative w-full cursor-grab touch-none overflow-hidden rounded-xs active:cursor-grabbing ${
-        large ? "aspect-[32/45]" : "aspect-[11/14]"
-      }`}
+      // 2:3 matches typical book cover proportions (taller than the previous
+      // ~11:14/32:45 boxes), so object-cover only trims ~5% off a cover's
+      // height instead of ~20% — same ratio for both sizes, "large" only
+      // changes the grid's column count (via the parent), not this shape.
+      className="relative aspect-[2/3] w-full cursor-grab touch-none overflow-hidden rounded-xs active:cursor-grabbing"
     >
       {thumbnail ? (
         <Image src={thumbnail} alt={title} fill className="object-cover" />

@@ -6,7 +6,8 @@ export function ReadOnlyTierBoard({ columns }: { columns: Columns }) {
   const rankedTiers = TIERS.filter((tier) => tier !== "unranked");
 
   return (
-    <div className="flex flex-col gap-2">
+    // gap-2 (8px) reduced 40% to 4.8px per design feedback on tier-row spacing.
+    <div className="flex flex-col gap-[4.8px]">
       {rankedTiers.map((tier) => (
         <TierRowBar
           key={tier}

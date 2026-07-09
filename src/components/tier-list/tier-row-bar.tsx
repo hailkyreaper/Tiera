@@ -28,7 +28,7 @@ export function TierRowBar({
           collapsing to the badge's own text line-height. */}
       <div className="grid min-h-10 flex-1 grid-cols-8 content-start gap-0.5 self-stretch">
         {books.map((book) => (
-          <div key={book.id} className="relative aspect-[4/5] w-full">
+          <div key={book.id} className="relative aspect-[2/3] w-full">
             {book.thumbnail ? (
               <Image
                 src={book.thumbnail}

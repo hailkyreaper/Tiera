@@ -49,7 +49,6 @@ export function TierRow({ tier, cards }: { tier: Tier; cards: Card[] }) {
               bookId={card.bookId}
               title={card.title}
               thumbnail={card.thumbnail}
-              large={isUnranked}
             />
           ))}
         </div>

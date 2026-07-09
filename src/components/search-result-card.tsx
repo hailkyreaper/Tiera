@@ -1,5 +1,5 @@
 import { BookCover } from "@/components/book-cover";
-import { Button } from "@/components/ui/button";
+import { AddBookButton } from "@/components/add-book-button";
 import { bookFormFields, secureThumbnail, type GoogleBookVolume } from "@/lib/google-books";
 
 export function SearchResultCard({
@@ -20,18 +20,7 @@ export function SearchResultCard({
   const thumbnail = secureThumbnail(book.volumeInfo.imageLinks?.thumbnail);
   const authors = book.volumeInfo.authors?.join(", ");
   const publishedYear = book.volumeInfo.publishedDate?.slice(0, 4);
-
-  const hiddenFields = (
-    <>
-      {Object.entries(bookFormFields(book)).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
-      ))}
-      {extraFields &&
-        Object.entries(extraFields).map(([name, value]) => (
-          <input key={name} type="hidden" name={name} value={value} />
-        ))}
-    </>
-  );
+  const fields = { ...bookFormFields(book), ...extraFields };
 
   if (layout === "list") {
     return (
@@ -51,12 +40,9 @@ export function SearchResultCard({
               Published {publishedYear}
             </p>
           )}
-          <form action={action} className="mt-1">
-            {hiddenFields}
-            <Button type="submit" size="sm" variant="outline">
-              {buttonLabel}
-            </Button>
-          </form>
+          <div className="mt-1">
+            <AddBookButton action={action} fields={fields} label={buttonLabel} />
+          </div>
         </div>
       </div>
     );
@@ -78,12 +64,12 @@ export function SearchResultCard({
           <p className="text-xs text-muted-foreground">{publishedYear}</p>
         )}
       </div>
-      <form action={action}>
-        {hiddenFields}
-        <Button type="submit" size="sm" variant="outline" className="w-full">
-          {buttonLabel}
-        </Button>
-      </form>
+      <AddBookButton
+        action={action}
+        fields={fields}
+        label={buttonLabel}
+        className="w-full"
+      />
     </div>
   );
 }

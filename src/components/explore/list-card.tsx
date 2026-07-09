@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart, Lock, MessageCircle } from "lucide-react";
 import { TIERS, type Tier } from "@/lib/tiers";
 import { formatRelativeTime } from "@/lib/format-time";
 import { TierRowBar } from "@/components/tier-list/tier-row-bar";
@@ -16,6 +16,7 @@ export function ExploreListCard({
   likeCount,
   commentCount,
   matchPercentage,
+  isPublic,
   preview,
   fromTab,
 }: {
@@ -27,6 +28,9 @@ export function ExploreListCard({
   likeCount: number;
   commentCount: number;
   matchPercentage?: number | null;
+  /** Omitted entirely on Explore, where every list is already public by
+   * definition — only meaningful (and passed) on the owner's own Profile. */
+  isPublic?: boolean;
   preview: Record<Tier, PreviewBook[]>;
   fromTab?: "explore" | "profile";
 }) {
@@ -69,7 +73,12 @@ export function ExploreListCard({
         )}
       </div>
 
-      <h3 className="-mt-1 font-semibold text-foreground">{title}</h3>
+      <h3 className="-mt-1 flex items-center gap-1.5 font-semibold text-foreground">
+        {title}
+        {isPublic === false && (
+          <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+        )}
+      </h3>
 
       <div className="flex flex-col gap-2">
         {rankedTiers.map((tier) => (

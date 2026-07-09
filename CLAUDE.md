@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Actively in development. Sprints 1-5.5 are complete. Waiting to be told to start Sprint 6 (see Sprint Rule).
+Actively in development. Sprints 1-6 are complete (Sprint 6 finished incidentally — 
+its items were either already done in 5.5, or merged into the Sprint 5 addendum's 
+Top Matches work). Waiting to be told to start Sprint 7 (see Sprint Rule).
 
 ## Vision
 
@@ -117,8 +119,8 @@ above.
 
 ## Current sprint
 
-None marked active. Sprint 5.5 is complete — wait to be explicitly told to mark 
-Sprint 6 current before starting it.
+None marked active. Sprints 1-6 are complete — wait to be explicitly told to mark 
+Sprint 7 current before starting it.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -260,7 +262,7 @@ upload `comupdate.png`) expand Compare beyond what shipped in Sprint 5:
   `lib/db/top-matches.ts` (`getTopMatches`, `getOtherUserCount`). Detail page 
   (compare-v2, above) is unchanged — cards just link into it like before.
 
-### Sprint 6 — Social Layer
+### Sprint 6 — Social Layer ✅ COMPLETE
 - Follow system ✅ done (built in Sprint 5.5)
 - Comments ✅ done (built in Sprint 5.5)
 - "People you might vibe with" ✅ done — merged into Top Matches above, not a 
@@ -312,3 +314,13 @@ explicitly before building.
 - Data quality: duplicate book catalog rows for the same title (e.g. "Powerless," 
   "The Fires of Vengeance") — currently defended against with title-based de-dupe 
   in Compare/Recommendations, but source rows were never merged.
+- Saved matches have no destination screen. The Save Match toggle on Compare 
+  (`saved_matches` table + `toggleSavedMatch` action) works and persists, but 
+  there's nowhere to actually browse who you've saved. Needs a simple list page 
+  (saved users, linking into their Compare page).
+- Bad word filter for comments/usernames — not started. Needs a decision first: 
+  simple hardcoded wordlist (free, easy to bypass) vs. a real moderation 
+  library/API (better coverage, more setup), and whether it should hard-block 
+  submission or just flag for review.
+- User feedback: "UI is extremely inconsistent" — flagged without specific 
+  examples yet. Revisit once there are concrete screens/elements to point to.

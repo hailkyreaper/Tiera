@@ -123,7 +123,10 @@ export default async function TierListPage({
             tags={tierList.tags}
             isPublic={tierList.is_public}
             isNew={isNewParam === "true"}
-          />
+          >
+            <TierBoard tierListId={id} initialColumns={initialColumns} />
+            <ListActionsBar tierListId={id} isEditing />
+          </EditListDetailsForm>
         ) : (
           <>
             <BackButton />
@@ -146,12 +149,12 @@ export default async function TierListPage({
                 <DeleteListButton tierListId={id} />
               </div>
             </div>
+
+            <TierBoard tierListId={id} initialColumns={initialColumns} />
+
+            <ListActionsBar tierListId={id} />
           </>
         )}
-
-        <TierBoard tierListId={id} initialColumns={initialColumns} />
-
-        <ListActionsBar tierListId={id} />
       </div>
     );
   }

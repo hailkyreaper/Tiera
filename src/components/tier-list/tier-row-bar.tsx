@@ -10,8 +10,6 @@ export function TierRowBar({
   tier: Exclude<Tier, "unranked">;
   books: PreviewBook[];
 }) {
-  if (books.length === 0) return null;
-
   return (
     <div className="flex h-10 gap-1 overflow-hidden rounded-[2px]">
       <span

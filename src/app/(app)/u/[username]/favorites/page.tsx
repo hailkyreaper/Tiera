@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { FavoritesGrid } from "@/components/favorites-grid";
+import { BackButton } from "@/components/back-button";
 
 type ProfileRow = { id: string; username: string };
 
@@ -28,13 +28,13 @@ export default async function UserFavoritesPage({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
-      <h1 className="text-xl font-semibold text-foreground">
-        @{profile.username}&apos;s Favorites
-      </h1>
+      <div className="flex items-center gap-2">
+        <BackButton />
+        <h1 className="text-xl font-semibold text-foreground">
+          @{profile.username}&apos;s Favorites
+        </h1>
+      </div>
       <FavoritesGrid books={books} />
-      <Link href={`/u/${profile.username}`} className="text-sm text-primary">
-        ← Back
-      </Link>
     </div>
   );
 }

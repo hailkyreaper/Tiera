@@ -51,14 +51,36 @@ export default async function ExplorePage({
     .eq("is_public", true)
     .limit(20);
 
+  if (tab === "following") {
+    const followingIds = user
+      ? (
+          await supabase
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", user.id)
+        ).data?.map((row) => row.following_id as string) ?? []
+      : [];
+
+    // No one followed yet (or logged out) — show nothing rather than
+    // silently falling back to the unfiltered feed.
+    listsQuery = listsQuery.in(
+      "user_id",
+      followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"],
+    );
+  }
+
   // "For You" is a placeholder until real taste-match scoring exists
-  // (Sprint 5) — for now it sorts the same way as following.
+  // (Sprint 5) — for now it sorts by popularity. Both branches add a final
+  // `id` tiebreaker so ties (e.g. everything at like_count 0 in a fresh
+  // dataset) return in a stable, deterministic order instead of shuffling
+  // between requests.
   listsQuery =
     tab === "recent"
-      ? listsQuery.order("created_at", { ascending: false })
+      ? listsQuery.order("created_at", { ascending: false }).order("id")
       : listsQuery
           .order("like_count", { ascending: false })
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .order("id");
 
   const { data: tierLists } = await listsQuery.returns<TierListRow[]>();
 

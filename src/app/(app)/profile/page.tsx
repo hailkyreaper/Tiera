@@ -234,6 +234,7 @@ export default async function ProfilePage({
                     createdAt={list.createdAt}
                     likeCount={list.likeCount}
                     commentCount={list.commentCount}
+                    isPublic={list.isPublic}
                     preview={list.preview}
                     fromTab="profile"
                   />

@@ -13,6 +13,7 @@ export type ListCardData = {
   likeCount: number;
   commentCount: number;
   matchPercentage: number | null;
+  isPublic: boolean;
   preview: Record<Tier, PreviewBook[]>;
 };
 
@@ -22,6 +23,7 @@ type TierListRow = {
   like_count: number;
   comment_count: number;
   created_at: string;
+  is_public: boolean;
 };
 
 type ItemRow = {
@@ -37,7 +39,7 @@ export async function getUserListCards(
 ): Promise<ListCardData[]> {
   let query = supabase
     .from("tier_lists")
-    .select("id, title, like_count, comment_count, created_at")
+    .select("id, title, like_count, comment_count, created_at, is_public")
     .eq("user_id", userId)
     .eq("is_draft", false)
     .order("created_at", { ascending: false });
@@ -100,6 +102,7 @@ export async function getUserListCards(
     likeCount: list.like_count,
     commentCount: list.comment_count,
     matchPercentage,
+    isPublic: list.is_public,
     preview: previewByListId[list.id],
   }));
 }

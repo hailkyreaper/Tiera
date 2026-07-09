@@ -12,7 +12,12 @@ function parseTags(raw: string): string[] | null {
   return tags.length > 0 ? tags : null;
 }
 
-export async function updateListDetails(formData: FormData) {
+// Shared by updateListDetails and the "save and go to search/library"
+// actions below — the title/visibility fields live in client state and are
+// otherwise lost the instant you navigate to a different route (which
+// Search Books / Add from Library both are), since nothing had ever
+// submitted them yet.
+async function saveListFields(formData: FormData): Promise<string> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,8 +39,23 @@ export async function updateListDetails(formData: FormData) {
     .eq("id", tierListId)
     .eq("user_id", user.id);
 
+  return tierListId;
+}
+
+export async function updateListDetails(formData: FormData) {
+  const tierListId = await saveListFields(formData);
   revalidatePath(`/lists/${tierListId}`);
   redirect(`/lists/${tierListId}`);
+}
+
+export async function saveAndGoToSearch(formData: FormData) {
+  const tierListId = await saveListFields(formData);
+  redirect(`/lists/${tierListId}/search`);
+}
+
+export async function saveAndGoToLibrary(formData: FormData) {
+  const tierListId = await saveListFields(formData);
+  redirect(`/lists/${tierListId}/library`);
 }
 
 // Cancel on a still-unsaved draft discards it entirely (any books already
@@ -108,6 +128,7 @@ export async function addBookToTier(
     );
 
   revalidatePath(`/lists/${tierListId}`);
+  revalidateCompare();
 }
 
 export async function moveBookToTier(
@@ -126,6 +147,17 @@ export async function moveBookToTier(
 
   await supabase.from("tier_list_items").update({ tier }).eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
+  revalidateCompare();
+}
+
+// Ranking a book (or moving it between tiers) changes the score
+// computeMatch uses, which every Compare page depends on — but those are
+// separate routes revalidatePath(`/lists/${id}`) above never touches.
+// Compare/[username] is a dynamic route, so revalidating it needs the
+// 'page' type to cover every username, not just one specific instance.
+function revalidateCompare() {
+  revalidatePath("/compare");
+  revalidatePath("/compare/[username]", "page");
 }
 
 export async function reorderTierItems(

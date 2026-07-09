@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This repository is currently empty of code — it contains only this `CLAUDE.md`. There is no `package.json`, no scaffolding, and no build/lint/test tooling yet. When scaffolding the project, use the tech stack below and follow the design/engineering rules exactly; do not introduce a different stack or deviate from the stated conventions.
+Actively in development. Sprints 1-5.5 are complete. Waiting to be told to start Sprint 6 (see Sprint Rule).
 
 ## Vision
 
@@ -31,7 +31,31 @@ Tiera helps people discover entertainment they'll actually enjoy through taste-b
 
 ## Navigation structure
 
-Top-level sections: Explore, Lists, Search, Compare, Profile.
+Bottom nav (left to right): Explore, Search, Create List (center), Compare, Profile.
+
+- **Explore**: main discovery feed
+- **Search**: books + people
+- **Create List** (center): the `/lists` route, repurposed as a create-only 
+  screen (see Sprint 5.5 item 4 for the full spec) — NOT a browsable lists 
+  page. There is no standalone "browse all lists" screen.
+- **Compare**: taste-match comparison tool. Landing view shows a "Top Matches" list 
+  (people ranked by taste match %, similar to Recommendations' matching logic) 
+  ABOVE/ALONGSIDE the existing username search — both should coexist, not replace 
+  each other.
+- **Profile**: your own profile — includes Top Favorites AND your own created 
+  lists, shown directly on the profile page exactly as they display today 
+  (full list cards, not a grid)
+
+Tapping a list card (from Explore, Profile, or anywhere else) opens the list detail 
+view without switching the active bottom nav tab — the nav stays highlighted on 
+whichever tab the user came from, similar to how Reddit keeps you under a feed tab 
+when you open a post.
+
+Note: some reference mockups (e.g. topmatches.png) show a different 5-item nav 
+(Home/Explore/Discover/Top Matches/Lists) generated from a generic template — this 
+does NOT apply. Our nav structure above is the source of truth; only use these 
+mockups for the Top Matches list content and Compare detail page content, not their 
+nav bar.
 
 ## Engineering rules
 
@@ -51,6 +75,10 @@ Top-level sections: Explore, Lists, Search, Compare, Profile.
 - Compare users
 - Recommendations
 
+Note: Taste Insights (genre breakdown page) was built in Sprint 4, then removed in 
+Sprint 5.5 — doesn't serve the core mission of comparing taste with others. May 
+revisit later as an input to Compare/Recommendations rather than a standalone page.
+
 ## Design References
 
 Reference images live in `/design/`. Before building or restyling any screen, look at 
@@ -59,16 +87,28 @@ as possible — not just the general rules above.
 
 - `/design/Explorepage.png` — Explore feed (list cards, tabs, tier previews)
 - `/design/search.png` — Search page (books/people tabs, recent/popular searches)
-- `/design/createlist.png` — Create/edit tier list screen (tiers, unranked books, 
-  visibility toggle)
+- `/design/createlist.png` — the repurposed `/lists` route (center nav "Create" 
+  button), owner-only, no social elements. One unified card (cover picker, 
+  Title, Description, Tags, Visibility), the tier board (colored-bar style, 
+  drag-and-drop), Unranked Books section, and a Search Books / Import / Add 
+  from Library action bar.
 - `/design/profile.png` — Own profile page (stats, top favorites, bio)
-- `/design/otheruser.png` — Another user's public profile view (e.g. Follow button 
-  instead of Edit Profile)
-- `/design/compare.png` — Compare page (match %, Summary — You Both Love / You
-  Disagree On; no separate Favorites/Disagreements tabs, that content is
-  folded into the single Summary view)
+- `/design/otheruser.png` — Another user's public profile view (Follow button 
+  instead of Edit Profile) — also used as the reference for the additional 
+  creator/profile context that should appear on the list detail page
+- `/design/compare.png` — Compare detail page, original version: match %, Summary 
+  (You Both Love / You Disagree On)
+- `/design/compare-v2.png` — Compare detail page, UPDATED reference (save the new 
+  uploaded image here): adds Shared Dislikes count, a 3-stat row (Shared Favorites / 
+  Shared Dislikes / Biggest Disagreements), disagreements shown as a You-rated vs. 
+  They-rated table, inline "Based on this match, you might like" recommendations 
+  with match % and Add buttons, View Full Profile + Save Match buttons at the bottom
+- `/design/topmatches.png` — NEW reference (save the new uploaded image here): the 
+  Compare landing screen's "Top Matches" list — taste score summary card, All/Books/
+  Want to Read filter tabs, ranked list of match cards (avatar, name, @username, 
+  match %, books ranked, top genres, top favorites row). IGNORE this image's bottom 
+  nav bar — see Navigation structure note above.
 - `/design/rec.png` — Recommendations screen
-- `/design/tasteinsights.png` — Taste Insights tab (genre match breakdown)
 - `/design/main.png` — Landing/logged-out screen (Get Started/Log In)
 
 When building a feature, always check the matching image above first. If a screen 
@@ -77,7 +117,8 @@ above.
 
 ## Current sprint
 
-Sprint 5 (active): Taste match % algorithm, Compare page (Summary/Favorites/Disagreements), Recommendations.
+None marked active. Sprint 5.5 is complete — wait to be explicitly told to mark 
+Sprint 6 current before starting it.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -96,31 +137,134 @@ Authentication, Database, Deployment
 - Public list viewing, likes/comments
 - Basic search (books + people)
 
-### Sprint 4 — Profile & Taste Insights ✅ COMPLETE
+### Sprint 4 — Profile & Taste Insights ✅ COMPLETE (Taste Insights later removed, see Sprint 5.5)
 - Profile page with stats
 - Top Favorites
 - Taste Insights by genre
 
-### Sprint 5 — Compare & Matching (CURRENT)
-- Taste match % algorithm ✅ done
-- Compare page ✅ done — match %, You Both Love / You Disagree On (disagreements
-  require a 2+ tier gap to filter out normal variance), Top Recommendation
-  For You card (their highest-rated book you don't already have in your
-  library, with an Add to List button)
-- Recommendations ✅ done — standalone screen (rec.png), draws from the
-  top 5 most-similar users (85%+ preferred, falls back to closest matches),
-  deduped by book and title (catalog can have duplicate rows for the same
-  book), excludes anything already ranked or in your library. Linked from
-  Explore.
-- "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
-- "Taste Roast" comparison blurb (seen in tasteinsights.png) — a two-user
-  comparison bit ("You and X agree on 94% of books..."), depends on the
-  match % algorithm above
+### Sprint 5 — Compare & Matching ✅ COMPLETE
+- Taste match % algorithm
+- Compare page — match %, You Both Love / You Disagree On (disagreements require a 
+  2+ tier gap to filter out normal variance), Top Recommendation For You card
+- Recommendations — standalone screen, draws from the top 5 most-similar users 
+  (85%+ preferred, falls back to closest matches), deduped by book/title, excludes 
+  anything already ranked or in your library. Linked from Explore.
+- "Taste Roast" comparison blurb — depends on the match % algorithm above
+
+### Sprint 5.5 — Structural Audit Fixes ✅ COMPLETE
+Full app audit surfaced these issues — fixing before Sprint 6, since Social Layer 
+work would otherwise build on top of broken navigation/linking.
+
+1. **List detail navigation context** ✅ done:
+   - Bottom nav stays on the tab the user came from (Explore/Profile), via a 
+     `?from=` param read by `NavBar`; no tab lights up if there's no recognized 
+     origin (e.g. opened from someone else's `/u/[username]`)
+   - Back button (top-left, `router.back()`) on the list detail page (both 
+     owner/visitor views) and on `/u/[username]`
+   - Follow system built for real (`follows` table + `toggleFollow` action + 
+     `FollowButton`), used on both `/u/[username]` and the list detail page
+   - `/u/[username]` mirrors `/profile`'s full layout (banner, avatar, stats, 
+     bio/location/joined date, Favorites, Lists) — Edit Profile slot becomes 
+     Follow; viewing your own username redirects to `/profile`
+   - List detail page now shows creator avatar + username (linked) + relative 
+     timestamp, list description + tags (new nullable `tier_lists.description`/
+     `tags` columns, editable by the owner via an "Edit details" toggle, set at 
+     creation via the `/lists` create form), and — for visitors — your taste 
+     match % against the creator next to the like/comment counts
+   - Comments now show each commenter's avatar + relative timestamp, and the 
+     post box uses an icon-only send button
+   - The visitor (read-only) tier board now reuses the same `TierRowBar` 
+     component as the Explore card, so both render identically. The owner's 
+     interactive drag-and-drop board is unchanged (different interaction 
+     model — not restyled in this pass).
+2. **List card styling** ✅ done — restyled to match Explorepage.png/otheruser.png: 
+   creator avatar + username + relative timestamp header, per-tier colored full-height 
+   bars (letter cell + shared lighter content-cell background + faint dividers 
+   between cover slots, one continuous rounded bar, not a floating badge), real 
+   match % per card (computed against each list's creator, omitted on your own 
+   lists / when not logged in / below the 3-shared-book minimum).
+3. **Profile linking gaps** ✅ done — Explore card @username, comment @username, 
+   Compare's Top Recommendation card @username, and Compare header's "them" 
+   @username all now link to that user's profile. Left as plain text anywhere a 
+   username is the page's own subject (self-referential, e.g. your own `/profile`).
+4. **Restructure Lists navigation** ✅ done (no Instagram grid — Profile's list 
+   display was left exactly as it already showed):
+   - Bottom nav reordered to Explore / Search / **Create** (center, circular 
+     purple button) / Compare / Profile. "Create" is the `/lists` route, 
+     repurposed — not a separate `/lists/new`, and no more browsing page.
+   - `/lists` (no id) now just silently creates a blank list and redirects to 
+     `/lists/[id]?edit=true&new=true`.
+   - The owner's view of a list is now fully separate from the visitor's, and 
+     has **no social elements at all** (no creator avatar/username/timestamp, 
+     no likes, no comments, no Follow) — that entire header only exists on the 
+     visitor-facing view (`otheruser.png` style), unchanged.
+   - Owner edit mode (`?edit=true`, shown automatically for new lists): 
+     Cancel / "Create List" or "Edit List" / Save header, then **one** unified 
+     card (matching createlist.png exactly) with a cover-picker placeholder, 
+     List Title (live `20/40` counter), Description, Tags, and a Visibility 
+     dropdown (Public/Private) — replaces the old separate Make/Public-Private 
+     button.
+   - Owner normal mode: title + description/tags + Edit + Delete buttons, then 
+     the tier board, then the action bar.
+   - Tier board: ranked S–F tiers, then "Unranked Books (N)" as its own 
+     section below. The old "add from your library" browsing row and its 
+     drag-out-to-remove behavior were removed entirely (superseded by "Add 
+     from Library," below).
+   - The interactive drag-and-drop board now uses the same colored-bar look 
+     as `TierRowBar` (full-height letter cell, shared content-cell background, 
+     divider lines between cover slots), sized slightly bigger than the 
+     Explore card version (`h-14`/`w-11` vs `h-10`/`w-8`). Old square 
+     `BookTile`/`SortableBookCard` tiles removed; new `SortableBookChip` keeps 
+     drag-and-drop fully working via the same dnd-kit wiring. The drag 
+     overlay preview was resized to match.
+   - Bottom action bar is one unified `bg-card` pill (matching the top 
+     container), three segments: **Search Books**, **Import** (inert 
+     placeholder — future AI photo-import idea, backlog), **Add from Library** 
+     (renamed from "Reorder", which was dropped).
+   - **Search Books** → dedicated `/lists/[id]/search` page (Goodreads-style): 
+     search, tap Add, book goes to Unranked, stays on the page so you can add 
+     several in a row.
+   - **Add from Library** → dedicated `/lists/[id]/library` page: shows books 
+     already in your library not yet in this list, same tap-to-add-and-stay 
+     pattern.
+   - Deleting a list redirects to `/profile` (no more `/lists` to return to).
+5. **Nav label fix** ✅ done — "Home" → "Explore".
+6. **Delete Taste Insights** ✅ done — removed /profile/insights (genre breakdown 
+   + Taste Roast) and its link from /profile.
+
+### Sprint 5 addendum — Compare enhancements (pull in after Sprint 5.5)
+Reference images compare-v2.png and topmatches.png (both cropped from the combined 
+upload `comupdate.png`) expand Compare beyond what shipped in Sprint 5:
+- Compare detail page ✅ done — Shared Dislikes count (both C-tier or lower, the 
+  mirror of the existing "both love it" A-or-higher threshold), a 3-stat summary 
+  row (`CompareStatsRow`), "Top Books You Both Love" as a full list (cover/title/
+  author/tier badge, not just a cover strip), a You-rated vs. They-rated 
+  disagreements table (`DisagreementsTable`, semantic red/green coloring rather 
+  than tier-spectrum colors — the point is sentiment, not tier branding), inline 
+  match-based recommendations (`getMatchRecommendations`, top 4 of the other 
+  user's highest-rated unowned books with a per-book confidence %, reusing the 
+  existing `RecommendationRow` from the standalone Recommendations screen), View 
+  Full Profile button, and a real working Save Match toggle (`saved_matches` 
+  table + `toggleSavedMatch` action — persists, but there's no dedicated "view 
+  your saved matches" screen yet).
+- Compare landing page's "Top Matches" list ✅ done — decided this IS Sprint 6's 
+  "People you might vibe with" (same idea, not two separate features), so it 
+  closes both out at once. "Your taste score" card (ring showing your single 
+  best match % on the platform, plus "you match with N% of users" coverage 
+  stat from `getOtherUserCount`), **All** / **Friends** tabs (`SegmentedTabs`), 
+  Friends restricted to who you follow via the existing `follows` table, ranked 
+  match cards (avatar, match %, books ranked, top genres aggregated from their 
+  ranked books' categories, top favorite covers via the existing 
+  `getFavoriteBooks`). The existing username search bar moved into the Friends 
+  tab (same `goToCompare` action, unchanged behavior, just relocated). New 
+  `lib/db/top-matches.ts` (`getTopMatches`, `getOtherUserCount`). Detail page 
+  (compare-v2, above) is unchanged — cards just link into it like before.
 
 ### Sprint 6 — Social Layer
-- Follow system
-- Comments
-- "People you might vibe with"
+- Follow system ✅ done (built in Sprint 5.5)
+- Comments ✅ done (built in Sprint 5.5)
+- "People you might vibe with" ✅ done — merged into Top Matches above, not a 
+  separate feature
 
 ### Sprint 7 — Import & Search Polish
 - Goodreads CSV import
@@ -138,6 +282,33 @@ Authentication, Database, Deployment
 ## Sprint Rule
 Only work on the sprint marked CURRENT. Do not start future sprints unless explicitly told to. After finishing a sprint, mark it ✅ COMPLETE and wait for the next sprint to be marked CURRENT before proceeding.
 
+## Ideas Backlog
+Ideas worth remembering but not yet scheduled into a sprint. Pull into a sprint 
+explicitly before building.
+
+- V2: Upgrade `current_tier` calculation from flat average to recency-weighted 
+  average (Amazon/Netflix-style time-decay). Deferred for MVP simplicity.
+- AI photo import: let people add books by taking a photo of the physical book 
+  (the Create List action bar's "Import" button is an inert placeholder for this 
+  today). Doable for a single cover photo (vision model reads title/author, then 
+  match against the existing Google Books lookup for real metadata), much less 
+  reliable for a full bookshelf photo (angled/partial spines). Needs a new vision-
+  model integration (cost per call, separate from the free Google Books calls 
+  already used), photo upload UI, and a review/confirm step before adding, since 
+  misreads are expected. Not in the roadmap yet — pull into a real sprint before 
+  building.
+
 ## To Do
 
-- No place to view books when added to library except for going into lists and scrolling down to library.
+- No place to view books when added to library except for going into lists and 
+  scrolling down to library.
+- Security: `/admin/backfill-categories` has no admin/role check — any logged-in 
+  user can currently trigger it. Needs a role check before Sprint 6. ✅ done — new 
+  `profiles.is_admin` column (migration `0017`) + shared `isAdmin()` helper 
+  (`lib/auth/admin.ts`), gating both the page (404 for non-admins) and the server 
+  action itself. No self-service way to grant admin yet — set your own account 
+  manually via `update profiles set is_admin = true where id = auth.uid();` after 
+  running the migration.
+- Data quality: duplicate book catalog rows for the same title (e.g. "Powerless," 
+  "The Fires of Vengeance") — currently defended against with title-based de-dupe 
+  in Compare/Recommendations, but source rows were never merged.

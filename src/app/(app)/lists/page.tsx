@@ -1,18 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createTierList } from "./actions";
 import { createClient } from "@/lib/supabase/server";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
-type TierListRow = {
-  id: string;
-  title: string;
-  is_public: boolean;
-};
+type IdRow = { id: string };
 
-export default async function ListsPage() {
+// The center nav "Create" button lands here. There's no browsing UI of its
+// own — it immediately creates a blank list and redirects into that list's
+// own page, which doubles as the create/edit screen (styled per
+// createlist.png).
+export default async function CreateListEntryPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -22,46 +17,15 @@ export default async function ListsPage() {
     redirect("/login");
   }
 
-  const { data: tierLists } = await supabase
+  const { data, error } = await supabase
     .from("tier_lists")
-    .select("id, title, is_public")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .returns<TierListRow[]>();
+    .insert({ user_id: user.id, title: "", is_public: false, is_draft: true })
+    .select("id")
+    .single<IdRow>();
 
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold text-foreground">Your lists</h1>
+  if (error || !data) {
+    redirect("/profile");
+  }
 
-      <form action={createTierList} className="flex gap-2">
-        <Input
-          name="title"
-          placeholder="New list name (e.g. Favorite Sci-Fi)"
-          className="flex-1"
-        />
-        <Button type="submit">Create list</Button>
-      </form>
-
-      <div className="flex flex-col gap-3">
-        {tierLists?.length ? (
-          tierLists.map((list) => (
-            <Link key={list.id} href={`/lists/${list.id}`}>
-              <Card className="transition-colors hover:bg-muted">
-                <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <CardTitle className="text-base">{list.title}</CardTitle>
-                  <span className="text-xs font-medium text-muted-foreground uppercase">
-                    {list.is_public ? "Public" : "Private"}
-                  </span>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))
-        ) : (
-          <p className="text-muted-foreground">
-            You don&apos;t have any tier lists yet — create one above.
-          </p>
-        )}
-      </div>
-    </div>
-  );
+  redirect(`/lists/${data.id}?edit=true&new=true`);
 }

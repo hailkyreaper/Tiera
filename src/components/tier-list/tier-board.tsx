@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  CollisionDetection,
   DndContext,
   DragEndEvent,
   DragOverEvent,
@@ -9,23 +10,35 @@ import {
   DragStartEvent,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import Image from "next/image";
 import {
   addBookToTier,
   moveBookToTier,
-  removeBookFromList,
   reorderTierItems,
 } from "@/app/(app)/lists/actions";
-import { BookCover } from "@/components/book-cover";
 import { TIERS } from "@/lib/tiers";
 import { TierRow } from "./tier-row";
-import { LibraryRow } from "./library-row";
 import type { Card, Columns, ContainerId } from "./types";
 
-const CONTAINERS: ContainerId[] = [...TIERS, "library"];
+const CONTAINERS: ContainerId[] = [...TIERS];
+
+// Unranked chips (90px) are noticeably bigger than ranked-tier rows (56px),
+// which throws off plain closestCenter: it compares the dragged rect's own
+// center to each row's center, and a taller dragged rect's center doesn't
+// line up with the cursor the way a same-sized one would — some rows become
+// hard to land on. Preferring pointerWithin (did the cursor actually enter
+// this row?) and only falling back to closestCenter when the pointer isn't
+// over anything fixes that; this is dnd-kit's own recommended pattern for
+// mixed-size multi-container drag targets.
+const collisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+};
 
 export function TierBoard({
   tierListId,
@@ -130,13 +143,6 @@ export function TierBoard({
     );
     if (!card) return;
 
-    if (overContainer === "library") {
-      if (card.itemId) {
-        await removeBookFromList(card.itemId, tierListId);
-      }
-      return;
-    }
-
     if (card.itemId) {
       if (startContainer !== overContainer) {
         await moveBookToTier(card.itemId, tierListId, overContainer);
@@ -153,35 +159,50 @@ export function TierBoard({
     }
   }
 
+  const rankedTiers = TIERS.filter((tier) => tier !== "unranked");
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col gap-6">
-        {TIERS.map((tier) => (
+      <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm bg-card p-2">
+        {rankedTiers.map((tier) => (
           <TierRow key={tier} tier={tier} cards={columns[tier]} />
         ))}
       </div>
 
-      <div className="mt-8 flex flex-col gap-2">
+      <div className="flex flex-col gap-2 overflow-hidden rounded-sm bg-card p-2">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase">
-          Add from your library
+          Unranked Books ({columns.unranked.length})
         </h2>
-        <LibraryRow cards={columns.library} />
+        <TierRow tier="unranked" cards={columns.unranked} />
       </div>
 
       <DragOverlay>
         {activeCard && (
-          <div className="w-28">
-            <BookCover
-              src={activeCard.thumbnail}
-              alt={activeCard.title}
-              size={112}
-            />
+          <div
+            className={`relative overflow-hidden rounded-[4px] ${
+              startContainerRef.current === "unranked"
+                ? "h-[90px] w-16"
+                : "h-14 w-11"
+            }`}
+          >
+            {activeCard.thumbnail ? (
+              <Image
+                src={activeCard.thumbnail}
+                alt={activeCard.title}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                {activeCard.title[0]?.toUpperCase() ?? "?"}
+              </div>
+            )}
           </div>
         )}
       </DragOverlay>

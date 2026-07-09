@@ -1,5 +1,6 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { Tier } from "@/lib/tiers";
+import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -8,8 +9,10 @@ type PreviewBook = { id: string; title: string; thumbnail: string | null };
 export type ListCardData = {
   id: string;
   title: string;
+  createdAt: string;
   likeCount: number;
   commentCount: number;
+  matchPercentage: number | null;
   preview: Record<Tier, PreviewBook[]>;
 };
 
@@ -18,6 +21,7 @@ type TierListRow = {
   title: string;
   like_count: number;
   comment_count: number;
+  created_at: string;
 };
 
 type ItemRow = {
@@ -29,17 +33,28 @@ type ItemRow = {
 export async function getUserListCards(
   supabase: SupabaseServerClient,
   userId: string,
-  { publicOnly = false }: { publicOnly?: boolean } = {},
+  { publicOnly = false, viewerId }: { publicOnly?: boolean; viewerId?: string } = {},
 ): Promise<ListCardData[]> {
   let query = supabase
     .from("tier_lists")
-    .select("id, title, like_count, comment_count")
+    .select("id, title, like_count, comment_count, created_at")
     .eq("user_id", userId)
+    .eq("is_draft", false)
     .order("created_at", { ascending: false });
 
   if (publicOnly) {
     query = query.eq("is_public", true);
   }
+
+  // A single match % for the (viewer, list owner) pair — same for every
+  // list of theirs, since match % isn't a per-list property.
+  const matchPercentage: number | null =
+    viewerId && viewerId !== userId
+      ? computeMatch(
+          await getBookScores(supabase, viewerId),
+          await getBookScores(supabase, userId),
+        ).percentage
+      : null;
 
   const { data: tierLists } = await query.returns<TierListRow[]>();
   const lists = tierLists ?? [];
@@ -81,8 +96,10 @@ export async function getUserListCards(
   return lists.map((list) => ({
     id: list.id,
     title: list.title,
+    createdAt: list.created_at,
     likeCount: list.like_count,
     commentCount: list.comment_count,
+    matchPercentage,
     preview: previewByListId[list.id],
   }));
 }

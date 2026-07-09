@@ -45,7 +45,8 @@ export default async function ProfilePage({
   const { data: myLists } = await supabase
     .from("tier_lists")
     .select("id")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("is_draft", false);
 
   const listIds = (myLists ?? []).map((list) => list.id);
   const listsCount = listIds.length;
@@ -138,12 +139,6 @@ export default async function ProfilePage({
           </div>
         </div>
 
-        {edit !== "true" && (
-          <Link href="/profile/insights" className="text-sm text-primary">
-            View Taste Insights →
-          </Link>
-        )}
-
         {edit === "true" ? (
           <form
             action={updateProfile}
@@ -235,9 +230,12 @@ export default async function ProfilePage({
                     id={list.id}
                     title={list.title}
                     username={profile?.username ?? ""}
+                    avatarUrl={profile?.avatar_url}
+                    createdAt={list.createdAt}
                     likeCount={list.likeCount}
                     commentCount={list.commentCount}
                     preview={list.preview}
+                    fromTab="profile"
                   />
                 ))
               )}

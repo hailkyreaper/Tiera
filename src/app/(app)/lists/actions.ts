@@ -3,36 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { bookFieldsFromFormData, findOrCreateBook } from "@/lib/db/books";
 
-type IdRow = { id: string };
-
-export async function createTierList(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const title = (formData.get("title") as string) || "My Tier List";
-
-  const { data, error } = await supabase
-    .from("tier_lists")
-    .insert({ user_id: user.id, title })
-    .select("id")
-    .single<IdRow>();
-
-  if (error || !data) {
-    return;
-  }
-
-  redirect(`/lists/${data.id}`);
+function parseTags(raw: string): string[] | null {
+  const tags = raw
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return tags.length > 0 ? tags : null;
 }
 
-export async function setListVisibility(formData: FormData) {
+export async function updateListDetails(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,15 +23,48 @@ export async function setListVisibility(formData: FormData) {
   }
 
   const tierListId = formData.get("tierListId") as string;
+  const title = (formData.get("title") as string)?.trim() || "My Tier List";
+  const description = (formData.get("description") as string)?.trim() || null;
+  const tags = parseTags((formData.get("tags") as string) ?? "");
   const isPublic = formData.get("isPublic") === "true";
 
   await supabase
     .from("tier_lists")
-    .update({ is_public: isPublic })
-    .eq("id", tierListId);
+    .update({ title, description, tags, is_public: isPublic, is_draft: false })
+    .eq("id", tierListId)
+    .eq("user_id", user.id);
 
   revalidatePath(`/lists/${tierListId}`);
-  revalidatePath("/lists");
+  redirect(`/lists/${tierListId}`);
+}
+
+// Cancel on a still-unsaved draft discards it entirely (any books already
+// added cascade-delete with it) instead of leaving an orphaned row that
+// never shows up anywhere. If it's not a draft (an already-saved list being
+// edited), the delete matches nothing and Cancel just navigates back.
+export async function cancelListEdit(tierListId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: deleted } = await supabase
+    .from("tier_lists")
+    .delete()
+    .eq("id", tierListId)
+    .eq("user_id", user.id)
+    .eq("is_draft", true)
+    .select("id");
+
+  if (deleted && deleted.length > 0) {
+    redirect("/profile");
+  }
+
+  redirect(`/lists/${tierListId}`);
 }
 
 export async function deleteTierList(tierListId: string) {
@@ -70,41 +83,7 @@ export async function deleteTierList(tierListId: string) {
     .eq("id", tierListId)
     .eq("user_id", user.id);
 
-  redirect("/lists");
-}
-
-export async function addSearchResultToList(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const tierListId = formData.get("tierListId") as string;
-  const bookId = await findOrCreateBook(supabase, bookFieldsFromFormData(formData));
-
-  if (!bookId) {
-    return;
-  }
-
-  await supabase
-    .from("user_books")
-    .upsert(
-      { user_id: user.id, book_id: bookId },
-      { onConflict: "user_id,book_id", ignoreDuplicates: true },
-    );
-
-  await supabase
-    .from("tier_list_items")
-    .upsert(
-      { tier_list_id: tierListId, book_id: bookId, tier: "unranked" },
-      { onConflict: "tier_list_id,book_id" },
-    );
-
-  redirect(`/lists/${tierListId}`);
+  redirect("/profile");
 }
 
 export async function addBookToTier(
@@ -174,50 +153,3 @@ export async function reorderTierItems(
   revalidatePath(`/lists/${tierListId}`);
 }
 
-export async function removeBookFromList(itemId: string, tierListId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  await supabase.from("tier_list_items").delete().eq("id", itemId);
-  revalidatePath(`/lists/${tierListId}`);
-}
-
-export async function removeFromLibrary(bookId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: myLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", user.id);
-
-  const listIds = (myLists ?? []).map((list) => list.id);
-
-  if (listIds.length > 0) {
-    await supabase
-      .from("tier_list_items")
-      .delete()
-      .eq("book_id", bookId)
-      .in("tier_list_id", listIds);
-  }
-
-  await supabase
-    .from("user_books")
-    .delete()
-    .eq("user_id", user.id)
-    .eq("book_id", bookId);
-
-  revalidatePath("/lists", "layout");
-}

@@ -72,6 +72,7 @@ async function BookSearch({ q }: { q?: string }) {
             book={book}
             action={addBookToLibrary}
             buttonLabel="Add to library"
+            layout="grid"
           />
         ))}
       </div>

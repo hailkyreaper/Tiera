@@ -7,6 +7,6 @@ export type Card = {
   thumbnail: string | null;
 };
 
-export type ContainerId = Tier | "library";
+export type ContainerId = Tier;
 
 export type Columns = Record<ContainerId, Card[]>;

@@ -43,6 +43,22 @@ export function secureThumbnail(url: string | undefined): string | undefined {
   return url?.replace("http://", "https://");
 }
 
+// Single source of truth for "book -> form fields" so the search grid's
+// hidden inputs and the live-dropdown's programmatic FormData stay in sync.
+export function bookFormFields(book: GoogleBookVolume): Record<string, string> {
+  return {
+    googleVolumeId: book.id,
+    title: book.volumeInfo.title,
+    authors: book.volumeInfo.authors?.join(", ") ?? "",
+    description: book.volumeInfo.description ?? "",
+    thumbnailUrl: secureThumbnail(book.volumeInfo.imageLinks?.thumbnail) ?? "",
+    publishedDate: book.volumeInfo.publishedDate ?? "",
+    pageCount: book.volumeInfo.pageCount?.toString() ?? "",
+    averageRating: book.volumeInfo.averageRating?.toString() ?? "",
+    categories: book.volumeInfo.categories?.join("|") ?? "",
+  };
+}
+
 export function normalizeCategory(raw: string): string {
   const segments = raw
     .split("/")

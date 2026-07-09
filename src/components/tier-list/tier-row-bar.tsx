@@ -21,9 +21,14 @@ export function TierRowBar({
       >
         {tier}
       </span>
-      <div className="flex flex-1 flex-wrap content-start items-start gap-0.5 self-stretch">
+      {/* 8 fixed grid columns instead of flex-wrap: 1fr columns always divide
+          the row's full width evenly, so there's never a leftover sliver too
+          small for another cover but too wide to look intentional. min-h-10
+          keeps an empty tier's row at a normal single-row height instead of
+          collapsing to the badge's own text line-height. */}
+      <div className="grid min-h-10 flex-1 grid-cols-8 content-start gap-0.5 self-stretch">
         {books.map((book) => (
-          <div key={book.id} className="relative h-10 w-8 shrink-0">
+          <div key={book.id} className="relative aspect-[4/5] w-full">
             {book.thumbnail ? (
               <Image
                 src={book.thumbnail}

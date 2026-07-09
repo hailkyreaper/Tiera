@@ -34,10 +34,12 @@ export function TierRow({ tier, cards }: { tier: Tier; cards: Card[] }) {
       >
         <div
           ref={setNodeRef}
-          className="flex flex-1 flex-wrap content-start items-start gap-1 self-stretch"
+          className={`grid flex-1 content-start gap-1 self-stretch ${
+            isUnranked ? "grid-cols-4" : "grid-cols-6"
+          }`}
         >
           {cards.length === 0 && (
-            <p className="px-3 py-4 text-xs whitespace-nowrap text-muted-foreground">
+            <p className="col-span-full px-3 py-4 text-xs whitespace-nowrap text-muted-foreground">
               Drop books here.
             </p>
           )}

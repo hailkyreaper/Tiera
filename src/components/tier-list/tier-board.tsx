@@ -207,8 +207,8 @@ export function TierBoard({
           <div
             className={`relative overflow-hidden rounded-[4px] ${
               startContainerRef.current === "unranked"
-                ? "h-[90px] w-16"
-                : "h-14 w-11"
+                ? "h-[100px] w-[71px]"
+                : "h-[58px] w-[46px]"
             }`}
           >
             {activeCard.thumbnail ? (

@@ -1,3 +1,6 @@
+import { notFound, redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/auth/admin";
 import { runBackfill } from "./actions";
 import { Button } from "@/components/ui/button";
 
@@ -7,6 +10,18 @@ export default async function BackfillCategoriesPage({
   searchParams: Promise<{ result?: string }>;
 }) {
   const { result } = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (!(await isAdmin(supabase, user.id))) {
+    notFound();
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">

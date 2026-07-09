@@ -1,7 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/auth/admin";
 import { normalizeCategory } from "@/lib/google-books";
 import { getOpenLibraryData } from "@/lib/open-library";
 
@@ -22,6 +23,10 @@ export async function runBackfill() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  if (!(await isAdmin(supabase, user.id))) {
+    notFound();
   }
 
   // Re-checks every book (not just ones missing categories/covers), since

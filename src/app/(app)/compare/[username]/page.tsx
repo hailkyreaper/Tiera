@@ -3,9 +3,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getComparisonSummary, getTopRecommendation } from "@/lib/db/taste-match";
-import { CompareBookRow } from "@/components/compare-book-row";
-import { TopRecommendationCard } from "@/components/top-recommendation-card";
+import { getComparisonSummary, getMatchRecommendations } from "@/lib/db/taste-match";
+import { MatchedBookRow } from "@/components/matched-book-row";
+import { DisagreementsTable } from "@/components/disagreements-table";
+import { CompareStatsRow } from "@/components/compare-stats-row";
+import { RecommendationRow } from "@/components/recommendation-row";
+import { SaveMatchButton } from "@/components/save-match-button";
+import { Button } from "@/components/ui/button";
 
 type ProfileRow = {
   id: string;
@@ -75,10 +79,22 @@ export default async function CompareWithUserPage({
     );
   }
 
-  const [{ match, bothLove, disagreeOn }, recommendation] = await Promise.all([
+  const [
+    { match, bothLove, disagreeOn, sharedDislikes },
+    matchRecommendations,
+    savedMatch,
+  ] = await Promise.all([
     getComparisonSummary(supabase, me.id, them.id),
-    getTopRecommendation(supabase, me.id, them.id),
+    getMatchRecommendations(supabase, me.id, them.id),
+    supabase
+      .from("saved_matches")
+      .select("viewer_id")
+      .eq("viewer_id", me.id)
+      .eq("saved_user_id", them.id)
+      .maybeSingle(),
   ]);
+
+  const isSaved = Boolean(savedMatch.data);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-8">
@@ -105,7 +121,12 @@ export default async function CompareWithUserPage({
           </span>
           <div className="flex flex-col items-center gap-2">
             <Avatar profile={them} />
-            <span className="text-sm text-foreground">@{them.username}</span>
+            <Link
+              href={`/u/${them.username}`}
+              className="text-sm text-foreground hover:underline"
+            >
+              @{them.username}
+            </Link>
           </div>
         </div>
 
@@ -126,21 +147,66 @@ export default async function CompareWithUserPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 text-left">
-        <h2 className="text-lg font-semibold text-foreground">Summary</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <CompareBookRow title="You Both Love" books={bothLove} />
-          <CompareBookRow title="You Disagree On" books={disagreeOn} />
-        </div>
+      <CompareStatsRow
+        sharedFavoritesCount={bothLove.length}
+        sharedDislikesCount={sharedDislikes.length}
+        disagreementsCount={disagreeOn.length}
+      />
+
+      <div className="flex flex-col gap-3 text-left">
+        <h2 className="text-lg font-semibold text-foreground">
+          Top Books You Both Love
+        </h2>
+        {bothLove.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {bothLove.slice(0, 5).map((book) => (
+              <MatchedBookRow key={book.bookId} book={book} />
+            ))}
+          </div>
+        )}
       </div>
 
-      {recommendation && (
-        <TopRecommendationCard
-          recommendation={recommendation}
+      <div className="flex flex-col gap-3 text-left">
+        <h2 className="text-lg font-semibold text-foreground">
+          Biggest Disagreements
+        </h2>
+        <DisagreementsTable
+          books={disagreeOn.slice(0, 5)}
           theirUsername={them.username}
-          path={`/compare/${username}`}
         />
+      </div>
+
+      {matchRecommendations.length > 0 && (
+        <div className="flex flex-col gap-3 text-left">
+          <h2 className="text-lg font-semibold text-foreground">
+            Based on this match, you might like
+          </h2>
+          <div className="flex flex-col gap-2">
+            {matchRecommendations.map((recommendation) => (
+              <RecommendationRow
+                key={recommendation.bookId}
+                recommendation={recommendation}
+                path={`/compare/${username}`}
+              />
+            ))}
+          </div>
+        </div>
       )}
+
+      <div className="flex gap-2">
+        <Link href={`/u/${them.username}`} className="flex-1">
+          <Button type="button" variant="outline" className="w-full">
+            View Full Profile
+          </Button>
+        </Link>
+        <SaveMatchButton
+          savedUserId={them.id}
+          username={them.username}
+          isSaved={isSaved}
+        />
+      </div>
     </div>
   );
 }

@@ -90,6 +90,7 @@ export function computeMatch(
 export type SharedBook = {
   bookId: string;
   title: string;
+  authors: string[] | null;
   thumbnail: string | null;
   scoreA: number;
   scoreB: number;
@@ -99,12 +100,23 @@ export type ComparisonSummary = {
   match: TasteMatch;
   bothLove: SharedBook[];
   disagreeOn: SharedBook[];
+  sharedDislikes: SharedBook[];
 };
 
-type BookRow = { id: string; title: string; thumbnail_url: string | null };
+type BookRow = {
+  id: string;
+  title: string;
+  authors: string[] | null;
+  thumbnail_url: string | null;
+};
 
 // Both users rated the book A-tier or higher.
 const BOTH_LOVE_THRESHOLD = TIER_SCORES.A;
+
+// Both users rated the book C-tier or lower — the mirror of
+// BOTH_LOVE_THRESHOLD, leaving B as a neutral middle ground that counts as
+// neither a shared favorite nor a shared dislike.
+const BOTH_DISLIKE_THRESHOLD = TIER_SCORES.C;
 
 // A 1-tier gap (e.g. B vs A) is normal variance, not a real disagreement —
 // require at least a 2-tier gap before it counts as one.
@@ -134,18 +146,19 @@ export async function getComparisonSummary(
   }
 
   if (sharedIds.length === 0) {
-    return { match, bothLove: [], disagreeOn: [] };
+    return { match, bothLove: [], disagreeOn: [], sharedDislikes: [] };
   }
 
   const { data: books } = await supabase
     .from("books")
-    .select("id, title, thumbnail_url")
+    .select("id, title, authors, thumbnail_url")
     .in("id", sharedIds)
     .returns<BookRow[]>();
 
   const shared: SharedBook[] = (books ?? []).map((book) => ({
     bookId: book.id,
     title: book.title,
+    authors: book.authors,
     thumbnail: book.thumbnail_url,
     scoreA: rawShared.get(book.id)!.scoreA,
     scoreB: rawShared.get(book.id)!.scoreB,
@@ -155,26 +168,26 @@ export async function getComparisonSummary(
     .filter((b) => b.scoreA >= BOTH_LOVE_THRESHOLD && b.scoreB >= BOTH_LOVE_THRESHOLD)
     .sort((a, b) => b.scoreA + b.scoreB - (a.scoreA + a.scoreB));
 
+  const sharedDislikes = shared
+    .filter((b) => b.scoreA <= BOTH_DISLIKE_THRESHOLD && b.scoreB <= BOTH_DISLIKE_THRESHOLD)
+    .sort((a, b) => a.scoreA + a.scoreB - (b.scoreA + b.scoreB));
+
   const disagreeOn = shared
     .filter((b) => Math.abs(b.scoreA - b.scoreB) >= DISAGREEMENT_THRESHOLD)
     .sort(
       (a, b) => Math.abs(b.scoreA - b.scoreB) - Math.abs(a.scoreA - a.scoreB),
     );
 
-  return { match, bothLove, disagreeOn };
+  return { match, bothLove, disagreeOn, sharedDislikes };
 }
 
 const SCORE_TO_TIER: Record<number, string> = Object.fromEntries(
   Object.entries(TIER_SCORES).map(([tier, score]) => [score, tier]),
 );
 
-export type Recommendation = {
-  bookId: string;
-  title: string;
-  authors: string[] | null;
-  thumbnail: string | null;
-  tier: string;
-};
+export function scoreToTier(score: number): string {
+  return SCORE_TO_TIER[Math.round(score)] ?? "?";
+}
 
 type RecommendationBookRow = {
   id: string;
@@ -183,21 +196,22 @@ type RecommendationBookRow = {
   thumbnail_url: string | null;
 };
 
-// The other user's highest-rated book that the viewer doesn't already have
-// in their library (so we never "recommend" something they already know).
-export async function getTopRecommendation(
+// Backs getMatchRecommendations: the other user's books, ranked by their own
+// score, excluding anything the viewer already has in their library or has
+// ranked directly (covers older rows from before library-syncing existed) —
+// de-duped by title too, since the catalog can contain duplicate rows for
+// the same real book (e.g. two different editions added separately).
+async function getRankedRecommendationCandidates(
   supabase: SupabaseServerClient,
   viewerId: string,
   otherId: string,
-): Promise<Recommendation | null> {
+): Promise<{ book: RecommendationBookRow; score: number }[]> {
   const [otherScores, viewerScores, { data: libraryRows }] = await Promise.all([
     getBookScores(supabase, otherId),
     getBookScores(supabase, viewerId),
     supabase.from("user_books").select("book_id").eq("user_id", viewerId),
   ]);
 
-  // Exclude anything already in the viewer's library *or* already ranked by
-  // them directly — covers older rows from before library-syncing existed.
   const viewerLibrary = new Set([
     ...(libraryRows ?? []).map((row) => row.book_id as string),
     ...viewerScores.keys(),
@@ -207,7 +221,7 @@ export async function getTopRecommendation(
     (bookId) => !viewerLibrary.has(bookId),
   );
 
-  if (candidateIds.length === 0) return null;
+  if (candidateIds.length === 0) return [];
 
   const { data: viewerBookRows } =
     viewerLibrary.size > 0
@@ -218,10 +232,6 @@ export async function getTopRecommendation(
           .returns<{ id: string; title: string }[]>()
       : { data: [] as { id: string; title: string }[] };
 
-  // The catalog can contain duplicate rows for the same real book (e.g. two
-  // different editions added separately) — exclude by title too, so a book
-  // the viewer already has under one row's id doesn't resurface under the
-  // other row's id.
   const viewerTitles = new Set(
     (viewerBookRows ?? []).map((book) => book.title.trim().toLowerCase()),
   );
@@ -232,19 +242,40 @@ export async function getTopRecommendation(
     .in("id", candidateIds)
     .returns<RecommendationBookRow[]>();
 
-  const best = (candidateBooks ?? [])
+  return (candidateBooks ?? [])
     .filter((book) => !viewerTitles.has(book.title.trim().toLowerCase()))
-    .sort(
-      (a, b) => otherScores.get(b.id)! - otherScores.get(a.id)!,
-    )[0];
+    .map((book) => ({ book, score: otherScores.get(book.id)! }))
+    .sort((a, b) => b.score - a.score);
+}
 
-  if (!best) return null;
+export type MatchRecommendation = {
+  bookId: string;
+  title: string;
+  authors: string[] | null;
+  thumbnail: string | null;
+  matchPercentage: number;
+};
 
-  return {
-    bookId: best.id,
-    title: best.title,
-    authors: best.authors,
-    thumbnail: best.thumbnail_url,
-    tier: SCORE_TO_TIER[Math.round(otherScores.get(best.id)!)] ?? "?",
-  };
+// "Based on this match, you might like" — the other user's top N
+// highest-rated books the viewer doesn't have, each with a per-book
+// confidence % (their own score for that book, scaled to a percentage).
+export async function getMatchRecommendations(
+  supabase: SupabaseServerClient,
+  viewerId: string,
+  otherId: string,
+  limit = 4,
+): Promise<MatchRecommendation[]> {
+  const candidates = await getRankedRecommendationCandidates(
+    supabase,
+    viewerId,
+    otherId,
+  );
+
+  return candidates.slice(0, limit).map(({ book, score }) => ({
+    bookId: book.id,
+    title: book.title,
+    authors: book.authors,
+    thumbnail: book.thumbnail_url,
+    matchPercentage: Math.round((score / TIER_SCORES.S) * 100),
+  }));
 }

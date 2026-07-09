@@ -345,6 +345,48 @@ Second mobile-testing pass, after the round above shipped.
   mid-drag) — dropping a book on it removes it from the list via the new 
   `removeBookFromList` action.
 
+### Post-Sprint-6 bug fixes, round 3 (user feedback pass) ✅ COMPLETE
+Third mobile-testing pass — tier row sizing/spacing refinements, a corner-radius 
+pass, and unifying the two book-search implementations into one.
+- Tier row book covers went through several iterations before landing: fixed-size 
+  grid (`grid-cols-6` ranked / `grid-cols-4` unranked / `grid-cols-8` preview) so 
+  every row divides its full width evenly with zero leftover slack, `aspect-[2/3]` 
+  as a *cap* (not a forced box) with `overflow-hidden` so a cover close to that 
+  ratio (nearly all of them) renders at ~full height while a rare tall/narrow 
+  outlier just gets clipped instead of stretching the whole row, and `object-contain` 
+  removed in favor of plain `h-auto` sizing (the aspect-ratio cap on the wrapper 
+  handles capping, so the image itself doesn't need its own fit mode).
+- Known remaining issue: some tier rows still visually overflow past their divider 
+  in Chrome desktop's mobile-emulation mode specifically (confirmed NOT reproducible 
+  via Playwright at any tested width, nor via the compiled CSS/HTML output — the 
+  underlying rule and every automated check are clean). Parked for now per user 
+  instruction; revisit if it recurs.
+- Corner radius: cards (`bg-card` surfaces incl. the shared `Card`/`Button` 
+  components) and non-tier book covers (`BookCover`) moved from the old 20px-based 
+  `rounded-xl`/`rounded-2xl` to `rounded-sm`. Tier list book chips/badges and tier 
+  row backgrounds were deliberately left untouched — see the Design rules entry 
+  above.
+- Unified Create List's and the general Search page's book search into one shared 
+  implementation (`BookSearchInput`/`BookSearchForm`/`AddBookButton`) — previously 
+  Create List had a live typeahead dropdown and general Search was a plain 
+  type-and-press-Enter form with no suggestions at all. `BookSearchInput` now takes 
+  a caller-supplied `action`/`extraFields` so the same dropdown can add to a tier 
+  list or straight to the library. New "single continuous bar" styling (search.png 
+  reference): the separate Search button is gone, replaced by a trailing 
+  magnifying-glass icon inside the same bordered pill as the input. Both pages' 
+  full-search results now render as the same divided list (`SearchResultCard`'s 
+  now-sole layout — the unused "grid" variant was deleted).
+- Found and fixed why the live search dropdown could silently never open: the 
+  input's `autoFocus` can fire the browser's native focus event before React 
+  finishes hydrating and attaches the `onFocus` handler that sets it open, leaving 
+  it stuck closed forever even once results came back correctly — `onChange` now 
+  also opens it, since typing always fires reliably.
+- Found (while debugging the above) that Google's Books API intermittently returns 
+  `503 backendFailed` on otherwise-valid requests (confirmed live, ~50% failure 
+  rate at the time), and `searchGoogleBooks` was silently swallowing any non-ok 
+  response into an empty result with no logging at all. Added a couple of quick 
+  retries (clears it almost every time) plus a server-side error log.
+
 ### Sprint 7 — Import & Search Polish
 - Goodreads CSV import
 - Search filters/history

@@ -205,7 +205,7 @@ export function TierBoard({
       <DragOverlay>
         {activeCard && (
           <div
-            className={`overflow-hidden rounded-[4px] ${
+            className={`aspect-[2/3] overflow-hidden rounded-[4px] ${
               startContainerRef.current === "unranked" ? "w-[71px]" : "w-[46px]"
             }`}
           >
@@ -218,7 +218,7 @@ export function TierBoard({
                 className="h-auto w-full"
               />
             ) : (
-              <div className="flex aspect-[2/3] w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+              <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">
                 {activeCard.title[0]?.toUpperCase() ?? "?"}
               </div>
             )}

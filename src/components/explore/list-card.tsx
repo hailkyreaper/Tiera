@@ -80,8 +80,9 @@ export function ExploreListCard({
         )}
       </h3>
 
-      {/* gap-2 (8px) reduced 40% to 4.8px per design feedback on tier-row spacing. */}
-      <div className="flex flex-col gap-[4.8px]">
+      {/* Same divide-y hairline-block style as the interactive Create List
+          board (tier-board.tsx), instead of a flex gap, so both views match. */}
+      <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm">
         {rankedTiers.map((tier) => (
           <TierRowBar key={tier} tier={tier} books={preview[tier]} />
         ))}

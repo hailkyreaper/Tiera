@@ -14,8 +14,10 @@ export function TierRowBar({
     // shrink-0: without it, a sibling row wrapping to 2 lines squeezes every
     // other row shorter to compensate (flex items shrink by default) — same
     // fix as the interactive TierRow, see ReadOnlyTierBoard/ExploreListCard
-    // for the shared flex-col parent this matters for.
-    <div className="flex shrink-0 gap-1 overflow-hidden rounded-[2px]">
+    // for the shared flex-col parent this matters for. Rounding/clipping now
+    // lives on that shared parent (divide-y block) instead of per-row, to
+    // match the interactive Create List board's look.
+    <div className="flex shrink-0 gap-1">
       <span
         className={`flex w-8 shrink-0 items-center justify-center self-stretch text-xs font-bold text-white ${TIER_BADGE_COLORS[tier]}`}
       >
@@ -28,12 +30,11 @@ export function TierRowBar({
           collapsing to the badge's own text line-height. */}
       <div className="grid min-h-10 flex-1 grid-cols-8 content-start gap-0.5 self-stretch">
         {books.map((book) => (
-          <div key={book.id} className="w-full">
+          // aspect-[2/3] caps outlier-tall covers (clipped from the bottom
+          // via overflow-hidden) instead of letting one stretch the row —
+          // see SortableBookChip for the same technique in more detail.
+          <div key={book.id} className="aspect-[2/3] w-full overflow-hidden">
             {book.thumbnail ? (
-              // Same intrinsic-sizing approach as SortableBookChip: width/
-              // height are just a Next placeholder hint, h-auto/w-full lets
-              // each cover render at its own real ratio (same width, full
-              // uncropped height) instead of a fixed box that letterboxes.
               <Image
                 src={book.thumbnail}
                 alt={book.title}
@@ -42,7 +43,7 @@ export function TierRowBar({
                 className="h-auto w-full"
               />
             ) : (
-              <div className="aspect-[2/3] w-full bg-muted" />
+              <div className="h-full w-full bg-muted" />
             )}
           </div>
         ))}

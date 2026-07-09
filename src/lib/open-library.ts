@@ -1,6 +1,72 @@
+import type { GoogleBookVolume } from "@/lib/google-books";
+
 type OpenLibrarySearchResponse = {
   docs?: { subject?: string[]; cover_i?: number }[];
 };
+
+type OpenLibraryDoc = {
+  key: string;
+  title: string;
+  author_name?: string[];
+  cover_i?: number;
+  first_publish_year?: number;
+  ratings_average?: number;
+  ratings_count?: number;
+  number_of_pages_median?: number;
+};
+
+type OpenLibrarySearchResultsResponse = {
+  docs?: OpenLibraryDoc[];
+};
+
+function openLibraryDocToVolume(doc: OpenLibraryDoc): GoogleBookVolume {
+  return {
+    id: doc.key,
+    volumeInfo: {
+      title: doc.title,
+      authors: doc.author_name,
+      publishedDate: doc.first_publish_year?.toString(),
+      pageCount: doc.number_of_pages_median,
+      averageRating: doc.ratings_average,
+      ratingsCount: doc.ratings_count,
+      imageLinks: doc.cover_i
+        ? { thumbnail: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` }
+        : undefined,
+    },
+  };
+}
+
+// Open Library's own relevance ordering already weights title matches
+// properly (unlike a plain Google Books query, which needed a separate
+// intitle: pass to avoid surfacing full-text matches from obscure scanned
+// documents), its API has been reliably available in testing where
+// Google's intermittently 503s, and it returns real ratings data far more
+// consistently — so this is the primary book search source now.
+export async function searchOpenLibraryBooks(
+  query: string,
+  limit = 20,
+): Promise<GoogleBookVolume[]> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    fields:
+      "key,title,author_name,cover_i,first_publish_year,ratings_average,ratings_count,number_of_pages_median",
+  });
+
+  const res = await fetch(`https://openlibrary.org/search.json?${params}`, {
+    next: { revalidate: 3600 },
+  });
+
+  if (!res.ok) {
+    console.error(
+      `searchOpenLibraryBooks failed: ${res.status} ${res.statusText}`,
+    );
+    return [];
+  }
+
+  const data: OpenLibrarySearchResultsResponse = await res.json();
+  return (data.docs ?? []).map(openLibraryDocToVolume);
+}
 
 // Untagged subjects ending in one of these words tend to be genuine
 // genre/subgenre labels (e.g. "Space Fleet Science Fiction", bare

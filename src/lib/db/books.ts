@@ -1,11 +1,6 @@
 import type { createClient } from "@/lib/supabase/server";
-import {
-  byPopularity,
-  normalizeCategory,
-  searchGoogleBooks,
-  type GoogleBookVolume,
-} from "@/lib/google-books";
-import { getOpenLibraryData } from "@/lib/open-library";
+import { byPopularity, normalizeCategory, type GoogleBookVolume } from "@/lib/google-books";
+import { getOpenLibraryData, searchOpenLibraryBooks } from "@/lib/open-library";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -160,31 +155,31 @@ function byAverageRating(a: GoogleBookVolume, b: GoogleBookVolume): number {
   return (b.volumeInfo.averageRating ?? 0) - (a.volumeInfo.averageRating ?? 0);
 }
 
-// Local results lead, then the live Google search results, each sorted
-// internally by the best rating signal available for that source, with
-// same-author companion volumes clustered right behind the top result.
+// Local results lead, then the live Open Library search results, each
+// sorted internally by the best rating signal available for that source,
+// with same-author companion volumes clustered right behind the top result.
 //
-// Local results don't have (and never will, without our own review system)
-// a ratingsCount from Google — sorting the whole combined pool by
-// ratingsCount together would unfairly bury an exact, already-vetted local
-// match below literally any Google result with a few ratings at all, even
-// an irrelevant special edition (sheet music, coloring books, etc. all
-// still match a loose text query and often outrank a clean match this way).
+// Local results don't have their own ratingsCount — sorting the whole
+// combined pool by ratingsCount together would unfairly bury an exact,
+// already-vetted local match below literally any live result with a few
+// ratings at all, even an irrelevant special edition (sheet music,
+// coloring books, etc. all still match a loose text query and often
+// outrank a clean match this way).
 export async function searchBooks(
   supabase: SupabaseServerClient,
   query: string,
   limit = 20,
 ): Promise<GoogleBookVolume[]> {
-  const [localResults, googleResults] = await Promise.all([
+  const [localResults, liveResults] = await Promise.all([
     searchLocalBooks(supabase, query, limit),
-    searchGoogleBooks(query, limit),
+    searchOpenLibraryBooks(query, limit),
   ]);
 
   const seen = new Set<string>();
   const merged: GoogleBookVolume[] = [];
   for (const book of [
     ...localResults.slice().sort(byAverageRating),
-    ...googleResults.slice().sort(byPopularity),
+    ...liveResults.slice().sort(byPopularity),
   ]) {
     if (!seen.has(book.id)) {
       seen.add(book.id);

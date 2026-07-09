@@ -28,7 +28,7 @@ export function MatchedBookRow({ book }: { book: SharedBook }) {
         )}
       </div>
       <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${badgeColor}`}
+        className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white ${badgeColor}`}
       >
         {tier}
       </span>

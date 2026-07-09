@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SearchResultCard } from "@/components/search-result-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
 import { UsernameAutocomplete } from "@/components/username-autocomplete";
-import { Input } from "@/components/ui/input";
+import { BookSearchForm } from "@/components/book-search-form";
 import { Button } from "@/components/ui/button";
 
 type SearchType = "books" | "people";
@@ -47,17 +47,12 @@ async function BookSearch({ q }: { q?: string }) {
 
   return (
     <>
-      <form className="flex gap-2">
-        <input type="hidden" name="type" value="books" />
-        <Input
-          name="q"
-          type="search"
-          placeholder="Search by title, author..."
-          defaultValue={q}
-          className="flex-1"
-        />
-        <Button type="submit">Search</Button>
-      </form>
+      <BookSearchForm
+        basePath="/search"
+        defaultValue={q}
+        action={addBookToLibrary}
+        extraParams={{ type: "books" }}
+      />
 
       {q && books.length === 0 && (
         <p className="text-muted-foreground">
@@ -65,14 +60,13 @@ async function BookSearch({ q }: { q?: string }) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="flex flex-col divide-y divide-border">
         {books.map((book) => (
           <SearchResultCard
             key={book.id}
             book={book}
             action={addBookToLibrary}
-            buttonLabel="Add to library"
-            layout="grid"
+            buttonLabel="Add"
           />
         ))}
       </div>

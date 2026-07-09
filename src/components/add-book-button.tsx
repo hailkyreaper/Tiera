@@ -1,5 +1,6 @@
 "use client";
 
+import type * as React from "react";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,11 +16,15 @@ export function AddBookButton({
   fields,
   label,
   className,
+  variant = "outline",
+  size = "sm",
 }: {
   action: (formData: FormData) => void | Promise<void>;
   fields: Record<string, string>;
   label: string;
   className?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
 }) {
   const [added, setAdded] = useState(false);
   const [pending, setPending] = useState(false);
@@ -39,8 +44,8 @@ export function AddBookButton({
   return (
     <Button
       type="button"
-      size="sm"
-      variant="outline"
+      size={size}
+      variant={variant}
       disabled={pending || added}
       onClick={handleClick}
       className={className}

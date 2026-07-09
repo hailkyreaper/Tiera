@@ -1,28 +1,32 @@
 "use client";
 
 import Image from "next/image";
+import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { searchBooksLive, addToUnrankedAndStay } from "@/app/(app)/lists/[id]/search/actions";
+import { searchBooksLive } from "@/app/(app)/lists/[id]/search/actions";
 import { bookFormFields, secureThumbnail, type GoogleBookVolume } from "@/lib/google-books";
-import { Input } from "@/components/ui/input";
+import { AddBookButton } from "@/components/add-book-button";
 
 /**
  * Search input for the "add books" flow: typing shows a live dropdown
  * (cover + title + author, quick-add without leaving the page); pressing
- * Enter submits the surrounding <form> for the fuller results grid below
- * (see search/page.tsx), same "q" field driving both.
+ * Enter or the trailing search icon submits the surrounding <form> for the
+ * fuller results below (see book-search-form.tsx), same "q" field driving
+ * both. The add action itself is caller-supplied so this same input can add
+ * to a tier list (Create List) or straight to the library (general Search).
  */
 export function BookSearchInput({
-  tierListId,
   defaultValue,
+  action,
+  extraFields,
 }: {
-  tierListId: string;
   defaultValue?: string;
+  action: (formData: FormData) => void | Promise<void>;
+  extraFields?: Record<string, string>;
 }) {
   const [query, setQuery] = useState(defaultValue ?? "");
   const [suggestions, setSuggestions] = useState<GoogleBookVolume[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   // Debounced requests can resolve out of order (a slower request for an
   // earlier keystroke finishing after a faster one for a later keystroke),
   // silently overwriting fresh results with stale ones. This tracks which
@@ -48,49 +52,47 @@ export function BookSearchInput({
     return () => clearTimeout(timeout);
   }, [query]);
 
-  async function quickAdd(book: GoogleBookVolume) {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries(bookFormFields(book))) {
-      formData.set(key, value);
-    }
-    formData.set("tierListId", tierListId);
-    formData.set("q", query);
-    await addToUnrankedAndStay(formData);
-    setAddedIds((prev) => new Set(prev).add(book.id));
-  }
-
   return (
     <div className="relative flex-1">
-      <Input
-        name="q"
-        type="search"
-        placeholder="Search by title, author..."
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setIsOpen(true);
-        }}
-        // autoFocus can fire the browser's native focus before React finishes
-        // hydrating and attaches this onFocus handler, leaving isOpen stuck
-        // false forever even once results start coming in — onChange above
-        // is the reliable fallback trigger, since typing always fires it.
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-        autoComplete="off"
-        autoFocus
-      />
+      <div className="flex items-center gap-1 rounded-sm border border-input bg-transparent pr-1 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <input
+          name="q"
+          type="search"
+          placeholder="Search by title, author..."
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setIsOpen(true);
+          }}
+          // autoFocus can fire the browser's native focus before React finishes
+          // hydrating and attaches this onFocus handler, leaving isOpen stuck
+          // false forever even once results start coming in — onChange above
+          // is the reliable fallback trigger, since typing always fires it.
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => setTimeout(() => setIsOpen(false), 150)}
+          autoComplete="off"
+          autoFocus
+          className="h-8 min-w-0 flex-1 bg-transparent px-2.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
+        />
+        <button
+          type="submit"
+          aria-label="Search"
+          className="flex size-6 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Search className="size-4" />
+        </button>
+      </div>
 
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded-2xl bg-popover p-1 shadow-md">
+        <div className="absolute z-10 mt-1 w-full rounded-sm bg-popover p-1 shadow-md">
           {suggestions.map((book) => {
             const thumbnail = secureThumbnail(book.volumeInfo.imageLinks?.thumbnail);
             const authors = book.volumeInfo.authors?.join(", ");
-            const added = addedIds.has(book.id);
 
             return (
               <div
                 key={book.id}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted"
+                className="flex items-center gap-2 rounded-xs px-2 py-1.5 hover:bg-muted"
               >
                 <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-xs bg-muted">
                   {thumbnail && (
@@ -107,17 +109,22 @@ export function BookSearchInput({
                     </p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  // Prevent the input's onBlur from closing the dropdown
-                  // before the click's onClick fires.
+                {/* onMouseDown preventDefault: without it, the input's blur
+                    (focus moving to this button) fires before the click,
+                    closing the dropdown out from under the click. */}
+                <div
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => quickAdd(book)}
-                  disabled={added}
-                  className="shrink-0 text-xs font-medium text-primary disabled:text-muted-foreground"
+                  className="shrink-0"
                 >
-                  {added ? "Added" : "Add"}
-                </button>
+                  <AddBookButton
+                    action={action}
+                    fields={{ ...bookFormFields(book), q: query, ...extraFields }}
+                    label="Add"
+                    variant="link"
+                    size="xs"
+                    className="px-0 no-underline hover:underline"
+                  />
+                </div>
               </div>
             );
           })}

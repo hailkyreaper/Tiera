@@ -14,7 +14,7 @@ function sentimentBadgeClass(score: number): string {
 function ScoreBadge({ score }: { score: number }) {
   return (
     <span
-      className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${sentimentBadgeClass(score)}`}
+      className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${sentimentBadgeClass(score)}`}
     >
       {scoreToTier(score)}
     </span>

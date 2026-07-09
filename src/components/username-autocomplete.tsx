@@ -47,7 +47,7 @@ export function UsernameAutocomplete({
             <Link
               key={person.id}
               href={`/u/${person.username}`}
-              className="block rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted"
+              className="block rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
             >
               @{person.username}
             </Link>

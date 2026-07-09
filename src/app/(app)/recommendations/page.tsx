@@ -68,7 +68,7 @@ export default async function RecommendationsPage({
           {recommendations.length === limit && (
             <Link
               href={`/recommendations?limit=${limit + PAGE_SIZE}`}
-              className="rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground hover:bg-primary/80"
+              className="rounded-md bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground hover:bg-primary/80"
             >
               View More Recommendations
             </Link>

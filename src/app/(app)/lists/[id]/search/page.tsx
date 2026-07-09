@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchGoogleBooks } from "@/lib/google-books";
 import { addToUnrankedAndStay } from "./actions";
 import { SearchResultCard } from "@/components/search-result-card";
-import { ListSearchForm } from "@/components/list-search-form";
+import { BookSearchForm } from "@/components/book-search-form";
 import { BackButton } from "@/components/back-button";
 
 type TierListRow = { id: string; title: string; user_id: string };
@@ -48,7 +48,12 @@ export default async function ListSearchPage({
         </h1>
       </div>
 
-      <ListSearchForm tierListId={id} defaultValue={q} />
+      <BookSearchForm
+        basePath={`/lists/${id}/search`}
+        defaultValue={q}
+        action={addToUnrankedAndStay}
+        extraFields={{ tierListId: id }}
+      />
 
       {q && results.length === 0 && (
         <p className="text-sm text-muted-foreground">

@@ -386,6 +386,40 @@ pass, and unifying the two book-search implementations into one.
   rate at the time), and `searchGoogleBooks` was silently swallowing any non-ok 
   response into an empty result with no logging at all. Added a couple of quick 
   retries (clears it almost every time) plus a server-side error log.
+- Added `searchLocalBooks`/`searchBooks` (`lib/db/books.ts`) — every book anyone 
+  adds already lives in our own `books` table via `findOrCreateBook`, but search 
+  never actually queried it, only ever hit the live API. Local matches now lead 
+  (a book someone's already added stays reliably searchable even if the live API 
+  is down), live results merge in after, deduped by id. Also fixed a fairness bug 
+  in the merge: local results have no `ratingsCount` of their own, so sorting the 
+  whole combined pool by it together buried exact local matches under any live 
+  result with a few ratings, however irrelevant (a special-edition sheet-music 
+  book, say) — local and live results now each sort internally by the best rating 
+  signal they actually have, local first.
+- Added rating-based ranking + series clustering: the merged pool sorts by rating 
+  so the single most well-known book leads regardless of source, and every other 
+  result sharing the top result's author gets pulled up right behind it (a series' 
+  later entries often have far fewer ratings than a breakout first book, so pure 
+  rating-sort alone scatters them) — `harry potter` now returns 6 different books 
+  across the series instead of 6 editions of book 1.
+- **Replaced Google Books with Open Library as the primary live search source** 
+  (`searchOpenLibraryBooks` in `lib/open-library.ts`, used by `searchBooks`). 
+  Google's API had two persistent problems — the ~50% 503 rate above, and 
+  relevance loose enough that a short/partial query (e.g. "harry po", typed 
+  mid-search) could surface a mix of sheet music, cookbooks, and study guides 
+  ahead of the real books — and needed an `intitle:` workaround that only 
+  partially fixed the second one. Open Library's default relevance already ranks 
+  title matches sensibly, returns real ratings data far more consistently, and 
+  was 100% reliable across repeated testing. The now-fully-dead Google search code 
+  (the `intitle:` workaround, retry loop, fetch helper) was removed from 
+  `google-books.ts`; `GoogleBookVolume`/`bookFormFields`/`byPopularity` etc. stay 
+  since they're still the shared shape/utilities, just populated from a different 
+  source now. `books.google_volume_id` holds whichever source's id a book came 
+  from (Open Library keys going forward, existing Google volume ids for books 
+  already in the table) — both are just opaque unique strings to the rest of the 
+  app, so no migration was needed. `GOOGLE_BOOKS_API_KEY` is still used by the 
+  unrelated `/admin/backfill-categories` script (fetches a specific already-known 
+  Google volume id, not search) — not dead, don't remove it.
 
 ### Sprint 7 — Import & Search Polish
 - Goodreads CSV import

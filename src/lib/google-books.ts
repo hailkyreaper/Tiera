@@ -54,7 +54,7 @@ async function fetchGoogleBooksPage(query: string): Promise<GoogleBookVolume[]> 
   return data.items ?? [];
 }
 
-function byPopularity(a: GoogleBookVolume, b: GoogleBookVolume): number {
+export function byPopularity(a: GoogleBookVolume, b: GoogleBookVolume): number {
   return (b.volumeInfo.ratingsCount ?? 0) - (a.volumeInfo.ratingsCount ?? 0);
 }
 

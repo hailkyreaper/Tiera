@@ -1,5 +1,10 @@
 import type { createClient } from "@/lib/supabase/server";
-import { normalizeCategory, searchGoogleBooks, type GoogleBookVolume } from "@/lib/google-books";
+import {
+  byPopularity,
+  normalizeCategory,
+  searchGoogleBooks,
+  type GoogleBookVolume,
+} from "@/lib/google-books";
 import { getOpenLibraryData } from "@/lib/open-library";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -131,9 +136,30 @@ export async function searchLocalBooks(
   return (data ?? []).map(localBookToVolume);
 }
 
-// Local results are ranked first (already vetted by real use in the app,
-// and free of any dependency on Google's API being up), then the live
-// Google search results are merged in after, deduped by volume id.
+// Pulls every other result by the top (highest-rated) result's author up
+// to sit right after it, instead of leaving them scattered further down by
+// raw rating alone — since a series' later entries often have far fewer
+// ratings than a breakout first book, this is what actually surfaces "the
+// rest of the series" next to it rather than burying them.
+function clusterBySeriesAuthor(books: GoogleBookVolume[]): GoogleBookVolume[] {
+  const topAuthor = books[0]?.volumeInfo.authors?.[0];
+  if (!topAuthor) {
+    return books;
+  }
+
+  const sameAuthor = books.filter((book) =>
+    book.volumeInfo.authors?.includes(topAuthor),
+  );
+  const rest = books.filter(
+    (book) => !book.volumeInfo.authors?.includes(topAuthor),
+  );
+  return [...sameAuthor, ...rest];
+}
+
+// Local results and the live Google search results are merged first (deduped
+// by volume id), then ranked by rating across all sources combined — a
+// well-known book should lead regardless of which source found it — with
+// same-author companion volumes clustered right behind the top result.
 export async function searchBooks(
   supabase: SupabaseServerClient,
   query: string,
@@ -153,5 +179,6 @@ export async function searchBooks(
     }
   }
 
-  return merged.slice(0, limit);
+  const byRating = merged.sort(byPopularity);
+  return clusterBySeriesAuthor(byRating).slice(0, limit);
 }

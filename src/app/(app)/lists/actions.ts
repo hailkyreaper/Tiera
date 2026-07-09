@@ -17,7 +17,16 @@ function parseTags(raw: string): string[] | null {
 // otherwise lost the instant you navigate to a different route (which
 // Search Books / Add from Library both are), since nothing had ever
 // submitted them yet.
-async function saveListFields(formData: FormData): Promise<string> {
+//
+// markSaved controls is_draft specifically: only the actual Save button
+// should ever mark a list as no longer a draft. Search Books/Add from
+// Library also route through here (so the title isn't lost), but must NOT
+// flip is_draft — clicking either of those isn't the user clicking Save,
+// and a list should only count as "saved" when they actually did.
+async function saveListFields(
+  formData: FormData,
+  markSaved: boolean,
+): Promise<string> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -35,7 +44,13 @@ async function saveListFields(formData: FormData): Promise<string> {
 
   await supabase
     .from("tier_lists")
-    .update({ title, description, tags, is_public: isPublic, is_draft: false })
+    .update({
+      title,
+      description,
+      tags,
+      is_public: isPublic,
+      ...(markSaved ? { is_draft: false } : {}),
+    })
     .eq("id", tierListId)
     .eq("user_id", user.id);
 
@@ -43,18 +58,18 @@ async function saveListFields(formData: FormData): Promise<string> {
 }
 
 export async function updateListDetails(formData: FormData) {
-  const tierListId = await saveListFields(formData);
+  const tierListId = await saveListFields(formData, true);
   revalidatePath(`/lists/${tierListId}`);
   redirect(`/lists/${tierListId}`);
 }
 
 export async function saveAndGoToSearch(formData: FormData) {
-  const tierListId = await saveListFields(formData);
+  const tierListId = await saveListFields(formData, false);
   redirect(`/lists/${tierListId}/search`);
 }
 
 export async function saveAndGoToLibrary(formData: FormData) {
-  const tierListId = await saveListFields(formData);
+  const tierListId = await saveListFields(formData, false);
   redirect(`/lists/${tierListId}/library`);
 }
 

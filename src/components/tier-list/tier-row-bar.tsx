@@ -23,10 +23,7 @@ export function TierRowBar({
       </span>
       <div className="flex flex-1 flex-wrap content-start items-start gap-0.5 self-stretch">
         {books.map((book) => (
-          <div
-            key={book.id}
-            className="relative h-10 grow basis-8 min-w-8 max-w-11"
-          >
+          <div key={book.id} className="relative h-10 w-8 shrink-0">
             {book.thumbnail ? (
               <Image
                 src={book.thumbnail}

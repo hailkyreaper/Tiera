@@ -39,10 +39,8 @@ export function SortableBookChip({
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative grow cursor-grab touch-none overflow-hidden rounded-xs active:cursor-grabbing ${
-        large
-          ? "h-[90px] basis-16 min-w-16 max-w-20"
-          : "h-14 basis-11 min-w-11 max-w-16"
+      className={`relative shrink-0 cursor-grab touch-none overflow-hidden rounded-xs active:cursor-grabbing ${
+        large ? "h-[90px] w-16" : "h-14 w-11"
       }`}
     >
       {thumbnail ? (

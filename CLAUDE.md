@@ -114,6 +114,13 @@ as possible — not just the general rules above.
   any real distinction in Tiera's data model.
 - `/design/rec.png` — Recommendations screen
 - `/design/main.png` — Landing/logged-out screen (Get Started/Log In)
+- `/design/9aelawu23i981.png` — TierMaker-style reference for tier-row book sizing: 
+  every cover is a fixed size in every row and every tier — wrapped rows never grow/
+  shrink covers to fill the leftover width, they just left-align and leave empty 
+  space. This is what `SortableBookChip`/`TierRowBar` match today (fixed `w-11`/`w-8` 
+  etc, `shrink-0`, plain `flex-wrap`) — not flex-grow, which was tried and reverted 
+  because it made a wrapped tier's last row render visibly different-sized covers 
+  than the row above it whenever the book count differed.
 
 When building a feature, always check the matching image above first. If a screen 
 doesn't have an exact match, use the closest reference plus the general Design rules 

@@ -40,10 +40,11 @@ Bottom nav (left to right): Explore, Search, Create List (center), Compare, Prof
 - **Create List** (center): the `/lists` route, repurposed as a create-only 
   screen (see Sprint 5.5 item 4 for the full spec) — NOT a browsable lists 
   page. There is no standalone "browse all lists" screen.
-- **Compare**: taste-match comparison tool. Landing view shows a "Top Matches" list 
-  (people ranked by taste match %, similar to Recommendations' matching logic) 
-  ABOVE/ALONGSIDE the existing username search — both should coexist, not replace 
-  each other.
+- **Compare**: taste-match comparison tool. Landing view shows a "Your taste score" 
+  card, then **All** / **Friends** tabs — All is the ranked "Top Matches" list 
+  (people ranked by taste match %, similar to Recommendations' matching logic), 
+  Friends is the same ranking restricted to people you follow. The username search 
+  bar lives inside the Friends tab (not a separate always-visible element).
 - **Profile**: your own profile — includes Top Favorites AND your own created 
   lists, shown directly on the profile page exactly as they display today 
   (full list cards, not a grid)
@@ -105,11 +106,12 @@ as possible — not just the general rules above.
   Shared Dislikes / Biggest Disagreements), disagreements shown as a You-rated vs. 
   They-rated table, inline "Based on this match, you might like" recommendations 
   with match % and Add buttons, View Full Profile + Save Match buttons at the bottom
-- `/design/topmatches.png` — NEW reference (save the new uploaded image here): the 
-  Compare landing screen's "Top Matches" list — taste score summary card, All/Books/
-  Want to Read filter tabs, ranked list of match cards (avatar, name, @username, 
-  match %, books ranked, top genres, top favorites row). IGNORE this image's bottom 
-  nav bar — see Navigation structure note above.
+- `/design/topmatches.png` — Compare landing screen reference: taste score summary 
+  card, ranked list of match cards (avatar, name, @username, match %, books ranked, 
+  top genres, top favorites row). IGNORE this image's bottom nav bar (see Navigation 
+  structure note above) AND its All/Books/Want to Read tabs — what actually shipped 
+  is All/Friends (see Navigation structure), since Books/Want to Read don't map to 
+  any real distinction in Tiera's data model.
 - `/design/rec.png` — Recommendations screen
 - `/design/main.png` — Landing/logged-out screen (Get Started/Log In)
 
@@ -267,6 +269,39 @@ upload `comupdate.png`) expand Compare beyond what shipped in Sprint 5:
 - Comments ✅ done (built in Sprint 5.5)
 - "People you might vibe with" ✅ done — merged into Top Matches above, not a 
   separate feature
+
+### Post-Sprint-6 bug fixes (user feedback pass) ✅ COMPLETE
+Not sprint-scoped work — real bugs surfaced by testing the shipped features above.
+- Explore's Following tab was silently reusing the unfiltered "all public lists" 
+  query (no actual follows filter existed); fixed, plus added a stable final sort 
+  tiebreaker (`id`) so ties don't reorder between requests.
+- Create List title/visibility were lost if you navigated to Search Books/Add from 
+  Library mid-edit without saving first (those routes are a full page navigation, 
+  disconnected from the unsaved client-side form state) — both now auto-save 
+  title/visibility before navigating, but deliberately do NOT mark the list as 
+  saved (`is_draft` stays untouched) — only the actual Save button does that. 
+  Getting this distinction right took two passes; see `saveListFields`'s 
+  `markSaved` param in `lists/actions.ts` for the reasoning.
+- Search results (general /search and Create List's search) now show a persistent 
+  "Added" checkmark (`AddBookButton`, calls the action programmatically) instead 
+  of the item seeming to vanish when the page revalidates after adding.
+- Ranking a book now revalidates every Compare page too, not just the list itself 
+  (`revalidateCompare()` in `lists/actions.ts`) — Compare stats were silently stale 
+  otherwise.
+- Lock icon on private lists on your own profile (`ExploreListCard`'s `isPublic` 
+  prop — only passed on Profile, never on Explore where everything's already public).
+- `TierRowBar` (Explore cards, Profile list cards, visitor-facing list detail) was 
+  unconditionally hiding any empty tier, so lists showed a different number of 
+  visible rows depending on what happened to be ranked — now always shows all 6.
+- Favorites pages (own + `/u/[username]`) restyled to use the app's standard 
+  `BackButton` header instead of a bare "← Back" text link; covers now show titles.
+- Delete List wasn't visibly doing anything: the delete itself worked, but 
+  `void deleteTierList(...)` discarded the promise, which broke the 
+  redirect-signaling Next.js server actions rely on for `redirect()` to actually 
+  navigate when the action is called directly (not via a form) — must be awaited.
+- Migration `0014` (`is_draft` flag) had a bug: `default true` applied to every 
+  *existing* list too, not just new ones, hiding them all from the profile page — 
+  backfilled via migration `0018`.
 
 ### Sprint 7 — Import & Search Polish
 - Goodreads CSV import

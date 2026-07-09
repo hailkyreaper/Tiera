@@ -8,13 +8,11 @@ export function SortableBookChip({
   bookId,
   title,
   thumbnail,
-  showDivider,
   large,
 }: {
   bookId: string;
   title: string;
   thumbnail: string | null;
-  showDivider: boolean;
   /** Unranked books render bigger since there's no title text next to them
    * to identify a cover by — once dragged into a ranked tier, they shrink
    * back to the standard chip size. */
@@ -41,9 +39,11 @@ export function SortableBookChip({
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative h-full shrink-0 cursor-grab touch-none active:cursor-grabbing ${
-        large ? "w-16" : "w-11"
-      } ${showDivider ? "border-l border-white/10" : ""}`}
+      className={`relative grow cursor-grab touch-none overflow-hidden rounded-xs active:cursor-grabbing ${
+        large
+          ? "h-[90px] basis-16 min-w-16 max-w-20"
+          : "h-14 basis-11 min-w-11 max-w-16"
+      }`}
     >
       {thumbnail ? (
         <Image src={thumbnail} alt={title} fill className="object-cover" />

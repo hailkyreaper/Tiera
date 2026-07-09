@@ -3,9 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { searchGoogleBooks } from "@/lib/google-books";
 import { addToUnrankedAndStay } from "./actions";
 import { SearchResultCard } from "@/components/search-result-card";
-import { BookSearchInput } from "@/components/book-search-input";
+import { ListSearchForm } from "@/components/list-search-form";
 import { BackButton } from "@/components/back-button";
-import { Button } from "@/components/ui/button";
 
 type TierListRow = { id: string; title: string; user_id: string };
 
@@ -49,10 +48,7 @@ export default async function ListSearchPage({
         </h1>
       </div>
 
-      <form className="flex gap-2">
-        <BookSearchInput tierListId={id} defaultValue={q} />
-        <Button type="submit">Search</Button>
-      </form>
+      <ListSearchForm tierListId={id} defaultValue={q} />
 
       {q && results.length === 0 && (
         <p className="text-sm text-muted-foreground">

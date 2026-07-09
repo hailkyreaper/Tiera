@@ -121,6 +121,25 @@ export async function deleteTierList(tierListId: string) {
   redirect("/profile");
 }
 
+// Drag-to-trash on the Create List page — the old "drag out to remove" was
+// deliberately dropped in Sprint 5.5 alongside the library browsing row it
+// lived in, but that left no way at all to remove a book from a list once
+// added. This restores it as an explicit trash drop zone instead.
+export async function removeBookFromList(itemId: string, tierListId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  await supabase.from("tier_list_items").delete().eq("id", itemId);
+  revalidatePath(`/lists/${tierListId}`);
+  revalidateCompare();
+}
+
 export async function addBookToTier(
   tierListId: string,
   bookId: string,

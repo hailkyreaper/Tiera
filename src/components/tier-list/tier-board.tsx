@@ -19,10 +19,12 @@ import Image from "next/image";
 import {
   addBookToTier,
   moveBookToTier,
+  removeBookFromList,
   reorderTierItems,
 } from "@/app/(app)/lists/actions";
 import { TIERS } from "@/lib/tiers";
 import { TierRow } from "./tier-row";
+import { TrashDropZone } from "./trash-drop-zone";
 import type { Card, Columns, ContainerId } from "./types";
 
 const CONTAINERS: ContainerId[] = [...TIERS];
@@ -117,6 +119,22 @@ export function TierBoard({
     startContainerRef.current = null;
     if (!over || !startContainer) return;
 
+    if (String(over.id) === "trash") {
+      const card = columns[startContainer].find(
+        (c) => c.bookId === active.id,
+      );
+      setColumns((prev) => ({
+        ...prev,
+        [startContainer]: prev[startContainer].filter(
+          (c) => c.bookId !== active.id,
+        ),
+      }));
+      if (card?.itemId) {
+        await removeBookFromList(card.itemId, tierListId);
+      }
+      return;
+    }
+
     const overContainer = findContainer(String(over.id));
     if (!overContainer) return;
 
@@ -181,6 +199,8 @@ export function TierBoard({
         </h2>
         <TierRow tier="unranked" cards={columns.unranked} />
       </div>
+
+      {activeCard && <TrashDropZone />}
 
       <DragOverlay>
         {activeCard && (

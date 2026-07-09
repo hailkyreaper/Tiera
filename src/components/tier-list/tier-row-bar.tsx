@@ -11,19 +11,21 @@ export function TierRowBar({
   books: PreviewBook[];
 }) {
   return (
-    <div className="flex h-10 gap-1 overflow-hidden rounded-[2px]">
+    // shrink-0: without it, a sibling row wrapping to 2 lines squeezes every
+    // other row shorter to compensate (flex items shrink by default) — same
+    // fix as the interactive TierRow, see ReadOnlyTierBoard/ExploreListCard
+    // for the shared flex-col parent this matters for.
+    <div className="flex shrink-0 gap-1 overflow-hidden rounded-[2px]">
       <span
-        className={`flex w-8 shrink-0 items-center justify-center text-xs font-bold text-white ${TIER_BADGE_COLORS[tier]}`}
+        className={`flex w-8 shrink-0 items-center justify-center self-stretch text-xs font-bold text-white ${TIER_BADGE_COLORS[tier]}`}
       >
         {tier}
       </span>
-      <div className="flex flex-1 flex-nowrap gap-0.5 overflow-x-auto bg-white/5">
-        {books.map((book, index) => (
+      <div className="flex flex-1 flex-wrap content-start items-start gap-0.5 self-stretch">
+        {books.map((book) => (
           <div
             key={book.id}
-            className={`relative w-8 shrink-0 ${
-              index !== 0 ? "border-l border-white/10" : ""
-            }`}
+            className="relative h-10 grow basis-8 min-w-8 max-w-11"
           >
             {book.thumbnail ? (
               <Image

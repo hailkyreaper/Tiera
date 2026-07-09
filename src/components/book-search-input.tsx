@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { searchBooksLive, addToUnrankedAndStay } from "@/app/(app)/lists/[id]/search/actions";
 import { bookFormFields, secureThumbnail, type GoogleBookVolume } from "@/lib/google-books";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,12 @@ export function BookSearchInput({
   const [suggestions, setSuggestions] = useState<GoogleBookVolume[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // Debounced requests can resolve out of order (a slower request for an
+  // earlier keystroke finishing after a faster one for a later keystroke),
+  // silently overwriting fresh results with stale ones. This tracks which
+  // request is actually the latest so a late-arriving stale response gets
+  // ignored instead of applied.
+  const latestRequestId = useRef(0);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -30,8 +36,13 @@ export function BookSearchInput({
       return;
     }
 
+    const requestId = ++latestRequestId.current;
     const timeout = setTimeout(() => {
-      searchBooksLive(query).then(setSuggestions);
+      searchBooksLive(query).then((results) => {
+        if (requestId === latestRequestId.current) {
+          setSuggestions(results);
+        }
+      });
     }, 250);
 
     return () => clearTimeout(timeout);

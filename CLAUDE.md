@@ -303,6 +303,37 @@ Not sprint-scoped work — real bugs surfaced by testing the shipped features ab
   *existing* list too, not just new ones, hiding them all from the profile page — 
   backfilled via migration `0018`.
 
+### Post-Sprint-6 bug fixes, round 2 (user feedback pass) ✅ COMPLETE
+Second mobile-testing pass, after the round above shipped.
+- Live book search (Create List's Search Books, and general `/search`) had a race 
+  condition — a fast-typed earlier keystroke's response could resolve after a later 
+  one's and overwrite it, making search seem to randomly stop returning results; 
+  fixed with a `latestRequestId` guard in `BookSearchInput` that drops any response 
+  that isn't from the most recent request.
+- Search relevance: Google Books results skewed toward obscure/old editions over the 
+  best-known one (e.g. searching "Harry Potter"). `searchGoogleBooks` now fetches a 
+  wider pool and re-sorts by `ratingsCount` before slicing to the requested limit.
+- Search Books/Add from Library stacked one browser-history entry per search term, 
+  so going back required pressing back once per search performed. Replaced native 
+  form-GET submission with `router.replace()` (`ListSearchForm`) so repeated 
+  searches update the same history entry instead of pushing new ones.
+- Added an info-icon popover (`InfoPopover`, wraps `@base-ui/react/popover`) next to 
+  Compare's taste-score explaining what the percentage and "Top Match"/"you match 
+  with X%" language means — this was previously unexplained in the UI.
+- Tier rows now wrap to multiple lines instead of clipping/hiding books once a tier 
+  filled its first row (`TierRow`/`TierRowBar` use `flex-wrap`), with the colored 
+  tier badge auto-stretching to match via flex's default `align-items: stretch` — 
+  no JS measurement needed. Book chips grow/shrink to fill the row's actual width 
+  (`grow basis-N min-w-N max-w-N` in `SortableBookChip`/`TierRowBar`) instead of 
+  leaving a gap. The row wrapper needs `shrink-0`, or a sibling tier wrapping to a 
+  second line squishes every other (non-wrapped) row shorter to compensate, since 
+  flex items shrink by default. Same treatment applied to both the interactive 
+  Create List board and the static `TierRowBar` used by Explore/Profile/visitor 
+  list-detail previews, for a consistent look everywhere tiers are shown.
+- Added drag-to-trash on the Create List board (`TrashDropZone`, only rendered 
+  mid-drag) — dropping a book on it removes it from the list via the new 
+  `removeBookFromList` action.
+
 ### Sprint 7 — Import & Search Polish
 - Goodreads CSV import
 - Search filters/history

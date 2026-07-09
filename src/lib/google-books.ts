@@ -7,6 +7,7 @@ export type GoogleBookVolume = {
     publishedDate?: string;
     pageCount?: number;
     averageRating?: number;
+    ratingsCount?: number;
     categories?: string[];
     imageLinks?: {
       thumbnail?: string;
@@ -19,10 +20,24 @@ type GoogleBooksResponse = {
   items?: GoogleBookVolume[];
 };
 
+// Google's own "relevance" ordering matches loosely against description/
+// full-text too, so a well-known title can end up buried under obscure
+// editions, study guides, or tangentially-related books. Pulling a larger
+// pool and re-sorting by ratingsCount (a reasonable proxy for "the actual
+// well-known book", since obscure editions rarely accumulate ratings) fixes
+// that without narrowing what can be searched for (an intitle: restriction
+// would break author-only searches, which the search box explicitly supports).
+const FETCH_POOL_SIZE = 40;
+
 export async function searchGoogleBooks(
   query: string,
+  limit = 20,
 ): Promise<GoogleBookVolume[]> {
-  const params = new URLSearchParams({ q: query, maxResults: "20" });
+  const params = new URLSearchParams({
+    q: query,
+    maxResults: String(FETCH_POOL_SIZE),
+    printType: "books",
+  });
   if (process.env.GOOGLE_BOOKS_API_KEY) {
     params.set("key", process.env.GOOGLE_BOOKS_API_KEY);
   }
@@ -36,7 +51,15 @@ export async function searchGoogleBooks(
   }
 
   const data: GoogleBooksResponse = await res.json();
-  return data.items ?? [];
+  const items = data.items ?? [];
+
+  return items
+    .slice()
+    .sort(
+      (a, b) =>
+        (b.volumeInfo.ratingsCount ?? 0) - (a.volumeInfo.ratingsCount ?? 0),
+    )
+    .slice(0, limit);
 }
 
 export function secureThumbnail(url: string | undefined): string | undefined {

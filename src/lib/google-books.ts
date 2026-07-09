@@ -20,19 +20,9 @@ type GoogleBooksResponse = {
   items?: GoogleBookVolume[];
 };
 
-// Google's own "relevance" ordering matches loosely against description/
-// full-text too, so a well-known title can end up buried under obscure
-// editions, study guides, or tangentially-related books. Pulling a larger
-// pool and re-sorting by ratingsCount (a reasonable proxy for "the actual
-// well-known book", since obscure editions rarely accumulate ratings) fixes
-// that without narrowing what can be searched for (an intitle: restriction
-// would break author-only searches, which the search box explicitly supports).
 const FETCH_POOL_SIZE = 40;
 
-export async function searchGoogleBooks(
-  query: string,
-  limit = 20,
-): Promise<GoogleBookVolume[]> {
+async function fetchGoogleBooksPage(query: string): Promise<GoogleBookVolume[]> {
   const params = new URLSearchParams({
     q: query,
     maxResults: String(FETCH_POOL_SIZE),
@@ -61,15 +51,47 @@ export async function searchGoogleBooks(
   }
 
   const data: GoogleBooksResponse = await res.json();
-  const items = data.items ?? [];
+  return data.items ?? [];
+}
 
-  return items
-    .slice()
-    .sort(
-      (a, b) =>
-        (b.volumeInfo.ratingsCount ?? 0) - (a.volumeInfo.ratingsCount ?? 0),
-    )
-    .slice(0, limit);
+function byPopularity(a: GoogleBookVolume, b: GoogleBookVolume): number {
+  return (b.volumeInfo.ratingsCount ?? 0) - (a.volumeInfo.ratingsCount ?? 0);
+}
+
+export async function searchGoogleBooks(
+  query: string,
+  limit = 20,
+): Promise<GoogleBookVolume[]> {
+  // A plain query matches loosely against description/full-text too, so a
+  // short/generic query (e.g. "rage of") can surface obscure full-text
+  // matches — old scanned journals, government records — ahead of the
+  // actual well-known title, since most results tie at 0 ratingsCount and
+  // there's nothing left to sort by. Running a second, title-restricted
+  // query in parallel (Google's intitle: operator, repeated per word — a
+  // single intitle:"multi word" clause returns nothing) and ranking those
+  // matches first fixes that. The plain query stays as a fallback merged in
+  // after, so author-only searches (which rarely match on title) still work.
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const titleQuery = words.map((word) => `intitle:${word}`).join(" ");
+
+  const [titleResults, plainResults] = await Promise.all([
+    fetchGoogleBooksPage(titleQuery),
+    fetchGoogleBooksPage(query),
+  ]);
+
+  const seen = new Set<string>();
+  const merged: GoogleBookVolume[] = [];
+  for (const book of [
+    ...titleResults.slice().sort(byPopularity),
+    ...plainResults.slice().sort(byPopularity),
+  ]) {
+    if (!seen.has(book.id)) {
+      seen.add(book.id);
+      merged.push(book);
+    }
+  }
+
+  return merged.slice(0, limit);
 }
 
 export function secureThumbnail(url: string | undefined): string | undefined {

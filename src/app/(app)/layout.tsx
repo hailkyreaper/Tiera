@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { NavBar } from "@/components/nav-bar";
 
 export default function AppLayout({
@@ -8,7 +9,9 @@ export default function AppLayout({
   return (
     <>
       <div className="flex flex-1 flex-col pb-16">{children}</div>
-      <NavBar />
+      <Suspense fallback={null}>
+        <NavBar />
+      </Suspense>
     </>
   );
 }

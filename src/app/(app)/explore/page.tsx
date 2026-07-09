@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
+import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
 type ExploreTab = "for-you" | "following" | "recent";
@@ -12,6 +13,7 @@ type TierListRow = {
   user_id: string;
   like_count: number;
   comment_count: number;
+  created_at: string;
 };
 
 type ItemRow = {
@@ -21,7 +23,7 @@ type ItemRow = {
   books: { id: string; title: string; thumbnail_url: string | null };
 };
 
-type ProfileRow = { id: string; username: string };
+type ProfileRow = { id: string; username: string; avatar_url: string | null };
 
 type PreviewMap = Record<
   string,
@@ -39,9 +41,13 @@ export default async function ExplorePage({
 
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   let listsQuery = supabase
     .from("tier_lists")
-    .select("id, title, user_id, like_count, comment_count")
+    .select("id, title, user_id, like_count, comment_count, created_at")
     .eq("is_public", true)
     .limit(20);
 
@@ -72,15 +78,31 @@ export default async function ExplorePage({
     userIds.length > 0
       ? supabase
           .from("profiles")
-          .select("id, username")
+          .select("id, username, avatar_url")
           .in("id", userIds)
           .returns<ProfileRow[]>()
       : Promise.resolve({ data: [] as ProfileRow[] }),
   ]);
 
-  const usernameByUserId = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.username]),
+  const profileByUserId = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile]),
   );
+
+  // Match % against each unique list creator (skipping yourself), computed
+  // once per creator and reused across all of their cards in the feed.
+  const matchByUserId = new Map<string, number | null>();
+  if (user) {
+    const viewerScores = await getBookScores(supabase, user.id);
+    for (const creatorId of userIds) {
+      if (creatorId === user.id) {
+        matchByUserId.set(creatorId, null);
+        continue;
+      }
+      const creatorScores = await getBookScores(supabase, creatorId);
+      const match = computeMatch(viewerScores, creatorScores);
+      matchByUserId.set(creatorId, match.percentage);
+    }
+  }
 
   const previewByListId: PreviewMap = {};
   for (const list of lists) {
@@ -135,10 +157,14 @@ export default async function ExplorePage({
               key={list.id}
               id={list.id}
               title={list.title}
-              username={usernameByUserId.get(list.user_id) ?? "unknown"}
+              username={profileByUserId.get(list.user_id)?.username ?? "unknown"}
+              avatarUrl={profileByUserId.get(list.user_id)?.avatar_url}
+              createdAt={list.created_at}
               likeCount={list.like_count}
               commentCount={list.comment_count}
+              matchPercentage={matchByUserId.get(list.user_id)}
               preview={previewByListId[list.id]}
+              fromTab="explore"
             />
           ))}
         </div>

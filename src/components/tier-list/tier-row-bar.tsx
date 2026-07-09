@@ -28,16 +28,21 @@ export function TierRowBar({
           collapsing to the badge's own text line-height. */}
       <div className="grid min-h-10 flex-1 grid-cols-8 content-start gap-0.5 self-stretch">
         {books.map((book) => (
-          <div key={book.id} className="relative aspect-[2/3] w-full">
+          <div key={book.id} className="w-full">
             {book.thumbnail ? (
+              // Same intrinsic-sizing approach as SortableBookChip: width/
+              // height are just a Next placeholder hint, h-auto/w-full lets
+              // each cover render at its own real ratio (same width, full
+              // uncropped height) instead of a fixed box that letterboxes.
               <Image
                 src={book.thumbnail}
                 alt={book.title}
-                fill
-                className="object-contain"
+                width={400}
+                height={600}
+                className="h-auto w-full"
               />
             ) : (
-              <div className="h-full w-full bg-muted" />
+              <div className="aspect-[2/3] w-full bg-muted" />
             )}
           </div>
         ))}

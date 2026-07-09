@@ -205,21 +205,20 @@ export function TierBoard({
       <DragOverlay>
         {activeCard && (
           <div
-            className={`relative overflow-hidden rounded-[4px] ${
-              startContainerRef.current === "unranked"
-                ? "h-[100px] w-[71px]"
-                : "h-[58px] w-[46px]"
+            className={`overflow-hidden rounded-[4px] ${
+              startContainerRef.current === "unranked" ? "w-[71px]" : "w-[46px]"
             }`}
           >
             {activeCard.thumbnail ? (
               <Image
                 src={activeCard.thumbnail}
                 alt={activeCard.title}
-                fill
-                className="object-contain"
+                width={400}
+                height={600}
+                className="h-auto w-full"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+              <div className="flex aspect-[2/3] w-full items-center justify-center bg-muted text-xs text-muted-foreground">
                 {activeCard.title[0]?.toUpperCase() ?? "?"}
               </div>
             )}

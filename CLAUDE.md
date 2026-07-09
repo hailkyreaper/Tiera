@@ -132,8 +132,41 @@ above.
 
 ## Current sprint
 
-None marked active. Sprints 1-6 are complete — wait to be explicitly told to mark 
-Sprint 7 current before starting it.
+None of the numbered sprints are active — Sprint 7 is still waiting to be 
+explicitly started (see Sprint Rule). We're instead picking up a To Do item as 
+the active task:
+
+**Building now: Library View screen.** User's own request, verbatim: "No place to 
+view books when added to library except for going into lists and scrolling down 
+to library." Concrete plan, based on patterns already in this codebase — read 
+these files first, don't design from scratch:
+- **Closest existing template**: `src/app/(app)/profile/favorites/page.tsx` is 
+  almost exactly this feature already (BackButton header + a grid of covers, one 
+  data call, no other logic) — a new `src/app/(app)/profile/library/page.tsx` 
+  should follow the same shape.
+- **Data query**: reuse the exact pattern already in 
+  `src/app/(app)/lists/[id]/library/page.tsx` (the "Add from Library" picker) — 
+  `supabase.from("user_books").select("book_id, books(id, title, thumbnail_url)").eq("user_id", user.id)`. 
+  `user_books` RLS is owner-only (`auth.uid() = user_id`), unlike the public 
+  `books` table, so this only ever works for your own library — correct, since 
+  there's no cross-user "view someone else's library" concept in the data model.
+- **Rendering**: reuse `FavoritesGrid`/`BookCover` (`src/components/favorites-grid.tsx`, 
+  `src/components/book-cover.tsx`) for the actual grid — same visual language as 
+  Favorites, no new component needed there.
+- **Entry point**: needs a link from `/profile` into this new page — `FavoritesRow` 
+  already has this exact "View more" pattern for `/profile/favorites` 
+  (`src/components/favorites-row.tsx`), so add an analogous link/section. Check 
+  `design/profile.png` first for whether it shows a library section/placement; if 
+  not, use judgment consistent with the existing stats/Favorites layout.
+- **Not yet decided, worth asking the user**: should this page support *removing* 
+  a book from the library (the `user_books` DELETE RLS policy already exists, 
+  suggesting this was anticipated, but no UI for it exists anywhere yet)? Confirm 
+  scope before building that part.
+- Sprint 7 ("Import & Search Polish": Goodreads CSV import, search filters/history) 
+  is still not started — most of the *search* half of that scope actually already 
+  got done incidentally in the "Post-Sprint-6 bug fixes, round 3" section below 
+  (Open Library switch, local-cache search, rating/series ranking), similar to how 
+  Sprint 6 finished incidentally. CSV import specifically has not been touched.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -455,8 +488,8 @@ explicitly before building.
 
 ## To Do
 
-- No place to view books when added to library except for going into lists and 
-  scrolling down to library.
+- Library View screen — promoted to active work, see Current sprint section above 
+  for the full spec.
 - Security: `/admin/backfill-categories` has no admin/role check — any logged-in 
   user can currently trigger it. Needs a role check before Sprint 6. ✅ done — new 
   `profiles.is_admin` column (migration `0017`) + shared `isAdmin()` helper 

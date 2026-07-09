@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { bookFieldsFromFormData, findOrCreateBook } from "@/lib/db/books";
-import { searchGoogleBooks, type GoogleBookVolume } from "@/lib/google-books";
+import { bookFieldsFromFormData, findOrCreateBook, searchBooks } from "@/lib/db/books";
+import type { GoogleBookVolume } from "@/lib/google-books";
 
 // Backs the live typeahead dropdown in BookSearchInput — same underlying
 // search as the full Enter-to-submit results, just capped smaller for a
@@ -13,7 +13,8 @@ export async function searchBooksLive(query: string): Promise<GoogleBookVolume[]
   if (!query.trim()) {
     return [];
   }
-  const results = await searchGoogleBooks(query);
+  const supabase = await createClient();
+  const results = await searchBooks(supabase, query);
   return results.slice(0, 6);
 }
 

@@ -1,10 +1,22 @@
 import type { createClient } from "@/lib/supabase/server";
-import { normalizeCategory } from "@/lib/google-books";
+import { normalizeCategory, searchGoogleBooks, type GoogleBookVolume } from "@/lib/google-books";
 import { getOpenLibraryData } from "@/lib/open-library";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 type BookIdRow = { id: string };
+
+type LocalBookRow = {
+  google_volume_id: string;
+  title: string;
+  authors: string[] | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  published_date: string | null;
+  page_count: number | null;
+  average_rating: number | null;
+  categories: string[] | null;
+};
 
 export type BookFields = {
   googleVolumeId: string;
@@ -78,4 +90,68 @@ export async function findOrCreateBook(
   }
 
   return newBook.id;
+}
+
+function localBookToVolume(row: LocalBookRow): GoogleBookVolume {
+  return {
+    id: row.google_volume_id,
+    volumeInfo: {
+      title: row.title,
+      authors: row.authors ?? undefined,
+      description: row.description ?? undefined,
+      publishedDate: row.published_date ?? undefined,
+      pageCount: row.page_count ?? undefined,
+      averageRating: row.average_rating ?? undefined,
+      categories: row.categories ?? undefined,
+      imageLinks: row.thumbnail_url
+        ? { thumbnail: row.thumbnail_url }
+        : undefined,
+    },
+  };
+}
+
+// Every book anyone has ever added already lives in our own `books` table
+// (via findOrCreateBook above) — searching it first means a book someone's
+// already added stays reliably searchable even when Google's API is slow or
+// down, since it doesn't depend on a live external call at all.
+export async function searchLocalBooks(
+  supabase: SupabaseServerClient,
+  query: string,
+  limit = 10,
+): Promise<GoogleBookVolume[]> {
+  const { data } = await supabase
+    .from("books")
+    .select(
+      "google_volume_id, title, authors, description, thumbnail_url, published_date, page_count, average_rating, categories",
+    )
+    .ilike("title", `%${query}%`)
+    .limit(limit)
+    .returns<LocalBookRow[]>();
+
+  return (data ?? []).map(localBookToVolume);
+}
+
+// Local results are ranked first (already vetted by real use in the app,
+// and free of any dependency on Google's API being up), then the live
+// Google search results are merged in after, deduped by volume id.
+export async function searchBooks(
+  supabase: SupabaseServerClient,
+  query: string,
+  limit = 20,
+): Promise<GoogleBookVolume[]> {
+  const [localResults, googleResults] = await Promise.all([
+    searchLocalBooks(supabase, query, limit),
+    searchGoogleBooks(query, limit),
+  ]);
+
+  const seen = new Set<string>();
+  const merged: GoogleBookVolume[] = [];
+  for (const book of [...localResults, ...googleResults]) {
+    if (!seen.has(book.id)) {
+      seen.add(book.id);
+      merged.push(book);
+    }
+  }
+
+  return merged.slice(0, limit);
 }

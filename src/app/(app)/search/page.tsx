@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { addBookToLibrary } from "./actions";
-import { searchGoogleBooks } from "@/lib/google-books";
+import { searchBooks } from "@/lib/db/books";
 import { createClient } from "@/lib/supabase/server";
 import { SearchResultCard } from "@/components/search-result-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
@@ -43,7 +43,8 @@ export default async function SearchPage({
 }
 
 async function BookSearch({ q }: { q?: string }) {
-  const books = q ? await searchGoogleBooks(q) : [];
+  const supabase = await createClient();
+  const books = q ? await searchBooks(supabase, q) : [];
 
   return (
     <>

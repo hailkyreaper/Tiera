@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { searchGoogleBooks } from "@/lib/google-books";
+import { searchBooks } from "@/lib/db/books";
 import { addToUnrankedAndStay } from "./actions";
 import { SearchResultCard } from "@/components/search-result-card";
 import { BookSearchForm } from "@/components/book-search-form";
@@ -37,7 +37,7 @@ export default async function ListSearchPage({
     notFound();
   }
 
-  const results = q ? await searchGoogleBooks(q) : [];
+  const results = q ? await searchBooks(supabase, q) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">

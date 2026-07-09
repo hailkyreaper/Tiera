@@ -13,7 +13,7 @@ export function TasteScoreCard({
   const offset = CIRCUMFERENCE * (1 - bestMatchPercentage / 100);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
+    <div className="flex flex-col gap-3 rounded-sm bg-card p-4 ring-1 ring-foreground/10">
       <div className="flex items-center gap-1.5">
         <span className="text-sm font-medium text-muted-foreground">
           Your taste score

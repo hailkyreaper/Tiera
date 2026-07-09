@@ -11,7 +11,7 @@ export function BookCover({
 }) {
   if (!src) {
     return (
-      <div className="flex aspect-2/3 w-full items-center justify-center rounded-2xl bg-muted text-xs text-muted-foreground">
+      <div className="flex aspect-2/3 w-full items-center justify-center rounded-sm bg-muted text-xs text-muted-foreground">
         No cover
       </div>
     );
@@ -23,7 +23,7 @@ export function BookCover({
       alt={alt}
       width={size}
       height={Math.round(size * 1.5)}
-      className="h-auto w-full rounded-2xl object-cover"
+      className="h-auto w-full rounded-sm object-cover"
     />
   );
 }

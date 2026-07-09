@@ -38,7 +38,7 @@ export function CompareStatsRow({
       {stats.map(({ icon: Icon, value, label, caption, color }) => (
         <div
           key={label}
-          className="flex flex-col items-center gap-1 rounded-xl bg-card p-3 text-center ring-1 ring-foreground/10"
+          className="flex flex-col items-center gap-1 rounded-sm bg-card p-3 text-center ring-1 ring-foreground/10"
         >
           <Icon className={`size-5 ${color}`} />
           <span className="text-xl font-semibold text-foreground">

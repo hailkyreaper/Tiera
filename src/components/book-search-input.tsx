@@ -66,7 +66,14 @@ export function BookSearchInput({
         type="search"
         placeholder="Search by title, author..."
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setIsOpen(true);
+        }}
+        // autoFocus can fire the browser's native focus before React finishes
+        // hydrating and attaches this onFocus handler, leaving isOpen stuck
+        // false forever even once results start coming in — onChange above
+        // is the reliable fallback trigger, since typing always fires it.
         onFocus={() => setIsOpen(true)}
         onBlur={() => setTimeout(() => setIsOpen(false), 150)}
         autoComplete="off"

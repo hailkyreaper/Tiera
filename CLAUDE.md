@@ -25,7 +25,11 @@ Tiera helps people discover entertainment they'll actually enjoy through taste-b
 
 - Mobile-first
 - Dark mode is primary; light mode is also supported
-- Rounded corners at 20px
+- Rounded corners: `rounded-sm` on cards (`bg-card` surfaces, incl. the shared 
+  `Card`/`Button` components), buttons, and non-tier book covers (`BookCover`, 
+  e.g. Top Favorites, search results, recommendations). Tier list book chips/
+  covers and tier row backgrounds keep their own smaller, tier-specific radius 
+  — unchanged by this rule.
 - Purple accent color: `#6D5DF6`
 - Large cover art
 - Premium feel

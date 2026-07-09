@@ -37,10 +37,10 @@ export function ExploreListCard({
   const rankedTiers = TIERS.filter((tier) => tier !== "unranked");
 
   return (
-    <div className="relative flex flex-col gap-3 rounded-2xl bg-card p-4 transition-colors hover:bg-muted">
+    <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 transition-colors hover:bg-muted">
       <Link
         href={fromTab ? `/lists/${id}?from=${fromTab}` : `/lists/${id}`}
-        className="absolute inset-0 rounded-2xl"
+        className="absolute inset-0 rounded-sm"
         aria-label={title}
       />
 

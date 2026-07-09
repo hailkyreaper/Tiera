@@ -113,7 +113,7 @@ async function PeopleSearch({ q }: { q?: string }) {
           <Link
             key={person.id}
             href={`/u/${person.username}`}
-            className="rounded-2xl bg-card p-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="rounded-sm bg-card p-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             @{person.username}
           </Link>

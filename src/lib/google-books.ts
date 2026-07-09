@@ -41,12 +41,22 @@ export async function searchGoogleBooks(
   if (process.env.GOOGLE_BOOKS_API_KEY) {
     params.set("key", process.env.GOOGLE_BOOKS_API_KEY);
   }
-  const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?${params}`,
-    { next: { revalidate: 3600 } },
-  );
+  const url = `https://www.googleapis.com/books/v1/volumes?${params}`;
 
-  if (!res.ok) {
+  // Google's API intermittently returns 503 "backendFailed" on an otherwise
+  // valid request — retrying once or twice clears it almost every time, so
+  // don't let a single flaky response make search silently return nothing.
+  let res: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch(url, { next: { revalidate: 3600 } });
+    if (res.ok) break;
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 300));
+  }
+
+  if (!res || !res.ok) {
+    console.error(
+      `searchGoogleBooks failed after retries: ${res?.status} ${res?.statusText}`,
+    );
     return [];
   }
 

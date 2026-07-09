@@ -11,7 +11,7 @@ export function RecommendationRow({
   path: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
+    <div className="flex items-center gap-3 rounded-sm bg-card p-3 ring-1 ring-foreground/10">
       <div className="w-12 shrink-0">
         <BookCover
           src={recommendation.thumbnail}

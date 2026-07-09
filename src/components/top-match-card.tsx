@@ -8,7 +8,7 @@ export function TopMatchCard({ person }: { person: TopMatchPerson }) {
   return (
     <Link
       href={`/compare/${person.username}`}
-      className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted"
+      className="flex flex-col gap-3 rounded-sm bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted"
     >
       <div className="flex items-center gap-3">
         {person.avatarUrl ? (

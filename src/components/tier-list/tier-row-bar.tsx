@@ -34,7 +34,7 @@ export function TierRowBar({
                 src={book.thumbnail}
                 alt={book.title}
                 fill
-                className="object-cover"
+                className="object-contain"
               />
             ) : (
               <div className="h-full w-full bg-muted" />

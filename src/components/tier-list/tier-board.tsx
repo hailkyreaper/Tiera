@@ -216,7 +216,7 @@ export function TierBoard({
                 src={activeCard.thumbnail}
                 alt={activeCard.title}
                 fill
-                className="object-cover"
+                className="object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">

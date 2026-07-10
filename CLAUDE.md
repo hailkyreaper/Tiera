@@ -268,6 +268,42 @@ row is now just a single full-width "View Full Profile" button. The
 precedent in this repo for a destructive down-migration, and an unused table is 
 harmless; revisit only if DB cleanup is ever explicitly requested.
 
+**Light mode preview toggle** ✅ done — temporary, dev-only. The `:root` block in 
+`globals.css` has always had complete light-theme values, but `layout.tsx` 
+hardcodes `dark` on `<html>` with no way to switch — so light mode has never 
+actually been visible despite being "supported" per the Design rules. 
+`ThemeToggleButton` (`src/components/theme-toggle-button.tsx`) is a bare client 
+component that toggles the `dark` class on `document.documentElement` directly 
+(no persistence, no system-preference detection — this is not the real theme 
+system, just a way to eyeball light mode) — placed on `/profile` just above Log 
+out.
+
+**Add from Library restyled to match the Library tab** ✅ done — 
+`/lists/[id]/library` (Create List's "Add from Library" picker) previously had 
+its own bespoke UI: a 2/3-column grid with title text and a per-book "Add" 
+button. Rebuilt as `AddFromLibrarySection` 
+(`src/components/add-from-library-section.tsx`) to match `LibrarySection`'s look 
+(covers-only 5-col grid, Sort menu, Select mode) almost exactly, but Select mode 
+has *two* bulk actions instead of one, per the user's spec:
+- **Delete (N)** (destructive) — removes the selected books from the user's 
+  actual library (reuses `removeBooksFromLibrary` from `profile/actions.ts` 
+  directly, since it's already generic/not list-specific), gated behind a 
+  `window.confirm()` warning that it deletes from their library entirely, not 
+  just this list (same `window.confirm` pattern already used by 
+  `DeleteListButton`). Its `revalidatePath` only covers `/profile`, so this 
+  screen also calls `router.refresh()` after, to pick up the change locally.
+- **Add (N)** (primary) — adds the selected books to this list's Unranked tier 
+  via a new bulk `addBooksToUnranked(tierListId, bookIds)` server action 
+  (`lists/[id]/library/actions.ts`), replacing the old single-book 
+  `addFromLibraryAndStay` (deleted, no longer used anywhere).
+The page itself now sources its data from the same `getLibraryBooks`/
+`sortLibraryBooks` (`src/lib/db/library.ts`) the profile Library tab uses, 
+filtered down to books not already in this list, instead of a separate bespoke 
+query — also picked up Sort (`?sort=` on this route) for free. Verified live: 
+Add correctly moves books into Unranked (confirmed via the list's own edit view, 
+`Unranked Books (N)` count went up), and dismissing the Delete confirm leaves 
+the library untouched.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cleanCoverUrl } from "@/lib/cover-url";
 
 export function SortableBookChip({
   bookId,
@@ -44,7 +45,7 @@ export function SortableBookChip({
     >
       {thumbnail ? (
         <Image
-          src={thumbnail}
+          src={cleanCoverUrl(thumbnail)}
           alt={title}
           width={400}
           height={600}

@@ -23,6 +23,7 @@ import {
   reorderTierItems,
 } from "@/app/(app)/lists/actions";
 import { TIERS } from "@/lib/tiers";
+import { cleanCoverUrl } from "@/lib/cover-url";
 import { TierRow } from "./tier-row";
 import { TrashDropZone } from "./trash-drop-zone";
 import type { Card, Columns, ContainerId } from "./types";
@@ -211,7 +212,7 @@ export function TierBoard({
           >
             {activeCard.thumbnail ? (
               <Image
-                src={activeCard.thumbnail}
+                src={cleanCoverUrl(activeCard.thumbnail)}
                 alt={activeCard.title}
                 width={400}
                 height={600}

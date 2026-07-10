@@ -58,7 +58,9 @@ export async function updateProfile(formData: FormData) {
   redirect("/profile");
 }
 
-export async function removeFromLibrary(bookId: string) {
+export async function removeBooksFromLibrary(bookIds: string[]) {
+  if (bookIds.length === 0) return;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -72,7 +74,7 @@ export async function removeFromLibrary(bookId: string) {
     .from("user_books")
     .delete()
     .eq("user_id", user.id)
-    .eq("book_id", bookId);
+    .in("book_id", bookIds);
 
   revalidatePath("/profile");
 }

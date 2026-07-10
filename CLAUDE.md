@@ -129,8 +129,11 @@ as possible — not just the general rules above.
   Library tab pair: below Top Favorites, a two-icon tab row (list icon / book icon, 
   underline indicator on the active tab) replaces the old plain "Lists" header. 
   Lists tab shows the same list cards as before, unchanged. Library tab shows a 
-  "LIBRARY" label with Filter/Sort buttons on the right, then a dense 5-column grid 
-  of covers with title/author text and a per-book "⋮" menu below each cover.
+  "LIBRARY" label with Filter/Sort buttons on the right. NOTE: what actually 
+  shipped diverges from this mockup — see "Current sprint" below for why 
+  (covers only, no title/author text, no per-book "⋮", a "Select" mode for 
+  multi-delete instead, and no Filter button at all — removed after the user 
+  saw it live and didn't want it).
 
 When building a feature, always check the matching image above first. If a screen 
 doesn't have an exact match, use the closest reference plus the general Design rules 
@@ -152,30 +155,106 @@ spec instead of a standalone page.
   (`src/components/profile-tabs.tsx`) — two icon tabs (list/book, underline 
   indicator) driven by `?tab=lists|library` on `/profile`. Lists tab content is 
   unchanged from before.
-- Library tab: `getLibraryBooks`/`getLibraryGenres`/`sortLibraryBooks` 
-  (`src/lib/db/library.ts`) fetch `user_books` joined to `books` (title, authors, 
-  thumbnail, categories, average_rating) for the signed-in user only — same 
-  owner-only RLS reasoning as the original plan. `LibraryGrid` 
-  (`src/components/library-grid.tsx`) renders a 5-column grid (cover, title, 
-  author, per-book "⋮" menu), matching the density in `profilelibrarytab.png` 
-  rather than reusing the larger `FavoritesGrid` styling, since this mockup 
-  explicitly showed a denser layout for this screen.
-- **Filter/Sort logic** (left to our judgment by the user): Filter is by genre — 
-  populated from the unique `books.categories` actually present in that user's 
-  library, "All Genres" default. Sort has four options — Recently Added (default, 
-  by `user_books.created_at`), Title (A–Z), Author (A–Z), Highest Rated (by 
-  `books.average_rating`). Both are `LibraryControls` 
-  (`src/components/library-controls.tsx`), a client component using 
-  `@base-ui/react/menu` dropdowns that push `sort`/`genre` query params.
-- **Remove from library**: the mockup's per-book "⋮" showed this was expected, so 
-  `LibraryBookMenu` (`src/components/library-book-menu.tsx`) calls a new 
-  `removeFromLibrary` server action (`src/app/(app)/profile/actions.ts`), using 
-  the `user_books` DELETE RLS policy that already existed.
+- Library tab: `getLibraryBooks`/`sortLibraryBooks` (`src/lib/db/library.ts`) 
+  fetch `user_books` joined to `books` (title, authors, thumbnail, 
+  average_rating) for the signed-in user only — same owner-only RLS reasoning 
+  as the original plan.
+- **Sort logic** (left to our judgment by the user): four options — Recently 
+  Added (default, by `user_books.created_at`), Title (A–Z), Author (A–Z), 
+  Highest Rated (by `books.average_rating`). A genre Filter was also built 
+  (populated from `books.categories`) but the user asked to remove it entirely 
+  once they saw it live — `getLibraryGenres`, the `genre` query param, and the 
+  `categories` field on `LibraryBook` were all deleted rather than left as dead 
+  code/an unused column selection.
+- **Grid + removal, revised**: the first pass showed cover + title + author in a 
+  5-column grid with a per-book "⋮" menu (matching `profilelibrarytab.png` 
+  literally), but the density truncated titles/authors unreadably. Fixed by 
+  dropping to a 3/4-column grid (matching `FavoritesGrid`'s convention) with no 
+  text clamp — full titles/authors always wrap and display completely. Then the 
+  user asked to drop title/author text entirely and add real multi-select 
+  instead of a per-book kebab: `LibrarySection` 
+  (`src/components/library-section.tsx`, replaces the old `LibraryControls`/
+  `LibraryGrid`/`LibraryBookMenu`, now deleted) is a single client component 
+  holding Sort *and* a "Select" mode — tapping Select swaps Sort for 
+  Cancel/Delete(N), tapping covers toggles a checkmark overlay, Delete calls 
+  the new bulk `removeBooksFromLibrary(bookIds)` server action 
+  (`src/app/(app)/profile/actions.ts`, replaces the old single-id 
+  `removeFromLibrary`), using the same pre-existing `user_books` DELETE RLS 
+  policy. Covers are plain (no text, no per-item menu) outside select mode. 
+  Grid went back to 5 columns once text was removed (5 columns only ever caused 
+  problems when text needed to fit under each cover).
 - Sprint 7 ("Import & Search Polish": Goodreads CSV import, search filters/history) 
   is still not started — most of the *search* half of that scope actually already 
   got done incidentally in the "Post-Sprint-6 bug fixes, round 3" section below 
   (Open Library switch, local-cache search, rating/series ranking), similar to how 
   Sprint 6 finished incidentally. CSV import specifically has not been touched.
+
+**Profile header polish** ✅ done — the user asked to bring everything above the 
+Lists/Library tabs (banner, avatar, stats, bio, Top Favorites) closer to 
+`design/profile.png`, via a double-pass screenshot review, then a follow-up round 
+of manual tweaks. Applied identically to both `/profile` and `/u/[username]` 
+(Sprint 5.5 established these two mirror each other) since they share the same 
+banner/avatar/stats markup:
+- Banner: was a flat `from-primary/60 via-indigo-950 to-purple-950` gradient; 
+  added two blurred color-glow circles (fuchsia top-left, primary top-right) plus 
+  a radial-vignette overlay for a cosmic-nebula feel closer to the mockup's photo 
+  background, without fabricating an actual image asset.
+- Avatar: solid `ring-4 ring-primary` replaced with a gradient ring (wrapping 
+  `div` with a `from-primary to-pink-500` gradient background + `p-1`, avatar 
+  clipped inside), matching the mockup's two-tone ring.
+- Display name + `@username` moved from the content area below the banner to 
+  inside the banner itself, stacked directly under the avatar (banner switched 
+  from a fixed `h-40` centered box to an auto-height `flex-col` with padding, so 
+  it grows to fit).
+- Stats row spacing: went `justify-around` → `justify-between` during the 
+  screenshot-review pass, then the user reverted it back to `justify-around` by 
+  hand afterward — leave as `justify-around`, don't re-apply `justify-between`.
+- `FavoritesRow` (`src/components/favorites-row.tsx`, shared by both pages): 
+  heading changed from the small-caps muted "TOP FAVORITES" label style (matching 
+  Lists/Library's convention) to a plain semi-bold "Top Favorites" per the 
+  mockup, "View more" → "View all", and the cover row itself now bleeds to the 
+  container's right edge (`-mx-6 pl-6` on the scroll strip, cancelling the page's 
+  `px-6` on that one row only) instead of stopping short with a visible gap — the 
+  heading row above it stays normally inset.
+- Deliberately NOT added: the mockup's top-left back arrow and top-right "•••" 
+  overflow-menu icon. The back arrow contradicts the app's actual nav model (tabs 
+  don't get back buttons, only pushed detail pages do — same reasoning already 
+  used to discount `topmatches.png`'s nav bar); the "•••" has no defined 
+  destination/feature behind it yet, so adding it would be UI without function. 
+  `/u/[username]`'s own back arrow (for navigating out of a visited profile) and 
+  Follow button are unrelated pre-existing elements, unchanged.
+- Top Favorites still had a visible gap after the 5th cover even once the row 
+  could bleed to the container edge (bleeding only helps when content overflows; 
+  5 fixed-`w-14` covers never did). Fixed by dropping the fixed width/scroll 
+  entirely — each cover is now `flex-1 min-w-0` so however many favorites exist 
+  (1–5) always stretch to evenly fill the full row width, no gap regardless of 
+  count.
+
+**Book cover "page curl" removed site-wide** ✅ done — user noticed a small 
+folded-corner graphic in the bottom-right of covers "across the site" and asked 
+where it came from. Root cause: Google's Books content API bakes an actual 
+page-curl image overlay onto the cover photo itself whenever the request URL 
+has `&edge=curl` — which `imageLinks.thumbnail` includes by default — and this 
+is baked into the image bytes, not a CSS effect. Open Library covers never have 
+this (confirmed: pulled the real rendered `<img>` `src`s off the page — every 
+`covers.openlibrary.org` URL was clean, every affected one was 
+`books.google.com/books/content?...edge=curl...`). Fix, in `src/lib/cover-url.ts` 
+(new `cleanCoverUrl()`, strips the `edge` query param via `URL`/`searchParams`, 
+safe no-op on Open Library URLs or malformed input):
+- Applied at every book-cover render site that was bypassing the shared 
+  `BookCover` component with its own `next/image`: `TierRowBar` (read-only tier 
+  previews), `SortableBookChip` (interactive tier board chips), `tier-board.tsx`'s 
+  drag overlay, and `BookCover` itself (covers everywhere else — Favorites, 
+  Library, search results, Compare, recommendations). Avatar `<Image>` usages 
+  (profile pages, list creator header, comments, top-match card) were checked 
+  and are unrelated — not touched.
+- Also fixed at the source: `secureThumbnail()` (`src/lib/google-books.ts`) now 
+  calls `cleanCoverUrl` too, so `findOrCreateBook`'s insert (the only write path 
+  into `books.thumbnail_url`) and the live search dropdown both store/show clean 
+  URLs for any book added from now on. The render-layer fix above is what makes 
+  *already-stored* dirty rows look clean immediately, with no DB migration 
+  needed — this source-level fix is just defense-in-depth for any future code 
+  that reads `thumbnail_url` directly instead of through an `<Image>`.
 
 Do not implement features from future sprints until explicitly instructed.
 

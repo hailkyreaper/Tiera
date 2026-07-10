@@ -88,13 +88,17 @@ export default async function PublicUserPage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      <div className="relative flex h-40 items-center justify-center rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950">
-        <div className="absolute top-4 left-4">
+      <div className="relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950 px-6 pt-5 pb-6">
+        <div className="absolute -top-16 -left-10 size-56 rounded-full bg-fuchsia-500/30 blur-3xl" />
+        <div className="absolute top-0 -right-12 size-48 rounded-full bg-primary/40 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))]" />
+
+        <div className="absolute top-4 left-4 z-10">
           <BackButton />
         </div>
 
         {user && (
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 z-10">
             <FollowButton
               targetUserId={profile.id}
               username={profile.username}
@@ -104,22 +108,24 @@ export default async function PublicUserPage({
         )}
 
         {profile.avatar_url ? (
-          <Image
-            src={profile.avatar_url}
-            alt={profile.username}
-            width={96}
-            height={96}
-            className="size-24 rounded-full object-cover ring-4 ring-primary"
-          />
+          <div className="z-10 rounded-full p-1">
+            <Image
+              src={profile.avatar_url}
+              alt={profile.username}
+              width={96}
+              height={96}
+              className="size-24 rounded-full object-cover"
+            />
+          </div>
         ) : (
-          <div className="flex size-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground ring-4 ring-primary">
-            {profile.username[0]?.toUpperCase() ?? "?"}
+          <div className="z-10 rounded-full p-1">
+            <div className="flex size-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground">
+              {profile.username[0]?.toUpperCase() ?? "?"}
+            </div>
           </div>
         )}
-      </div>
 
-      <div className="flex flex-1 flex-col items-center gap-6 px-6 pt-6 pb-12 text-center">
-        <div>
+        <div className="z-10 text-center">
           {profile.display_name && (
             <p className="text-lg font-semibold text-foreground">
               {profile.display_name}
@@ -135,14 +141,16 @@ export default async function PublicUserPage({
             @{profile.username}
           </p>
         </div>
+      </div>
 
+      <div className="flex flex-1 flex-col items-center gap-6 px-6 pt-5 pb-12 text-center">
         <div className="flex w-full justify-around">
           <div className="flex flex-col">
             <span className="text-xl font-semibold text-foreground">
               {listsCount}
             </span>
             <span className="text-xs text-muted-foreground uppercase">
-              Lists
+              Tier Lists
             </span>
           </div>
           <div className="flex flex-col">
@@ -185,7 +193,7 @@ export default async function PublicUserPage({
         />
 
         <div className="flex w-full flex-col gap-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+          <h2 className="text-xs font-semibold text-left text-muted-foreground uppercase">
             Lists
           </h2>
           {listCards.length === 0 ? (

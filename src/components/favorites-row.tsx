@@ -16,17 +16,17 @@ export function FavoritesRow({
   return (
     <div className="flex w-full flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+        <h2 className="text-sm font-semibold text-foreground">
           Top Favorites
         </h2>
         <Link href={viewMoreHref} className="text-xs text-primary">
-          View more
+          View all
         </Link>
       </div>
-      <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex items-stretch gap-2">
         {books.map((book) => (
-          <div key={book.bookId} className="w-14 shrink-0">
-            <BookCover src={book.thumbnail} alt={book.title} size={56} />
+          <div key={book.bookId} className="min-w-0 flex-1">
+            <BookCover src={book.thumbnail} alt={book.title} size={64} />
           </div>
         ))}
       </div>

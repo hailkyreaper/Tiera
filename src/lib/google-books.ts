@@ -1,3 +1,5 @@
+import { cleanCoverUrl } from "@/lib/cover-url";
+
 export type GoogleBookVolume = {
   id: string;
   volumeInfo: {
@@ -21,7 +23,7 @@ export function byPopularity(a: GoogleBookVolume, b: GoogleBookVolume): number {
 }
 
 export function secureThumbnail(url: string | undefined): string | undefined {
-  return url?.replace("http://", "https://");
+  return cleanCoverUrl(url?.replace("http://", "https://"));
 }
 
 // Single source of truth for "book -> form fields" so the search grid's

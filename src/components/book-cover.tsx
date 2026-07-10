@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { cleanCoverUrl } from "@/lib/cover-url";
 
 export function BookCover({
   src,
@@ -19,7 +20,7 @@ export function BookCover({
 
   return (
     <Image
-      src={src}
+      src={cleanCoverUrl(src)}
       alt={alt}
       width={size}
       height={Math.round(size * 1.5)}

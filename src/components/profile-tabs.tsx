@@ -9,7 +9,7 @@ const TABS = [
 
 export function ProfileTabs({ current }: { current: "lists" | "library" }) {
   return (
-    <div className="flex w-full border-b border-border">
+    <div className="flex w-full border-b border-t border-border">
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = tab.value === current;

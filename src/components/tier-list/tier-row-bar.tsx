@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { TIER_BADGE_COLORS, type Tier } from "@/lib/tiers";
+import { cleanCoverUrl } from "@/lib/cover-url";
 
 type PreviewBook = { id: string; title: string; thumbnail: string | null };
 
@@ -36,7 +37,7 @@ export function TierRowBar({
           <div key={book.id} className="aspect-[2/3] w-full overflow-hidden">
             {book.thumbnail ? (
               <Image
-                src={book.thumbnail}
+                src={cleanCoverUrl(book.thumbnail)}
                 alt={book.title}
                 width={400}
                 height={600}

@@ -7,7 +7,6 @@ export type LibraryBook = {
   title: string;
   authors: string[];
   thumbnail: string | null;
-  categories: string[];
   averageRating: number | null;
   addedAt: string;
 };
@@ -21,7 +20,6 @@ type UserBookRow = {
     title: string;
     authors: string[] | null;
     thumbnail_url: string | null;
-    categories: string[] | null;
     average_rating: number | null;
   };
 };
@@ -33,7 +31,7 @@ export async function getLibraryBooks(
   const { data } = await supabase
     .from("user_books")
     .select(
-      "created_at, books(id, title, authors, thumbnail_url, categories, average_rating)",
+      "created_at, books(id, title, authors, thumbnail_url, average_rating)",
     )
     .eq("user_id", userId)
     .returns<UserBookRow[]>();
@@ -43,19 +41,9 @@ export async function getLibraryBooks(
     title: row.books.title,
     authors: row.books.authors ?? [],
     thumbnail: row.books.thumbnail_url,
-    categories: row.books.categories ?? [],
     averageRating: row.books.average_rating,
     addedAt: row.created_at,
   }));
-}
-
-/** Unique genres present across a library, for populating the Filter menu. */
-export function getLibraryGenres(books: LibraryBook[]): string[] {
-  const genres = new Set<string>();
-  for (const book of books) {
-    for (const category of book.categories) genres.add(category);
-  }
-  return Array.from(genres).sort((a, b) => a.localeCompare(b));
 }
 
 export function sortLibraryBooks(

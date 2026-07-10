@@ -9,9 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
+import { ProfileTabs } from "@/components/profile-tabs";
+import { LibraryControls } from "@/components/library-controls";
+import { LibraryGrid } from "@/components/library-grid";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { getUserListCards } from "@/lib/db/list-cards";
+import {
+  getLibraryBooks,
+  getLibraryGenres,
+  sortLibraryBooks,
+  type LibrarySort,
+} from "@/lib/db/library";
 
 type ProfileRow = {
   username: string;
@@ -24,9 +33,22 @@ type ProfileRow = {
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; edit?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    edit?: string;
+    tab?: string;
+    sort?: string;
+    genre?: string;
+  }>;
 }) {
-  const { error, edit } = await searchParams;
+  const {
+    error,
+    edit,
+    tab: rawTab,
+    sort: rawSort,
+    genre: rawGenre,
+  } = await searchParams;
+  const tab: "lists" | "library" = rawTab === "library" ? "library" : "lists";
   const supabase = await createClient();
   const {
     data: { user },
@@ -66,7 +88,24 @@ export default async function ProfilePage({
   });
 
   const favoriteBooks = await getFavoriteBooks(supabase, user.id, 5);
-  const listCards = await getUserListCards(supabase, user.id);
+  const listCards =
+    tab === "lists" ? await getUserListCards(supabase, user.id) : [];
+
+  const libraryBooksRaw =
+    tab === "library" ? await getLibraryBooks(supabase, user.id) : [];
+  const libraryGenres = getLibraryGenres(libraryBooksRaw);
+  const genre =
+    rawGenre && libraryGenres.includes(rawGenre) ? rawGenre : "all";
+  const sort: LibrarySort =
+    rawSort === "title" || rawSort === "author" || rawSort === "rating"
+      ? rawSort
+      : "recent";
+  const libraryBooks = sortLibraryBooks(
+    genre === "all"
+      ? libraryBooksRaw
+      : libraryBooksRaw.filter((book) => book.categories.includes(genre)),
+    sort,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
@@ -215,32 +254,50 @@ export default async function ProfilePage({
               viewMoreHref="/profile/favorites"
             />
 
-            <div className="flex w-full flex-col gap-3">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase">
-                Lists
-              </h2>
-              {listCards.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  You don&apos;t have any tier lists yet.
-                </p>
-              ) : (
-                listCards.map((list) => (
-                  <ExploreListCard
-                    key={list.id}
-                    id={list.id}
-                    title={list.title}
-                    username={profile?.username ?? ""}
-                    avatarUrl={profile?.avatar_url}
-                    createdAt={list.createdAt}
-                    likeCount={list.likeCount}
-                    commentCount={list.commentCount}
-                    isPublic={list.isPublic}
-                    preview={list.preview}
-                    fromTab="profile"
+            <ProfileTabs current={tab} />
+
+            {tab === "lists" ? (
+              <div className="flex w-full flex-col gap-3">
+                <h2 className="text-xs font-semibold text-left text-muted-foreground uppercase">
+                  Lists
+                </h2>
+                {listCards.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    You don&apos;t have any tier lists yet.
+                  </p>
+                ) : (
+                  listCards.map((list) => (
+                    <ExploreListCard
+                      key={list.id}
+                      id={list.id}
+                      title={list.title}
+                      username={profile?.username ?? ""}
+                      avatarUrl={profile?.avatar_url}
+                      createdAt={list.createdAt}
+                      likeCount={list.likeCount}
+                      commentCount={list.commentCount}
+                      isPublic={list.isPublic}
+                      preview={list.preview}
+                      fromTab="profile"
+                    />
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="flex w-full flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+                    Library
+                  </h2>
+                  <LibraryControls
+                    genres={libraryGenres}
+                    currentSort={sort}
+                    currentGenre={genre}
                   />
-                ))
-              )}
-            </div>
+                </div>
+                <LibraryGrid books={libraryBooks} />
+              </div>
+            )}
           </>
         )}
 

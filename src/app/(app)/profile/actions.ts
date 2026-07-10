@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function updateProfile(formData: FormData) {
@@ -55,4 +56,23 @@ export async function updateProfile(formData: FormData) {
   }
 
   redirect("/profile");
+}
+
+export async function removeFromLibrary(bookId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  await supabase
+    .from("user_books")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("book_id", bookId);
+
+  revalidatePath("/profile");
 }

@@ -125,6 +125,12 @@ as possible — not just the general rules above.
   etc, `shrink-0`, plain `flex-wrap`) — not flex-grow, which was tried and reverted 
   because it made a wrapped tier's last row render visibly different-sized covers 
   than the row above it whenever the book count differed.
+- `/design/profilelisttab.png` / `/design/profilelibrarytab.png` — Profile's Lists/
+  Library tab pair: below Top Favorites, a two-icon tab row (list icon / book icon, 
+  underline indicator on the active tab) replaces the old plain "Lists" header. 
+  Lists tab shows the same list cards as before, unchanged. Library tab shows a 
+  "LIBRARY" label with Filter/Sort buttons on the right, then a dense 5-column grid 
+  of covers with title/author text and a per-book "⋮" menu below each cover.
 
 When building a feature, always check the matching image above first. If a screen 
 doesn't have an exact match, use the closest reference plus the general Design rules 
@@ -133,35 +139,38 @@ above.
 ## Current sprint
 
 None of the numbered sprints are active — Sprint 7 is still waiting to be 
-explicitly started (see Sprint Rule). We're instead picking up a To Do item as 
-the active task:
+explicitly started (see Sprint Rule).
 
-**Building now: Library View screen.** User's own request, verbatim: "No place to 
+**Library View screen** ✅ done — user's own request, verbatim: "No place to 
 view books when added to library except for going into lists and scrolling down 
-to library." Concrete plan, based on patterns already in this codebase — read 
-these files first, don't design from scratch:
-- **Closest existing template**: `src/app/(app)/profile/favorites/page.tsx` is 
-  almost exactly this feature already (BackButton header + a grid of covers, one 
-  data call, no other logic) — a new `src/app/(app)/profile/library/page.tsx` 
-  should follow the same shape.
-- **Data query**: reuse the exact pattern already in 
-  `src/app/(app)/lists/[id]/library/page.tsx` (the "Add from Library" picker) — 
-  `supabase.from("user_books").select("book_id, books(id, title, thumbnail_url)").eq("user_id", user.id)`. 
-  `user_books` RLS is owner-only (`auth.uid() = user_id`), unlike the public 
-  `books` table, so this only ever works for your own library — correct, since 
-  there's no cross-user "view someone else's library" concept in the data model.
-- **Rendering**: reuse `FavoritesGrid`/`BookCover` (`src/components/favorites-grid.tsx`, 
-  `src/components/book-cover.tsx`) for the actual grid — same visual language as 
-  Favorites, no new component needed there.
-- **Entry point**: needs a link from `/profile` into this new page — `FavoritesRow` 
-  already has this exact "View more" pattern for `/profile/favorites` 
-  (`src/components/favorites-row.tsx`), so add an analogous link/section. Check 
-  `design/profile.png` first for whether it shows a library section/placement; if 
-  not, use judgment consistent with the existing stats/Favorites layout.
-- **Not yet decided, worth asking the user**: should this page support *removing* 
-  a book from the library (the `user_books` DELETE RLS policy already exists, 
-  suggesting this was anticipated, but no UI for it exists anywhere yet)? Confirm 
-  scope before building that part.
+to library." Shipped differently than the original plan below (a separate 
+`/profile/library` page): partway through, the user supplied two mockups 
+(`design/profilelisttab.png`, `design/profilelibrarytab.png`) showing the Lists 
+section turned into a tab, with a Library tab beside it, so that became the real 
+spec instead of a standalone page.
+- Profile's old plain "Lists" header is now `ProfileTabs` 
+  (`src/components/profile-tabs.tsx`) — two icon tabs (list/book, underline 
+  indicator) driven by `?tab=lists|library` on `/profile`. Lists tab content is 
+  unchanged from before.
+- Library tab: `getLibraryBooks`/`getLibraryGenres`/`sortLibraryBooks` 
+  (`src/lib/db/library.ts`) fetch `user_books` joined to `books` (title, authors, 
+  thumbnail, categories, average_rating) for the signed-in user only — same 
+  owner-only RLS reasoning as the original plan. `LibraryGrid` 
+  (`src/components/library-grid.tsx`) renders a 5-column grid (cover, title, 
+  author, per-book "⋮" menu), matching the density in `profilelibrarytab.png` 
+  rather than reusing the larger `FavoritesGrid` styling, since this mockup 
+  explicitly showed a denser layout for this screen.
+- **Filter/Sort logic** (left to our judgment by the user): Filter is by genre — 
+  populated from the unique `books.categories` actually present in that user's 
+  library, "All Genres" default. Sort has four options — Recently Added (default, 
+  by `user_books.created_at`), Title (A–Z), Author (A–Z), Highest Rated (by 
+  `books.average_rating`). Both are `LibraryControls` 
+  (`src/components/library-controls.tsx`), a client component using 
+  `@base-ui/react/menu` dropdowns that push `sort`/`genre` query params.
+- **Remove from library**: the mockup's per-book "⋮" showed this was expected, so 
+  `LibraryBookMenu` (`src/components/library-book-menu.tsx`) calls a new 
+  `removeFromLibrary` server action (`src/app/(app)/profile/actions.ts`), using 
+  the `user_books` DELETE RLS policy that already existed.
 - Sprint 7 ("Import & Search Polish": Goodreads CSV import, search filters/history) 
   is still not started — most of the *search* half of that scope actually already 
   got done incidentally in the "Post-Sprint-6 bug fixes, round 3" section below 
@@ -488,8 +497,7 @@ explicitly before building.
 
 ## To Do
 
-- Library View screen — promoted to active work, see Current sprint section above 
-  for the full spec.
+- Library View screen ✅ done — see Current sprint section above for the full spec.
 - Security: `/admin/backfill-categories` has no admin/role check — any logged-in 
   user can currently trigger it. Needs a role check before Sprint 6. ✅ done — new 
   `profiles.is_admin` column (migration `0017`) + shared `isAdmin()` helper 

@@ -256,6 +256,18 @@ safe no-op on Open Library URLs or malformed input):
   needed — this source-level fix is just defense-in-depth for any future code 
   that reads `thumbnail_url` directly instead of through an `<Image>`.
 
+**Save Match removed** ✅ done — user's call: "no need for saved matches 
+anymore," after the To Do list surfaced that it never got a destination screen. 
+Deleted `src/components/save-match-button.tsx` and 
+`src/app/(app)/compare/actions.ts` (only held `toggleSavedMatch`, nothing else 
+used the file) entirely rather than leaving dead code; removed the button, the 
+`saved_matches` lookup query, and the `isSaved` prop from the Compare detail 
+page (`src/app/(app)/compare/[username]/page.tsx`) — that page's bottom action 
+row is now just a single full-width "View Full Profile" button. The 
+`saved_matches` table itself (migrations `0015`/`0016`) was NOT dropped — no 
+precedent in this repo for a destructive down-migration, and an unused table is 
+harmless; revisit only if DB cleanup is ever explicitly requested.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -379,10 +391,12 @@ upload `comupdate.png`) expand Compare beyond what shipped in Sprint 5:
   than tier-spectrum colors — the point is sentiment, not tier branding), inline 
   match-based recommendations (`getMatchRecommendations`, top 4 of the other 
   user's highest-rated unowned books with a per-book confidence %, reusing the 
-  existing `RecommendationRow` from the standalone Recommendations screen), View 
-  Full Profile button, and a real working Save Match toggle (`saved_matches` 
-  table + `toggleSavedMatch` action — persists, but there's no dedicated "view 
-  your saved matches" screen yet).
+  existing `RecommendationRow` from the standalone Recommendations screen), and a 
+  View Full Profile button. (A Save Match toggle also shipped here originally — 
+  `saved_matches` table + `toggleSavedMatch` action — but was removed later, see 
+  "Current sprint" below: it never got a destination screen to view saved 
+  matches, and the user decided there was no reason to keep it once that gap was 
+  pointed out.)
 - Compare landing page's "Top Matches" list ✅ done — decided this IS Sprint 6's 
   "People you might vibe with" (same idea, not two separate features), so it 
   closes both out at once. "Your taste score" card (ring showing your single 
@@ -573,6 +587,10 @@ explicitly before building.
   already used), photo upload UI, and a review/confirm step before adding, since 
   misreads are expected. Not in the roadmap yet — pull into a real sprint before 
   building.
+- Bad word filter for comments/usernames (moved here from To Do 2026-07-10, not 
+  started). Needs a decision first: simple hardcoded wordlist (free, easy to 
+  bypass) vs. a real moderation library/API (better coverage, more setup), and 
+  whether it should hard-block submission or just flag for review.
 
 ## To Do
 
@@ -586,14 +604,36 @@ explicitly before building.
   running the migration.
 - Data quality: duplicate book catalog rows for the same title (e.g. "Powerless," 
   "The Fires of Vengeance") — currently defended against with title-based de-dupe 
-  in Compare/Recommendations, but source rows were never merged.
-- Saved matches have no destination screen. The Save Match toggle on Compare 
-  (`saved_matches` table + `toggleSavedMatch` action) works and persists, but 
-  there's nowhere to actually browse who you've saved. Needs a simple list page 
-  (saved users, linking into their Compare page).
-- Bad word filter for comments/usernames — not started. Needs a decision first: 
-  simple hardcoded wordlist (free, easy to bypass) vs. a real moderation 
-  library/API (better coverage, more setup), and whether it should hard-block 
-  submission or just flag for review.
-- User feedback: "UI is extremely inconsistent" — flagged without specific 
-  examples yet. Revisit once there are concrete screens/elements to point to.
+  in Compare/Recommendations, but source rows were never merged. Cause: every 
+  distinct edition a user adds gets its own `books` row (matched by 
+  `google_volume_id`/Open Library key, which differs per edition/printing, not 
+  per title) via `findOrCreateBook` — so "The Fires of Vengeance" the paperback 
+  and "The Fires of Vengeance" the ebook can each create a separate row with 
+  their own `id`, own rating, own thumbnail, instead of sharing one canonical 
+  book. Compare/Recommendations paper over it by de-duping on title text at 
+  query time, but nothing has ever gone back and merged the underlying 
+  duplicate rows (repointing `user_books`/`tier_list_items` to one canonical id 
+  and deleting the rest) — that's the "source rows were never merged" part.
+- Saved matches ✅ removed — see "Current sprint" above (no destination screen, 
+  user decided to just delete the feature rather than build one).
+- Bad word filter for comments/usernames — moved to Ideas Backlog (not being 
+  scheduled into a sprint right now); see that section for the open questions.
+- User feedback: "UI is extremely inconsistent" — user's plan (2026-07-10): not 
+  a dedicated pass, addressed incrementally as they hand over specific color 
+  values. Don't proactively restyle colors beyond what's given. Applied so far, 
+  dark mode only (`src/app/globals.css` `.dark` block; light untouched — user: 
+  "I have never looked at light mode"):
+  - `--background: #030a10`, `--card: #0c1115`.
+  - Buttons matched to card color: `Button`'s `outline` variant now uses 
+    `dark:bg-card` (was `dark:bg-input/30`) — this is the shared secondary-button 
+    style used almost everywhere (Edit Profile, Cancel, View Full Profile, etc.), 
+    so fixing it there covers most of the app. Also added explicit `bg-card` to 
+    the bare (non-`Button`-component) Filter/Sort/Select pill triggers in 
+    `library-section.tsx`, which previously had no background at all. Left 
+    `ghost`-variant buttons (Cancel in select mode, Log out) alone — they're 
+    deliberately chromeless, not meant to read as a card surface.
+  - Same treatment for the shared `SegmentedTabs` component's *inactive* pill 
+    (`bg-muted` → `bg-card`) — active stays `bg-primary`/purple, unchanged. 
+    `SegmentedTabs` is reused by Explore (For You/Following/Recent), Compare 
+    (All/Friends), and Search (Books/People), so this one change covers all 
+    three screens' tab rows at once.

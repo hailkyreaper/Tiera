@@ -18,7 +18,7 @@ const SORT_OPTIONS: { value: LibrarySort; label: string }[] = [
 ];
 
 const triggerClass =
-  "inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted";
+  "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted";
 const popupClass =
   "max-h-64 min-w-40 overflow-y-auto rounded-xl bg-popover p-1 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10";
 const itemClass =

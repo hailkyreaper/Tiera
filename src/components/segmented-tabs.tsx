@@ -25,7 +25,7 @@ export function SegmentedTabs<T extends string>({
               "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
               isActive
                 ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground",
+                : "bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}

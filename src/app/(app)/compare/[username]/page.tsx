@@ -8,7 +8,6 @@ import { MatchedBookRow } from "@/components/matched-book-row";
 import { DisagreementsTable } from "@/components/disagreements-table";
 import { CompareStatsRow } from "@/components/compare-stats-row";
 import { RecommendationRow } from "@/components/recommendation-row";
-import { SaveMatchButton } from "@/components/save-match-button";
 import { Button } from "@/components/ui/button";
 
 type ProfileRow = {
@@ -79,22 +78,11 @@ export default async function CompareWithUserPage({
     );
   }
 
-  const [
-    { match, bothLove, disagreeOn, sharedDislikes },
-    matchRecommendations,
-    savedMatch,
-  ] = await Promise.all([
-    getComparisonSummary(supabase, me.id, them.id),
-    getMatchRecommendations(supabase, me.id, them.id),
-    supabase
-      .from("saved_matches")
-      .select("viewer_id")
-      .eq("viewer_id", me.id)
-      .eq("saved_user_id", them.id)
-      .maybeSingle(),
-  ]);
-
-  const isSaved = Boolean(savedMatch.data);
+  const [{ match, bothLove, disagreeOn, sharedDislikes }, matchRecommendations] =
+    await Promise.all([
+      getComparisonSummary(supabase, me.id, them.id),
+      getMatchRecommendations(supabase, me.id, them.id),
+    ]);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-8">
@@ -195,18 +183,11 @@ export default async function CompareWithUserPage({
         </div>
       )}
 
-      <div className="flex gap-2">
-        <Link href={`/u/${them.username}`} className="flex-1">
-          <Button type="button" variant="outline" className="w-full">
-            View Full Profile
-          </Button>
-        </Link>
-        <SaveMatchButton
-          savedUserId={them.id}
-          username={them.username}
-          isSaved={isSaved}
-        />
-      </div>
+      <Link href={`/u/${them.username}`}>
+        <Button type="button" variant="outline" className="w-full">
+          View Full Profile
+        </Button>
+      </Link>
     </div>
   );
 }

@@ -63,7 +63,9 @@ export async function findOrCreateBook(
     : [];
 
   const firstAuthor = fields.authors ? fields.authors.split(", ")[0] : undefined;
-  const openLibrary = await getOpenLibraryData(fields.title, firstAuthor);
+  const openLibrary = await getOpenLibraryData(fields.title, firstAuthor, {
+    includeDescription: !fields.description,
+  });
   const categories =
     openLibrary.genres.length > 0 ? openLibrary.genres : googleCategories;
 
@@ -73,7 +75,7 @@ export async function findOrCreateBook(
       google_volume_id: fields.googleVolumeId,
       title: fields.title,
       authors: fields.authors ? fields.authors.split(", ") : null,
-      description: fields.description || null,
+      description: fields.description || openLibrary.description || null,
       thumbnail_url: fields.thumbnailUrl || openLibrary.coverUrl || null,
       published_date: fields.publishedDate || null,
       page_count: fields.pageCount ? parseInt(fields.pageCount, 10) : null,

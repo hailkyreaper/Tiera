@@ -1,9 +1,9 @@
 import { BackButton } from "@/components/back-button";
 import { cn } from "@/lib/utils";
 
-/** Bordered top bar for any page reached via a back arrow — bleeds edge to
- * edge (matching the bottom NavBar's full-width border) regardless of the
- * page's own content padding. */
+/** Compact top bar for any page reached via a back arrow — no border, no
+ * vertical padding of its own, so it stays as short as possible; the page's
+ * own gap/padding provides spacing around it. */
 export function TopNav({
   title,
   center = false,
@@ -14,7 +14,7 @@ export function TopNav({
   return (
     <div
       className={cn(
-        "-mx-4 flex items-center gap-2 border-b border-border px-4 pb-3",
+        "flex items-center gap-2",
         center && "grid grid-cols-[2.25rem_1fr_2.25rem]",
       )}
     >

@@ -74,6 +74,11 @@ export default async function ProfilePage({
           .neq("tier", "unranked")
       : { count: 0 };
 
+  const { count: followingCount } = await supabase
+    .from("follows")
+    .select("following_id", { count: "exact", head: true })
+    .eq("follower_id", user.id);
+
   const joinedDate = new Date(user.created_at).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -93,7 +98,7 @@ export default async function ProfilePage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      <div className="relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950 px-4 pt-5 pb-6">
+      <div className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950 px-4 pt-5 pb-6">
         <div className="absolute -top-16 -left-10 size-56 rounded-full bg-fuchsia-500/30 blur-3xl" />
         <div className="absolute top-0 -right-12 size-48 rounded-full bg-primary/40 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))]" />
@@ -146,8 +151,8 @@ export default async function ProfilePage({
       </div>
 
       <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-4 pb-4 text-center">
-        <div className="flex w-full justify-around">
-          <div className="flex flex-col">
+        <div className="flex w-full">
+          <div className="flex flex-1 flex-col items-center">
             <span className="text-xl font-semibold text-foreground">
               {listsCount}
             </span>
@@ -155,7 +160,7 @@ export default async function ProfilePage({
               Tier Lists
             </span>
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-1 flex-col items-center">
             <span className="text-xl font-semibold text-foreground">
               {booksRankedCount ?? 0}
             </span>
@@ -163,14 +168,17 @@ export default async function ProfilePage({
               Books Ranked
             </span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-semibold text-muted-foreground">
-              —
+          <Link
+            href="/profile/following"
+            className="flex flex-1 flex-col items-center"
+          >
+            <span className="text-xl font-semibold text-foreground">
+              {followingCount ?? 0}
             </span>
             <span className="text-xs text-muted-foreground uppercase">
-              Avg Match
+              Following
             </span>
-          </div>
+          </Link>
         </div>
 
         {edit === "true" ? (

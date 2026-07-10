@@ -349,6 +349,133 @@ overshot past the new narrower padding. `FavoritesRow` needed no equivalent fix
 — its own edge-bleed attempt was already superseded earlier by the `flex-1` 
 fill approach (see above), so it was never coupled to the `px-6` value.
 
+**Profile "Following" stat + list, and 3-stat-row centering fix** ✅ done — 
+two related asks. First: the always-empty "Avg Match" third stat on `/profile` 
+(no avg-match algorithm exists) is now "Following" — a real count 
+(`follows` where `follower_id = you`), linking to a new `/profile/following` 
+page. That page lists everyone you follow (avatar, display name/`@username`, 
+each linking to `/u/[username]`) with an inline `FollowButton` to unfollow 
+right from the list — reused as-is, no new button component needed. 
+`toggleFollow` (`src/app/(app)/u/actions.ts`) previously only revalidated the 
+*target* user's `/u/[username]`, which left both `/profile` (stat) and 
+`/profile/following` (list) stale after unfollowing from this new page — now 
+also revalidates both of those unconditionally. `/u/[username]`'s own third 
+stat is UNCHANGED (still "Avg Match") — the user asked for this on "profile" 
+(their own), not for a general "view anyone's following list" feature.
+
+Second: both profile pages' 3-stat row used `justify-around`/`justify-between` 
+on unequal-width items — with 3 flex children of different widths, that 
+math means the *middle* item's visual center only lines up with the row's true 
+center when the two side items happen to be equal width, which "Tier Lists" 
+vs "Following" (or "Books Ranked") never are. Fixed by dropping the 
+justify-* trick entirely: each stat is now `flex-1` with its own `items-center`, 
+so all three columns are equal-width thirds and each stat centers within its 
+own column — the middle one lands on the row's true center as a side effect, 
+and the outer two are each centered in their own even share rather than 
+crammed toward the middle or flush to the edges.
+
+**Book detail view** ✅ done — user's spec: tapping a book cover should only 
+work after you've clicked into someone else's list from Explore (not on the 
+Explore feed's card previews themselves), and opens a bottom sheet at ~2/3 
+screen height with the cover + a synopsis, dismissed by tapping outside it 
+(back to the same list, no navigation). Built with `@base-ui/react/drawer` 
+(bundled but previously unused in this repo — bottom-sheet gestures, snap 
+points, and outside-press-to-dismiss all come for free), in a new 
+`BookDetailDrawer` (`src/components/tier-list/book-detail-drawer.tsx`, client 
+component — cover via the existing `BookCover`, then title/authors/rating/
+`books.description`).
+- Scoping this to "someone else's list, once you're already viewing it" 
+  landed on `TierRowBar` (`src/components/tier-list/tier-row-bar.tsx`) getting 
+  a new opt-in `interactive` prop, rather than making it clickable everywhere 
+  it's used. `TierRowBar` is shared by two very different contexts: Explore's 
+  `ExploreListCard` (a card preview where the *entire card* is already one big 
+  `Link` to the list — covers must stay inert there, and don't pass the prop) 
+  and `ReadOnlyTierBoard` (the actual visitor-facing list detail page, the 
+  only place `interactive` is set). The owner's own interactive drag-and-drop 
+  board (`SortableBookChip`/`TierBoard`) was deliberately left alone — the 
+  request was specifically about *someone else's* list.
+- `ReadOnlyTierBoard` used to take the same `Columns`/`Card` shape as the 
+  interactive board (just `bookId`/`title`/`thumbnail`, no synopsis data) — 
+  now takes a new richer `DetailedColumns`/`DetailedBook` (adds `description`, 
+  `authors`, `averageRating`), defined in `read-only-board.tsx`. The 
+  interactive board's own `Columns`/`Card` type (`tier-list/types.ts`) was 
+  deliberately NOT touched/bloated with synopsis fields it doesn't need — 
+  `lists/[id]/page.tsx` now builds both an `initialColumns` (unchanged, for 
+  the owner's board) and a separate `detailedColumns` from the same already- 
+  fetched `tier_list_items` query (just widened the existing `books(...)` 
+  select to include `description, authors, average_rating` — no extra 
+  round-trip).
+- Verified live: opening the drawer on a real list shows cover/title/author/
+  rating/full synopsis correctly, tapping the backdrop closes it back to the 
+  exact same list (no page navigation), and confirmed 0 drawer triggers 
+  render on the Explore feed itself.
+
+**Book descriptions were all empty — root cause + fix** ✅ done — user noticed 
+in the new drawer above that every book showed "No synopsis available." Root 
+cause: `books.description` is a real, correct column, but nothing has 
+populated it since the Open Library search switch — `openLibraryDocToVolume` 
+(`src/lib/open-library.ts`) only ever mapped title/authors/date/pages/rating/
+cover, never description, because Open Library's `search.json` doesn't return 
+synopsis text at all; that only lives on a separate per-book "Works" endpoint 
+(`openlibrary.org/works/OL...W.json`), keyed by the `key` a search result 
+already gives you. Google-sourced books (pre-switch, or any future path that 
+still touches Google) were never affected — `volumeInfo.description` populates 
+directly.
+- Fix: new `fetchOpenLibraryDescription(workKey)` in `open-library.ts` hits 
+  the Works endpoint and normalizes the response (Open Library returns 
+  `description` as either a plain string or `{ type, value }`). Wired into 
+  `getOpenLibraryData` behind a new opt-in `{ includeDescription: true }` 
+  option (default off) — added as an option rather than always-on so the 
+  extra network round-trip only happens when actually needed (i.e. never for 
+  a Google-sourced book that already has `fields.description`).
+- New books: `findOrCreateBook` (`src/lib/db/books.ts`) now stores 
+  `fields.description || openLibrary.description || null`, requesting 
+  `includeDescription: !fields.description`. This needed no new DB grant — 
+  it's an INSERT, covered by the existing "Authenticated users can add books" 
+  policy. Verified live: searched for and added a brand-new book ("The Fifth 
+  Season," not previously in the catalog), confirmed a full synopsis landed 
+  in its row immediately.
+- Existing books: extended the existing `/admin/backfill-categories` action 
+  (`runBackfill`, `src/app/(app)/admin/backfill-categories/actions.ts`) rather 
+  than building a separate one-off script — it already loops every book 
+  calling `getOpenLibraryData` for genre/cover backfill, so filling in a 
+  missing description in the same pass (`!book.description` → request 
+  `includeDescription`, write it if returned) was a natural extension, not a 
+  new page. Page copy at that route updated to describe the broader scope. 
+  This path *did* need a new grant — `books` UPDATE is column-scoped (see 
+  migration `0010`'s revoke + narrow re-grants, and `0011` for the same 
+  pattern with `thumbnail_url`) — so added migration 
+  `0019_book_description_update_grant.sql` 
+  (`grant update (description) on books to authenticated;`). Verified live by 
+  actually running the backfill: 74 books updated, 12 descriptions filled in 
+  on existing rows.
+
+**TopNav made borderless and compact** ✅ done — follow-up to the earlier 
+`TopNav` work above. `border-b border-border` removed, along with its 
+`-mx-4 ... px-4` bleed pair (which existed solely to let that border span 
+full width — pointless once there's no border to bleed) and the `pb-3` 
+internal bottom padding. `TopNav` itself now has no padding/border of its 
+own at all; each page's existing wrapper `gap-*`/`p-4` is what spaces it from 
+the content below. Since every back-arrow page already goes through this one 
+shared component, this single change applies everywhere a back button 
+appears with no per-page edits needed.
+
+**Book detail drawer raised to 4/5 height; empty tier rows fixed** ✅ done — 
+two quick follow-ups. `BookDetailDrawer`'s popup went `h-[67vh]` → `h-[80vh]` 
+to show more synopsis text before scrolling. Separately, empty tier rows in 
+`TierRowBar` (Explore feed previews, Profile Lists tab previews, visitor list 
+detail) were visually shrinking relative to rows with covers — the old fix 
+was a flat `min-h-10` (40px) on the row's grid container, which only 
+coincidentally matched a populated row's real height (itself just whatever 
+height an `aspect-[2/3]` cover works out to at that particular container's 
+column width — different per context, and not actually 40px in most of 
+them). A CSS grid row with zero items has nothing to size itself from, so it 
+was collapsing toward that guessed fallback instead of matching. Fixed by 
+dropping `min-h-10` and, when a tier has 0 books, rendering one 
+`invisible aspect-[2/3]` placeholder cell instead — same sizing mechanism a 
+real cover uses, so an empty row's height always matches a populated one 
+exactly, in every context, with no hardcoded guess.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -718,17 +845,5 @@ explicitly before building.
     `SegmentedTabs` is reused by Explore (For You/Following/Recent), Compare 
     (All/Friends), and Search (Books/People), so this one change covers all 
     three screens' tab rows at once.
-- Book detail view: no way to open a book from someone else's tier list to read 
-  its synopsis (user request, 2026-07-11) — not started. Right now book covers 
-  are non-interactive everywhere (tier chips in `SortableBookChip`/`TierRowBar`, 
-  Favorites, Library, search results) — there's no book-detail page/route at 
-  all. `books.description` already exists in the schema and is populated (used 
-  nowhere in the UI today), so the data side is mostly there; this is really 
-  about building a detail view (probably a route like `/books/[id]`, or a 
-  sheet/dialog opened from a tap) and wiring covers to link to it — likely 
-  starting with the read-only tier chips (`TierRowBar`, used on Explore/Profile/ 
-  visitor list-detail) since that's the "someone else's tier list" surface the 
-  request is about, though the owner's interactive board (`SortableBookChip`) 
-  has the same gap. Needs a decision on the UI pattern (dedicated page vs. 
-  modal/sheet) before building.
+- Book detail view ✅ done — see "Current sprint" below for the full spec.
 - Site-wide page padding ✅ done — see "Current sprint" below for the full spec.

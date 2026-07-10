@@ -12,6 +12,7 @@ type BookRow = {
   title: string;
   authors: string[] | null;
   thumbnail_url: string | null;
+  description: string | null;
 };
 type VolumeResponse = { volumeInfo?: { categories?: string[] } };
 
@@ -34,20 +35,20 @@ export async function runBackfill() {
   // us for a book.
   const { data: books } = await supabase
     .from("books")
-    .select("id, google_volume_id, title, authors, thumbnail_url")
+    .select("id, google_volume_id, title, authors, thumbnail_url, description")
     .returns<BookRow[]>();
 
   let updated = 0;
   let coversFilled = 0;
+  let descriptionsFilled = 0;
   let failed = 0;
   let noCategories = 0;
 
   for (const book of books ?? []) {
     try {
-      const openLibrary = await getOpenLibraryData(
-        book.title,
-        book.authors?.[0],
-      );
+      const openLibrary = await getOpenLibraryData(book.title, book.authors?.[0], {
+        includeDescription: !book.description,
+      });
 
       let categories = openLibrary.genres;
 
@@ -76,6 +77,11 @@ export async function runBackfill() {
         coversFilled++;
       }
 
+      if (!book.description && openLibrary.description) {
+        updates.description = openLibrary.description;
+        descriptionsFilled++;
+      }
+
       if (Object.keys(updates).length === 0) {
         continue;
       }
@@ -95,7 +101,7 @@ export async function runBackfill() {
     }
   }
 
-  const message = `Updated ${updated} book(s) (${coversFilled} covers filled in), ${failed} failed, ${noCategories} had no categories available.`;
+  const message = `Updated ${updated} book(s) (${coversFilled} covers filled in, ${descriptionsFilled} descriptions filled in), ${failed} failed, ${noCategories} had no categories available.`;
   redirect(
     `/admin/backfill-categories?result=${encodeURIComponent(message)}`,
   );

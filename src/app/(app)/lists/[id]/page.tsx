@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import { TierBoard } from "@/components/tier-list/tier-board";
-import { ReadOnlyTierBoard } from "@/components/tier-list/read-only-board";
+import {
+  ReadOnlyTierBoard,
+  type DetailedColumns,
+} from "@/components/tier-list/read-only-board";
 import { LikeButton } from "@/components/tier-list/like-button";
 import { CommentsSection, type CommentView } from "@/components/tier-list/comments-section";
 import { DeleteListButton } from "@/components/tier-list/delete-list-button";
@@ -22,6 +25,9 @@ type BookInfo = {
   id: string;
   title: string;
   thumbnail_url: string | null;
+  description: string | null;
+  authors: string[] | null;
+  average_rating: number | null;
 };
 
 type TierListRow = {
@@ -87,7 +93,9 @@ export default async function TierListPage({
 
   const { data: items } = await supabase
     .from("tier_list_items")
-    .select("id, tier, position, books(id, title, thumbnail_url)")
+    .select(
+      "id, tier, position, books(id, title, thumbnail_url, description, authors, average_rating)",
+    )
     .eq("tier_list_id", id)
     .order("position", { ascending: true })
     .returns<TierListItemRow[]>();
@@ -102,6 +110,15 @@ export default async function TierListPage({
     unranked: [],
   };
 
+  const detailedColumns: DetailedColumns = {
+    S: [],
+    A: [],
+    B: [],
+    C: [],
+    D: [],
+    F: [],
+  };
+
   for (const item of items ?? []) {
     const card: Card = {
       bookId: item.books.id,
@@ -110,6 +127,17 @@ export default async function TierListPage({
       thumbnail: item.books.thumbnail_url,
     };
     initialColumns[item.tier].push(card);
+
+    if (item.tier !== "unranked") {
+      detailedColumns[item.tier].push({
+        id: item.books.id,
+        title: item.books.title,
+        thumbnail: item.books.thumbnail_url,
+        description: item.books.description,
+        authors: item.books.authors,
+        averageRating: item.books.average_rating,
+      });
+    }
   }
 
   if (isOwner) {
@@ -269,7 +297,7 @@ export default async function TierListPage({
           </span>
         )}
       </div>
-      <ReadOnlyTierBoard columns={initialColumns} />
+      <ReadOnlyTierBoard columns={detailedColumns} />
       <CommentsSection
         tierListId={id}
         comments={commentViews}

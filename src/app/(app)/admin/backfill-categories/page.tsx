@@ -26,11 +26,12 @@ export default async function BackfillCategoriesPage({
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 p-4 text-center">
       <h1 className="text-xl font-semibold text-foreground">
-        Backfill book categories
+        Backfill book data
       </h1>
       <p className="text-sm text-muted-foreground">
-        One-time: re-fetches genre categories from Google Books for any book
-        missing them.
+        One-time: re-fetches genre categories for every book (Open Library
+        first, falling back to Google Books), and fills in a cover or
+        synopsis for any book still missing one.
       </p>
       <form action={runBackfill}>
         <Button type="submit">Run backfill</Button>

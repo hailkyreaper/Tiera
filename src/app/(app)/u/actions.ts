@@ -34,4 +34,6 @@ export async function toggleFollow(formData: FormData) {
   if (username) {
     revalidatePath(`/u/${username}`);
   }
+  revalidatePath("/profile");
+  revalidatePath("/profile/following");
 }

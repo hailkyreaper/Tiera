@@ -1,8 +1,36 @@
 import type { GoogleBookVolume } from "@/lib/google-books";
 
 type OpenLibrarySearchResponse = {
-  docs?: { subject?: string[]; cover_i?: number }[];
+  docs?: { key?: string; subject?: string[]; cover_i?: number }[];
 };
+
+type OpenLibraryWorkResponse = {
+  description?: string | { type?: string; value?: string };
+};
+
+// Open Library's search.json never includes a synopsis — that only lives on
+// the separate per-work endpoint, keyed by the "key" (e.g. "/works/OL123W")
+// a search result already gives us.
+async function fetchOpenLibraryDescription(
+  workKey: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`https://openlibrary.org${workKey}.json`, {
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) return null;
+
+    const data: OpenLibraryWorkResponse = await res.json();
+    if (!data.description) return null;
+
+    return typeof data.description === "string"
+      ? data.description
+      : (data.description.value ?? null);
+  } catch {
+    return null;
+  }
+}
 
 type OpenLibraryDoc = {
   key: string;
@@ -119,16 +147,18 @@ function looksLikeGenre(subject: string): boolean {
 export type OpenLibraryData = {
   genres: string[];
   coverUrl: string | null;
+  description: string | null;
 };
 
 export async function getOpenLibraryData(
   title: string,
   author?: string,
+  options?: { includeDescription?: boolean },
 ): Promise<OpenLibraryData> {
   const query = author ? `${title} ${author}` : title;
   const params = new URLSearchParams({
     q: query,
-    fields: "subject,cover_i",
+    fields: "key,subject,cover_i",
     limit: "1",
   });
 
@@ -137,7 +167,7 @@ export async function getOpenLibraryData(
   });
 
   if (!res.ok) {
-    return { genres: [], coverUrl: null };
+    return { genres: [], coverUrl: null, description: null };
   }
 
   const data: OpenLibrarySearchResponse = await res.json();
@@ -168,5 +198,10 @@ export async function getOpenLibraryData(
     ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
     : null;
 
-  return { genres, coverUrl };
+  const description =
+    options?.includeDescription && doc?.key
+      ? await fetchOpenLibraryDescription(doc.key)
+      : null;
+
+  return { genres, coverUrl, description };
 }

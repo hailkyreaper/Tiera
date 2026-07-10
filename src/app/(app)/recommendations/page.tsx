@@ -36,7 +36,7 @@ export default async function RecommendationsPage({
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
       <div className="flex flex-col gap-1 text-left">
         <h1 className="text-2xl font-semibold text-foreground">
           Recommendations

@@ -24,7 +24,7 @@ export default async function BackfillCategoriesPage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 p-4 text-center">
       <h1 className="text-xl font-semibold text-foreground">
         Backfill book categories
       </h1>

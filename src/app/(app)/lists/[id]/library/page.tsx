@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLibraryBooks, sortLibraryBooks, type LibrarySort } from "@/lib/db/library";
 import { AddFromLibrarySection } from "@/components/add-from-library-section";
-import { BackButton } from "@/components/back-button";
+import { TopNav } from "@/components/top-nav";
 
 type TierListRow = { id: string; title: string; user_id: string };
 type ItemRow = { book_id: string };
@@ -56,13 +56,8 @@ export default async function AddFromLibraryPage({
       : "recent";
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <div className="flex items-center gap-2">
-        <BackButton />
-        <h1 className="text-xl font-semibold text-foreground">
-          Add from library to {tierList.title}
-        </h1>
-      </div>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
+      <TopNav title={`Add from library to ${tierList.title}`} />
 
       <AddFromLibrarySection
         books={sortLibraryBooks(availableBooks, sort)}

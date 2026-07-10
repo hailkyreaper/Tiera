@@ -11,7 +11,7 @@ import { ListCreatorHeader } from "@/components/tier-list/list-creator-header";
 import { ListDescription } from "@/components/tier-list/list-description";
 import { EditListDetailsForm } from "@/components/tier-list/edit-list-details-form";
 import { ListActionsBar } from "@/components/tier-list/list-actions-bar";
-import { BackButton } from "@/components/back-button";
+import { TopNav } from "@/components/top-nav";
 import { FollowButton } from "@/components/follow-button";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
@@ -114,7 +114,7 @@ export default async function TierListPage({
 
   if (isOwner) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
         {edit === "true" ? (
           <EditListDetailsForm
             tierListId={id}
@@ -129,7 +129,7 @@ export default async function TierListPage({
           </EditListDetailsForm>
         ) : (
           <>
-            <BackButton />
+            <TopNav />
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold text-foreground">
@@ -225,8 +225,8 @@ export default async function TierListPage({
   }));
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <BackButton />
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
+      <TopNav />
       {creator && (
         <ListCreatorHeader
           username={creator.username}

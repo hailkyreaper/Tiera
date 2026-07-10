@@ -304,6 +304,51 @@ Add correctly moves books into Unranked (confirmed via the list's own edit view,
 `Unranked Books (N)` count went up), and dismissing the Delete confirm leaves 
 the library untouched.
 
+**TopNav for back-arrow pages** ✅ done — the user felt back arrows looked out 
+of place with no surrounding chrome. New `TopNav` (`src/components/top-nav.tsx`) 
+wraps `BackButton` in a full-width bordered bar (`-mx-6 ... border-b 
+border-border`, bleeding past the page's own `px-6` the same way `FavoritesRow`'s 
+cover strip does, so the border spans edge to edge like the bottom `NavBar`'s 
+`border-t`). Takes an optional `title` (left-aligned next to the arrow) and a 
+`center` flag (3-column grid, arrow/title/spacer, for Compare's "Compare" 
+header). Rolled out to every plain back-arrow page: `lists/[id]/library`, 
+`lists/[id]/search`, `profile/favorites`, `u/[username]/favorites`, both 
+branches of `lists/[id]` (owner + visitor — owner's is title-less since the 
+real heading follows below it), and `compare/[username]` (`center`, and this 
+also switched its back arrow from a hardcoded `Link href="/compare"` to the 
+same `router.back()` `BackButton` everything else uses). Deliberately NOT 
+touched: `u/[username]`'s `BackButton`, which floats top-left over the cosmic 
+banner — different, intentional design (matches the banner treatment from the 
+earlier profile-header polish pass), not "out of place" the way a bare 
+unstyled back arrow on a plain background is.
+
+Page top padding on these (and every other) page is still each page's original 
+`py-12`/`py-8` — untouched on purpose. First pass also shrank these pages' top 
+padding to sit closer to the bar, but the user wanted that scoped differently: 
+not a per-page tweak, but a single new site-wide top-padding value (between the 
+original `py-12`/48px and that attempt's `pt-6`/24px) applied consistently 
+everywhere, TopNav or not — a decision to make deliberately, not something to 
+just also change while doing something else. Reverted at the time.
+
+**Site-wide page padding** ✅ done — the follow-up to the above. User picked 
+`p-4` (16px, all four sides — not just vertical) as the one new standard, "let's 
+see how it looks" rather than a locked-in final decision. Applied to every 
+page's outer wrapper `<div>` that previously used `px-6 py-12` or `px-6 py-8` 
+(`explore`, `search`, `compare` landing + detail, `recommendations`, 
+`admin/backfill-categories`, `lists/[id]` both branches, `lists/[id]/library`, 
+`lists/[id]/search`, `profile/favorites`, `u/[username]/favorites`) — all now 
+plain `p-4`. Also brought `/profile` and `/u/[username]` in line even though 
+they don't share that exact wrapper pattern (banner + separate content-below 
+div, from the earlier header-polish work): both divs' `px-6` → `px-4`, and the 
+content-below-banner div's `pt-5 pb-12` → `pt-4 pb-4` to match the new 16px 
+standard; the banner's own `pt-5 pb-6` was left as-is since that's tuned for 
+avatar/name layout inside the banner, not page-edge padding. 
+`TopNav`'s edge-bleed (`-mx-6 ... px-6`, sized to cancel exactly the old `px-6`) 
+had to be updated to `-mx-4 ... px-4` to match, or its border would've 
+overshot past the new narrower padding. `FavoritesRow` needed no equivalent fix 
+— its own edge-bleed attempt was already superseded earlier by the `flex-1` 
+fill approach (see above), so it was never coupled to the `px-6` value.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -673,3 +718,17 @@ explicitly before building.
     `SegmentedTabs` is reused by Explore (For You/Following/Recent), Compare 
     (All/Friends), and Search (Books/People), so this one change covers all 
     three screens' tab rows at once.
+- Book detail view: no way to open a book from someone else's tier list to read 
+  its synopsis (user request, 2026-07-11) — not started. Right now book covers 
+  are non-interactive everywhere (tier chips in `SortableBookChip`/`TierRowBar`, 
+  Favorites, Library, search results) — there's no book-detail page/route at 
+  all. `books.description` already exists in the schema and is populated (used 
+  nowhere in the UI today), so the data side is mostly there; this is really 
+  about building a detail view (probably a route like `/books/[id]`, or a 
+  sheet/dialog opened from a tap) and wiring covers to link to it — likely 
+  starting with the read-only tier chips (`TierRowBar`, used on Explore/Profile/ 
+  visitor list-detail) since that's the "someone else's tier list" surface the 
+  request is about, though the owner's interactive board (`SortableBookChip`) 
+  has the same gap. Needs a decision on the UI pattern (dedicated page vs. 
+  modal/sheet) before building.
+- Site-wide page padding ✅ done — see "Current sprint" below for the full spec.

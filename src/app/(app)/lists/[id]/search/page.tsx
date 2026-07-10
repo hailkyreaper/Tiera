@@ -4,7 +4,7 @@ import { searchBooks } from "@/lib/db/books";
 import { addToUnrankedAndStay } from "./actions";
 import { SearchResultCard } from "@/components/search-result-card";
 import { BookSearchForm } from "@/components/book-search-form";
-import { BackButton } from "@/components/back-button";
+import { TopNav } from "@/components/top-nav";
 
 type TierListRow = { id: string; title: string; user_id: string };
 
@@ -40,13 +40,8 @@ export default async function ListSearchPage({
   const results = q ? await searchBooks(supabase, q) : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
-      <div className="flex items-center gap-2">
-        <BackButton />
-        <h1 className="text-xl font-semibold text-foreground">
-          Add books to {tierList.title}
-        </h1>
-      </div>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
+      <TopNav title={`Add books to ${tierList.title}`} />
 
       <BookSearchForm
         basePath={`/lists/${id}/search`}

@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getComparisonSummary, getMatchRecommendations } from "@/lib/db/taste-match";
@@ -8,6 +7,7 @@ import { MatchedBookRow } from "@/components/matched-book-row";
 import { DisagreementsTable } from "@/components/disagreements-table";
 import { CompareStatsRow } from "@/components/compare-stats-row";
 import { RecommendationRow } from "@/components/recommendation-row";
+import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 
 type ProfileRow = {
@@ -69,7 +69,7 @@ export default async function CompareWithUserPage({
 
   if (them.id === me.id) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
         <h1 className="text-2xl font-semibold text-foreground">Compare</h1>
         <p className="text-muted-foreground">
           That&apos;s you! Search for someone else to compare with.
@@ -85,18 +85,8 @@ export default async function CompareWithUserPage({
     ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-8">
-      <div className="grid grid-cols-3 items-center">
-        <Link
-          href="/compare"
-          className="flex size-9 items-center justify-center rounded-full text-foreground hover:bg-muted"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <h1 className="text-center text-lg font-semibold text-foreground">
-          Compare
-        </h1>
-      </div>
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4">
+      <TopNav title="Compare" center />
 
       <div className="flex flex-col items-center gap-8 text-center">
         <div className="flex w-full items-center justify-center gap-6">

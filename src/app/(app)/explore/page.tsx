@@ -150,7 +150,7 @@ export default async function ExplorePage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
         <Link href="/recommendations" className="text-sm font-medium text-primary">

@@ -23,7 +23,7 @@ export function TierRow({ tier, cards }: { tier: Tier; cards: Card[] }) {
     <div className="flex shrink-0 gap-2">
       {!isUnranked && (
         <span
-          className={`flex w-11 shrink-0 items-center justify-center self-stretch rounded-xs text-sm font-bold text-white ${TIER_BADGE_COLORS[tier]}`}
+          className={`flex w-11 shrink-0 items-center justify-center self-stretch text-sm font-bold text-white ${TIER_BADGE_COLORS[tier]}`}
         >
           {tier}
         </span>

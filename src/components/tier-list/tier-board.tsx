@@ -188,13 +188,13 @@ export function TierBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm bg-card p-2">
+      <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm bg-card p-4">
         {rankedTiers.map((tier) => (
           <TierRow key={tier} tier={tier} cards={columns[tier]} />
         ))}
       </div>
 
-      <div className="flex flex-col gap-2 overflow-hidden rounded-sm bg-card p-2">
+      <div className="flex flex-col gap-2 overflow-hidden rounded-sm bg-card p-4">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase">
           Unranked Books ({columns.unranked.length})
         </h2>

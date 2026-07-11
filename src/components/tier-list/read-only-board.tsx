@@ -28,7 +28,7 @@ export function ReadOnlyTierBoard({
   return (
     // Same divide-y hairline-block style as the interactive Create List
     // board (tier-board.tsx), instead of a flex gap, so both views match.
-    <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm">
+    <div className="flex flex-col divide-y divide-white/10 overflow-hidden">
       {rankedTiers.map((tier) => (
         <TierRowBar
           key={tier}

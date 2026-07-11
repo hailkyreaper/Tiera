@@ -134,7 +134,7 @@ export function EditListDetailsForm({
             {includeTitleInExport && (
               <h3 className="font-semibold text-foreground">{titleValue}</h3>
             )}
-            <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm">
+            <div className="flex flex-col divide-y divide-white/10 overflow-hidden">
               {RANKED_TIERS.map((tier) => (
                 <TierRowBar
                   key={tier}
@@ -151,7 +151,7 @@ export function EditListDetailsForm({
           </div>
         </div>
 
-        <label className="flex items-center justify-between gap-3 rounded-sm bg-card p-3">
+        <label className="flex items-center justify-between gap-3 rounded-sm bg-card p-4">
           <span className="text-sm text-foreground">
             Include title in exported image
           </span>
@@ -241,7 +241,7 @@ export function EditListDetailsForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-sm bg-card p-2">
+        <div className="flex flex-col gap-2 rounded-sm bg-card p-4">
           <div className="flex items-center gap-3">
             <div className="flex size-14 shrink-0 items-center justify-center rounded-[4px] bg-muted text-muted-foreground">
               <Camera className="size-5" />

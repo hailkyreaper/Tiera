@@ -44,6 +44,13 @@ export function NavBar() {
             <Link
               key={item.href}
               href={item.href}
+              // /lists's page itself inserts a new draft row unconditionally
+              // on every load (no guard — see its own comment) — Next.js
+              // prefetches a <Link> as soon as it scrolls into view, and
+              // this button sits in the bottom nav, visible on nearly every
+              // page. Left prefetching on, that silently created a fresh
+              // draft on almost every navigation, not just an actual click.
+              prefetch={false}
               className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground"
               aria-label="Create list"
             >

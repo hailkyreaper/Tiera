@@ -93,7 +93,7 @@ export async function identifyBooksFromPhoto(
   // vision-model reading of a cover/spine is text only, never real
   // metadata/cover art on its own, and matching also catches a misread
   // close enough to still find the right book. Concurrent (bounded): the
-  // cap is 50 books for a full shelf, so doing this one at a time could add
+  // cap is 150 books for a full shelf, so doing this one at a time could add
   // up to real, noticeable wait — same reasoning as Goodreads import's
   // concurrency pool.
   const matches = await mapWithConcurrency(
@@ -169,7 +169,7 @@ export async function confirmAiBooks(
   }
 
   // Concurrent (bounded) for the same reason as the identify step above —
-  // up to 50 selections. Safe even if two selected candidates happen to
+  // up to 150 selections. Safe even if two selected candidates happen to
   // resolve to the same book (a repeated spine read): findOrCreateBook
   // matches on real, already-known google_volume_ids here (not synthetic
   // ones), and that column's unique constraint means a losing concurrent

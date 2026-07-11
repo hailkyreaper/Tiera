@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Actively in development. Sprints 1-6 are complete (Sprint 6 finished incidentally — 
+Actively in development. Sprints 1-7 are complete (Sprint 6 finished incidentally — 
 its items were either already done in 5.5, or merged into the Sprint 5 addendum's 
-Top Matches work). Sprint 7 is CURRENT (started 2026-07-13, see Sprint Rule).
+Top Matches work; Sprint 7 finished 2026-07-11 — CSV import was the real remaining 
+work, search polish had already landed incidentally in the Post-Sprint-6 round 3 
+bug-fix pass). Sprint 8 is next but not yet marked CURRENT — see Sprint Rule.
 
 ## Vision
 
@@ -372,16 +374,65 @@ sheet pattern as `BookDetailDrawer`.
     name format that broke the combined search query). User confirmed 
     "the import worked!" after this round.
 
-**Sprint 7 — Import & Search Polish is now CURRENT** (started 2026-07-13, see 
-Sprint Rule). Scope: Goodreads CSV import, search filters/history. The 
-*search* half is already effectively done — see the "Post-Sprint-6 bug fixes, 
-round 3" entry further down in the Roadmap section (Open Library switch, 
-local-cache search, rating/series ranking) — so Goodreads CSV import is the 
-real remaining work. The entries immediately below this paragraph are the 
-backlog of ad-hoc To Do items worked before Sprint 7 was formally started 
-(Library View, book detail view, TopNav, etc.) — kept as historical record, 
-not part of Sprint 7 itself. New Sprint 7 work will be logged above this 
-paragraph as it happens.
+**AI photo import** ✅ done — the "Import with AI" option in `ImportDrawer` 
+(previously a disabled "Coming soon" placeholder, explicitly sequenced by the 
+user to come after Goodreads import above) is now fully built and live, not a 
+placeholder. Own page, `/lists/[id]/import/ai` (same "action-bar button → own 
+page" convention as Goodreads/Search Books/Add from Library), with 
+`AiPhotoImportForm` (`src/components/tier-list/ai-photo-import-form.tsx`) and 
+server actions in `lists/[id]/import/ai/actions.ts`.
+- Uses Gemini (`identifyBooksInImage`, `src/lib/gemini.ts`) as the vision-model 
+  integration flagged as needed in the original Ideas Backlog note — reads a 
+  photo of a book cover, spine, or full shelf and returns guessed title/author 
+  text per book. Vision output is text only, never real metadata/cover art, so 
+  every guess is matched against `searchBooks` afterward — `isTitleMatch` 
+  requires the search result's own title to actually contain (or be contained 
+  by) the guessed title before accepting it, rather than blindly trusting 
+  `searchBooks`'s top-ranked hit (confirmed live this was pulling wrong 
+  covers/foreign-language editions without the check).
+- Both phases (identify's per-guess search match, and confirm's per-selection 
+  add) run bounded-concurrent (6 at a time via `mapWithConcurrency`) rather 
+  than sequential — same reasoning as Goodreads import, since a full shelf 
+  photo can identify up to ~50 books at once.
+- Two-step review flow: `identifyBooksFromPhoto` returns candidates to the 
+  client for review (not a redirect-on-submit), user unchecks any misreads, 
+  then `confirmAiBooks` adds only the selected ones. Mirrors Goodreads' 
+  `is_draft` treatment — `findOrCreateBook(..., { isDraft: true })`, so an 
+  unverified photo-identified book doesn't hit the shared catalog/library for 
+  real until the list itself is saved.
+- Large photos (>8MB) are downscaled client-side before upload (max 4096px, 
+  0.92 JPEG quality) — tuned live: too aggressive a downscale measurably hurt 
+  identification count on a packed 64-book shelf photo (distant spine text 
+  needs the detail), so this only compresses the rare oversized photo rather 
+  than resizing on principle.
+- Open Library work-level matches can carry the wrong (non-English) edition's 
+  cover even when the title matched correctly (confirmed live on "Red Rising" — 
+  correct title, Spanish-edition cover art) — fixed with 
+  `fetchEnglishEditionCoverUrl`, only invoked for matches with a `/works/...` 
+  id shape (local-catalog and synthetic-id matches already have a resolved or 
+  nonexistent cover, so this doesn't apply to them).
+- Confirming does NOT redirect away from the page — someone scanning a whole 
+  library series-by-series or shelf-by-shelf needs to take several photos in a 
+  row; the form resets back to its own upload step after each successful add, 
+  and the existing `TopNav` back button is how they leave once actually done.
+- **This was previously undocumented** — built in a session that ended before 
+  CLAUDE.md could be updated; this entry (and the corresponding Ideas Backlog 
+  removal below) is that catch-up.
+- **Camera capture** ✅ done — the photo input only offered a generic file/
+  gallery picker on mobile, no direct way to take a photo. Added 
+  `capture="environment"` to the input in `AiPhotoImportForm` (opens the rear 
+  camera directly on mobile; no-op on desktop, which ignores the attribute). 
+  User confirmed live on their phone: camera opens correctly.
+
+**Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
+2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 
+The *search* half was already effectively done before Sprint 7 formally started — 
+see the "Post-Sprint-6 bug fixes, round 3" entry further down in the Roadmap 
+section (Open Library switch, local-cache search, rating/series ranking) — and 
+Goodreads CSV import (above) is now done and verified live end-to-end. The entries 
+immediately below this paragraph are the backlog of ad-hoc To Do items worked 
+before Sprint 7 was formally started (Library View, book detail view, TopNav, 
+etc.) — kept as historical record, not part of Sprint 7 itself.
 
 **Library View screen** ✅ done — user's own request, verbatim: "No place to 
 view books when added to library except for going into lists and scrolling down 
@@ -423,10 +474,11 @@ spec instead of a standalone page.
   Grid went back to 5 columns once text was removed (5 columns only ever caused 
   problems when text needed to fit under each cover).
 - Sprint 7 ("Import & Search Polish": Goodreads CSV import, search filters/history) 
-  is still not started — most of the *search* half of that scope actually already 
-  got done incidentally in the "Post-Sprint-6 bug fixes, round 3" section below 
-  (Open Library switch, local-cache search, rating/series ranking), similar to how 
-  Sprint 6 finished incidentally. CSV import specifically has not been touched.
+  ✅ COMPLETE as of 2026-07-11 — the *search* half of that scope got done 
+  incidentally in the "Post-Sprint-6 bug fixes, round 3" section below (Open 
+  Library switch, local-cache search, rating/series ranking), similar to how 
+  Sprint 6 finished incidentally; Goodreads CSV import (see "Current sprint" 
+  above) was the real remaining work and is now done and verified live.
 
 **Profile header polish** ✅ done — the user asked to bring everything above the 
 Lists/Library tabs (banner, avatar, stats, bio, Top Favorites) closer to 
@@ -1068,9 +1120,10 @@ pass, and unifying the two book-search implementations into one.
   unrelated `/admin/backfill-categories` script (fetches a specific already-known 
   Google volume id, not search) — not dead, don't remove it.
 
-### Sprint 7 — Import & Search Polish
-- Goodreads CSV import
-- Search filters/history
+### Sprint 7 — Import & Search Polish ✅ COMPLETE
+- Goodreads CSV import ✅ done (see "Current sprint" section above for full spec)
+- Search filters/history ✅ done — landed incidentally in "Post-Sprint-6 bug fixes, 
+  round 3" (Open Library switch, local-cache search, rating/series ranking)
 
 ### Sprint 8 — Mobile Packaging & Polish
 - PWA setup
@@ -1090,18 +1143,6 @@ explicitly before building.
 
 - V2: Upgrade `current_tier` calculation from flat average to recency-weighted 
   average (Amazon/Netflix-style time-decay). Deferred for MVP simplicity.
-- AI photo import: let people add books by taking a photo of the physical book. 
-  The Create List action bar's "Import" button now opens a real drawer 
-  (`ImportDrawer`, built for Goodreads CSV import — see "Current sprint" above) 
-  with an "Import with AI" option already placed and labeled "Coming soon," 
-  disabled — that's the real placeholder now, not the button itself. Doable for 
-  a single cover photo (vision model reads title/author, then 
-  match against the existing Google Books lookup for real metadata), much less 
-  reliable for a full bookshelf photo (angled/partial spines). Needs a new vision-
-  model integration (cost per call, separate from the free Google Books calls 
-  already used), photo upload UI, and a review/confirm step before adding, since 
-  misreads are expected. Not in the roadmap yet — pull into a real sprint before 
-  building.
 - Bad word filter for comments/usernames (moved here from To Do 2026-07-10, not 
   started). Needs a decision first: simple hardcoded wordlist (free, easy to 
   bypass) vs. a real moderation library/API (better coverage, more setup), and 

@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-export const MAX_BOOKS_PER_PHOTO = 50;
+export const MAX_BOOKS_PER_PHOTO = 150;
 
 export type IdentifiedBook = {
   title: string;

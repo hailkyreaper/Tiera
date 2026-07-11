@@ -286,6 +286,7 @@ export function AiPhotoImportForm({ tierListId }: { tierListId: string }) {
           id="photo"
           type="file"
           accept="image/*"
+          capture="environment"
           className="sr-only"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />

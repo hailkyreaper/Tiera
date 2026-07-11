@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Search, Download, Library } from "lucide-react";
+import { Search, Library } from "lucide-react";
 import { saveAndGoToLibrary, saveAndGoToSearch } from "@/app/(app)/lists/actions";
+import { ImportDrawer } from "./import-drawer";
 
 const linkClassName =
   "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-foreground hover:bg-muted";
@@ -35,10 +36,7 @@ export function ListActionsBar({
         </Link>
       )}
 
-      <span className="flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-muted-foreground">
-        <Download className="size-4" />
-        Import
-      </span>
+      <ImportDrawer tierListId={tierListId} isEditing={isEditing} />
 
       {isEditing ? (
         <button

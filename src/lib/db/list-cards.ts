@@ -14,6 +14,7 @@ export type ListCardData = {
   commentCount: number;
   matchPercentage: number | null;
   isPublic: boolean;
+  isDraft: boolean;
   preview: Record<Tier, PreviewBook[]>;
 };
 
@@ -24,6 +25,7 @@ type TierListRow = {
   comment_count: number;
   created_at: string;
   is_public: boolean;
+  is_draft: boolean;
 };
 
 type ItemRow = {
@@ -39,13 +41,16 @@ export async function getUserListCards(
 ): Promise<ListCardData[]> {
   let query = supabase
     .from("tier_lists")
-    .select("id, title, like_count, comment_count, created_at, is_public")
+    .select("id, title, like_count, comment_count, created_at, is_public, is_draft")
     .eq("user_id", userId)
-    .eq("is_draft", false)
     .order("created_at", { ascending: false });
 
+  // A visitor (publicOnly) never sees another user's drafts — only the
+  // owner's own profile call (no publicOnly) is meant to surface them, so
+  // they have somewhere to resume an unpublished list from instead of it
+  // being unreachable the moment they navigate away.
   if (publicOnly) {
-    query = query.eq("is_public", true);
+    query = query.eq("is_public", true).eq("is_draft", false);
   }
 
   // A single match % for the (viewer, list owner) pair — same for every
@@ -103,6 +108,7 @@ export async function getUserListCards(
     commentCount: list.comment_count,
     matchPercentage,
     isPublic: list.is_public,
+    isDraft: list.is_draft,
     preview: previewByListId[list.id],
   }));
 }

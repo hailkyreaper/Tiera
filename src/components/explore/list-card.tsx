@@ -17,6 +17,7 @@ export function ExploreListCard({
   commentCount,
   matchPercentage,
   isPublic,
+  isDraft,
   preview,
   fromTab,
 }: {
@@ -31,15 +32,24 @@ export function ExploreListCard({
   /** Omitted entirely on Explore, where every list is already public by
    * definition — only meaningful (and passed) on the owner's own Profile. */
   isPublic?: boolean;
+  /** Only ever passed (and true) on the owner's own Profile — drafts never
+   * show up anywhere else. Routes straight into edit mode instead of the
+   * normal read view, since a draft has no finished state to show. */
+  isDraft?: boolean;
   preview: Record<Tier, PreviewBook[]>;
   fromTab?: "explore" | "profile";
 }) {
   const rankedTiers = TIERS.filter((tier) => tier !== "unranked");
+  const href = isDraft
+    ? `/lists/${id}?edit=true${fromTab ? `&from=${fromTab}` : ""}`
+    : fromTab
+      ? `/lists/${id}?from=${fromTab}`
+      : `/lists/${id}`;
 
   return (
     <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 transition-colors hover:bg-muted">
       <Link
-        href={fromTab ? `/lists/${id}?from=${fromTab}` : `/lists/${id}`}
+        href={href}
         className="absolute inset-0 rounded-sm"
         aria-label={title}
       />
@@ -75,8 +85,14 @@ export function ExploreListCard({
 
       <h3 className="-mt-1 flex items-center gap-1.5 font-semibold text-foreground">
         {title}
-        {isPublic === false && (
-          <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+        {isDraft ? (
+          <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            Draft
+          </span>
+        ) : (
+          isPublic === false && (
+            <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+          )
         )}
       </h3>
 

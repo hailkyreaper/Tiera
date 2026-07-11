@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Actively in development. Sprints 1-6 are complete (Sprint 6 finished incidentally — 
 its items were either already done in 5.5, or merged into the Sprint 5 addendum's 
-Top Matches work). Waiting to be told to start Sprint 7 (see Sprint Rule).
+Top Matches work). Sprint 7 is CURRENT (started 2026-07-13, see Sprint Rule).
 
 ## Vision
 
@@ -141,8 +141,247 @@ above.
 
 ## Current sprint
 
-None of the numbered sprints are active — Sprint 7 is still waiting to be 
-explicitly started (see Sprint Rule).
+**Goodreads CSV import** ✅ done — first real Sprint 7 work. User's own spec: 
+tapping the Create List action bar's "Import" button (previously an inert 
+placeholder, per the Ideas Backlog's AI-photo-import note below) now opens a 
+bottom sheet with two choices, "Import from Goodreads" and "Import with AI" 
+(still a disabled "Coming soon" placeholder — explicitly sequenced by the 
+user to come after Goodreads: "when we finish this, then we can move on to 
+import with ai"). New `ImportDrawer` 
+(`src/components/tier-list/import-drawer.tsx`), same Base UI Drawer bottom- 
+sheet pattern as `BookDetailDrawer`.
+- "Import from Goodreads" goes to a dedicated page, 
+  `/lists/[id]/import/goodreads` — same "action-bar button → own page" 
+  convention as Search Books/Add from Library, not a form crammed into the 
+  drawer itself. Page has short numbered instructions (Goodreads' own 
+  My Books → Import/Export → Export Library flow), a CSV file input, and an 
+  "Auto-tier by rating" toggle (`@base-ui/react/switch`, default on).
+- Edit-mode (new/unsaved list) wiring needed one new trick: Search Books/Add 
+  from Library's existing "save unsaved title first" pattern relies on their 
+  buttons being literal `type="submit" formAction={...}` descendants of the 
+  edit form — but the Goodreads option now lives inside a `Drawer.Popup`, 
+  which Base UI portals to `document.body`, breaking that DOM-descendant 
+  requirement. Fixed with the standard HTML answer: gave the edit form an 
+  `id="edit-list-details-form"` (`edit-list-details-form.tsx`) and the 
+  portaled button a matching `form="edit-list-details-form"` attribute — 
+  associates it with that form regardless of where it's portaled to. New 
+  `saveAndGoToGoodreadsImport` action (`lists/actions.ts`) mirrors 
+  `saveAndGoToSearch`/`saveAndGoToLibrary` exactly. Verified live in both 
+  modes (already-saved list, and a brand-new unsaved one).
+- CSV parsing: new `papaparse` dependency (+ `@types/papaparse`) — Goodreads 
+  titles/authors routinely contain commas inside quoted fields, not safe to 
+  hand-roll. New `src/lib/goodreads-csv.ts`: `parseGoodreadsCsv` reads the 
+  standard Goodreads export columns (Title, Author, ISBN/ISBN13 — unwrapped 
+  from Goodreads' `="..."` Excel-formula escaping, My Rating, Average 
+  Rating), and **only keeps rows where `Exclusive Shelf` is `"read"`, or the 
+  `Bookshelves` column contains a custom `"dnf"` shelf tag** (both user 
+  follow-up instructions — to-read/currently-reading are skipped since a 
+  rating/tier doesn't mean anything for a book not yet finished, but DNF 
+  books are explicitly let through even though they're rarely on the `read` 
+  shelf, since Goodreads has no built-in did-not-finish concept and users 
+  almost always track it via a self-made "dnf" shelf while leaving Exclusive 
+  Shelf as whatever it already was, often still `to-read`). `tierForRating(
+  rating, dnf)` maps My Rating 5→S, 4→A, 3→B, 2→C, 1→D, unrated→`"unranked"` — 
+  except `dnf` always wins outright to F regardless of any rating attached 
+  (a DNF book with a lingering 4-star rating still goes to F, not A). 
+  Verified live: a row on the `to-read` shelf but tagged `dnf` in Bookshelves, 
+  with a 4-star rating, correctly both got included (despite not being on 
+  `read`) and landed in F (despite the 4 stars).
+- Import action (`lists/[id]/import/goodreads/actions.ts`, 
+  `importGoodreadsCsv`) deliberately makes **zero external API calls for 
+  book data** — a real scale concern ruled out up front, since a Goodreads 
+  library can be hundreds of rows and a serverless function doing that many 
+  sequential Open-Library round trips risks timing out. Book row created 
+  directly from the CSV's own Title/Author/rating data; no description is 
+  fetched for CSV-sourced books (would need a real API call) — the existing 
+  admin backfill tool picks these up naturally later since it scans every 
+  book regardless of source.
+- **Cover reliability fix**: the original version constructed the cover URL 
+  blindly from the ISBN (`covers.openlibrary.org/b/isbn/{isbn}-L.jpg`, no 
+  lookup call) and assumed a missing cover was just normal image-load timing. 
+  That assumption was wrong — a malformed/mistyped ISBN in the CSV still 
+  resolves to *some* HTTP response, so some imported books ended up with a 
+  permanently broken image, not a timing fluke. Fixed with `resolveCoverUrl` 
+  (`actions.ts`): a HEAD request to the same URL with `?default=false` 
+  appended, which Open Library reliably 404s when nothing really exists at 
+  that ISBN (confirmed live: a checksum-invalid ISBN 404s, a 
+  checksum-*valid*-but-obscure ISBN correctly still resolves since it's a 
+  real catalog entry) — only costs one cheap no-body request per newly 
+  *created* book, not per CSV row, since matched/existing books skip past it 
+  entirely.
+- **Post-import redirect now lands in edit mode** (`?edit=true&imported=N`), 
+  not the published/visitor view — user feedback: they want to still be able 
+  to set the list's title right after importing, not have to click Edit 
+  first. `lists/[id]/page.tsx`'s owner branch now shows the "Imported N 
+  books..." banner inside the `edit === "true"` branch (above 
+  `EditListDetailsForm`) as well as the existing non-edit branch, since either 
+  can now be the landing state after an import.
+- Dedup, learned directly from the migration-0020 work just before this: 
+  `findOrCreateGoodreadsBook` checks for an existing book two ways before 
+  creating a new row — first an exact match on the synthetic id this import 
+  gives a book (`isbn:{isbn}`, so re-importing the same CSV doesn't create 
+  duplicates), then a normalized-title+author heuristic (so a book already in 
+  the catalog from a search/add elsewhere doesn't get a second row either). 
+  Verified live: importing a CSV containing "Mistborn: The Final Empire" 
+  correctly reused the existing catalog row (confirmed by its non-synthetic 
+  `google_volume_id`) instead of creating a duplicate.
+- **Critical bug found on the user's real import: "it duplicated everything."** 
+  Root cause — Goodreads' Title column bakes series info directly into the 
+  title (e.g. `"Golden Son (Red Rising Saga, #2)"`), which the title+author 
+  dedup match above compared byte-for-byte against the plain `"Golden Son"` 
+  already in the catalog from an earlier search/add. They never matched, so 
+  every already-owned book with a series suffix silently created a fresh 
+  duplicate row instead of being recognized — visible on `/profile?tab=library` 
+  as the same book appearing twice, once with its real cover and once as a 
+  fresh "No cover" duplicate. Fixed at the source in `goodreads-csv.ts`: 
+  `stripSeriesSuffix()` strips exactly one trailing `"(...)"` group off the 
+  title before it ever reaches the dedup check or gets saved, so this can't 
+  recur on future imports. The ~11 duplicate rows already created in the 
+  user's real account before this fix (Morning Star, Red Rising, The Poppy 
+  War, Children of Blood and Bone, Yumi and the Nightmare Painter, Two 
+  Twisted Crowns, The Housemaid, The Fires of Vengeance, Golden Son, One Dark 
+  Window, The Rage of Dragons) need a one-time cleanup, written as migration 
+  `supabase/migrations/0021_merge_goodreads_series_suffix_dupes.sql` — same 
+  single-statement/chained-CTE pattern as `0020`, but asymmetric matching: 
+  only CSV-sourced rows (`google_volume_id like 'isbn:%' or 'goodreads:%'`) 
+  with the suffix stripped are matched against non-CSV canonical rows; a 
+  CSV row with no match (genuinely new, or never had a suffix) is left alone. 
+  **Run, user confirmed successful.**
+- **Nothing is committed to the user's account until they click Save.** 
+  User feedback: importing shouldn't touch their real library until they 
+  actually decide to keep the list. Two parts, since a book can land in two 
+  different shared places before Save:
+  - `user_books` (library): import no longer upserts into it at all — only 
+    `tier_list_items` (the list itself). `saveListFields`'s new 
+    `commitListBooks` helper (`lists/actions.ts`) is what actually adds 
+    them, by backfilling every book currently on the list into `user_books` 
+    — but only when `markSaved` is true, i.e. only from the real Save 
+    button, never from Search Books/Add from Library/Goodreads' own 
+    intermediate "save fields and navigate" actions. Harmless no-op for 
+    books added via Search/Add from Library, which already upsert 
+    `user_books` at add-time themselves.
+  - `books` (the shared, app-wide catalog): a `tier_list_items` row still 
+    has to reference a real `books` row, so a genuinely new import row 
+    can't wait until Save to be *created* — but it can stay unconfirmed 
+    and hidden from everyone else's search results until then. New 
+    `books.is_draft` column (migration 
+    `supabase/migrations/0022_book_draft_flag.sql`, run and confirmed 
+    successful) — `createGoodreadsBook` sets it `true` on genuinely 
+    new rows only (matched/existing rows are untouched); `searchLocalBooks` 
+    (`lib/db/books.ts`) filters `is_draft = false`; `commitListBooks` 
+    clears it back to `false` on Save, same pass as the `user_books` 
+    backfill above. Migration grants column-scoped UPDATE on `is_draft` 
+    (same pattern as `categories`/`thumbnail_url`/`description` before it) 
+    plus a new DELETE policy scoped to `is_draft = true` rows only — a 
+    confirmed book can never be deleted by an app-level action, RLS 
+    enforces that regardless of application code.
+  - Canceling an unsaved draft (`cancelListEdit`) already deleted the whole 
+    list (cascading away its `tier_list_items`); now it also calls 
+    `deleteOrphanedDraftBooks`, which deletes any of that import's still-
+    `is_draft` books that nothing else references anymore (checked against 
+    both `tier_list_items` and `user_books` before deleting, so a book 
+    another draft also happens to reference isn't yanked out from under 
+    it) — otherwise a canceled import would leave dead, unconfirmed rows in 
+    the catalog forever with no way to reach them again.
+- **Cleanup of test data created while diagnosing the above**: 12 rows from 
+  earlier test CSV imports (explicit markers like "DNF Test Book"/"Bad ISBN 
+  Test Book," plus the two already flagged in this file as fake test data — 
+  "The Way of Kings," "Some Unrated Book" — and a handful more from a mixed 
+  test run) were sitting in the live `books` catalog, pre-dating the 
+  `is_draft` column so the new delete policy couldn't reach them. One-time 
+  migration `supabase/migrations/0023_delete_test_goodreads_import_books.sql` 
+  deletes them by exact `google_volume_id` (not title, so it can't catch a 
+  real book) — `books.id` cascades to both `user_books` and 
+  `tier_list_items`, so the single delete statement is enough on its own. 
+  **Run, user confirmed successful** — verified after via a direct query: 
+  `is_draft` column present, 0 CSV-sourced rows remaining in the catalog.
+- Matches book-search's established "add to list" convention for 
+  `tier_list_items` specifically (library commitment is now deferred, see 
+  above): each imported book is upserted into the current list's 
+  `tier_list_items` — same as `addToUnrankedAndStay` already does for 
+  Search Books.
+- List page shows an inline `Imported N books from Goodreads` message after 
+  redirect (`?imported=N&importFailed=M` query params, read by 
+  `lists/[id]/page.tsx`'s owner view).
+- Verified live end-to-end twice: a 3-row sample CSV (5★, 4★, unrated-but-
+  shelved-to-read) imported correctly with the right tiers before the 
+  read-only filter existed; after adding the filter, a second sample with one 
+  `read` row and one each of `currently-reading`/`to-read` correctly imported 
+  only the one `read` row (`?imported=1`).
+- **Round 2 of real-import bugs, found and fixed against the user's actual 
+  `goodreads_library_export.csv` (19 read + 2 DNF) — all now verified fixed 
+  live, full library imported correctly end-to-end**:
+  - **DNF detection matched the wrong shelf name.** The original `isDnf` 
+    only checked for the substring `"dnf"`, but the user's export uses 
+    Goodreads' own `did-not-finish` Exclusive Shelf value, not a custom 
+    `dnf` tag — so both DNF rows were silently dropped from the import 
+    entirely (not misfiled, just never included at all), which is what 
+    "18 books, none in F tier" actually was. Every other row's tier 
+    placement was independently re-verified correct against the user's 
+    real My Rating values at the time — the S/A/B/C mapping itself was 
+    never broken. Fixed: `isDnf()` (`goodreads-csv.ts`) now checks both 
+    `"dnf"` and `"did-not-finish"`, in either the shelf or bookshelves 
+    column.
+  - **The ISBN-based cover fix from the previous round was itself 
+    unreliable.** Re-tested live: the exact same ISBN flipped between 
+    "has a cover" (200) and "doesn't" (404 under `?default=false`) across 
+    two checks minutes apart — Open Library's default-image-suppression 
+    flag turned out not to be a trustworthy signal in either direction, 
+    and several of the user's real books had no ISBN in the export at all 
+    (nothing for an ISBN-only strategy to work with regardless). Replaced 
+    with a three-step `resolveCoverUrl` (`import/goodreads/actions.ts`): 
+    (1) if there's an ISBN, ask Open Library's edition endpoint directly 
+    (`openlibrary.org/isbn/{isbn}.json` → `covers[0]`) — an exact key 
+    lookup, no relevance ranking involved; (2) otherwise (or if that finds 
+    nothing), a title+author text search, with the title truncated at the 
+    first colon first — confirmed live that a long marketing subtitle 
+    (e.g. "Atomic Habits: An Easy & Proven Way to...") drags Open 
+    Library's relevance ranking down badly enough to surface unrelated 
+    "Summary of..."/study-guide editions with no cover ahead of the real 
+    book, and the plain "Atomic Habits" query finds it immediately; 
+    (3) new shared fallback inside `getOpenLibraryData` itself 
+    (`open-library.ts`) — if the combined title+author query returns 
+    nothing, retry with the title alone, since some author-name formats 
+    (confirmed live: unspaced initials like "M.L. Wang") can zero out an 
+    otherwise-findable combined query. Step 3 lives in the shared 
+    function, so it also improves the regular Search Books cover-matching 
+    path, not just CSV import. New `fetchCoverUrlByIsbn` export in 
+    `open-library.ts` backs step 1.
+  - **Import was fully sequential — one row at a time, each fully awaited 
+    before the next started** — flagged by the user as a real timeout risk 
+    for a 50-book library, since several rows needing the Open Library 
+    search fallback in sequence could add up to real time against a 
+    serverless function's execution limit. Restructured into three phases 
+    (`importGoodreadsCsv`): (1) match every row against the existing 
+    catalog — kept sequential on purpose, DB-only so it's fast regardless, 
+    and has to stay ordered or two rows for the same not-yet-created book 
+    could both see "doesn't exist yet" at once and each create a 
+    duplicate (new `dedupKey`/`findExistingBookId` split out from the old 
+    combined `findOrCreateGoodreadsBook`, which no longer exists as one 
+    function); (2) create genuinely new books — the actual slow part 
+    (Open Library calls), now run 6 at a time via a small 
+    `mapWithConcurrency` pool instead of one at a time; (3) place every 
+    resolved book on the list — also 6 at a time, independent per row. Net 
+    effect: a run where most books need a real Open Library lookup should 
+    take roughly 1/6th the wall-clock time of the old sequential version.
+  - All three fixes verified together against the user's real 20-row 
+    export: correct tier counts (S=5/A=6/B=4/C=3/D=0/F=2, matching their 
+    actual ratings and both DNF books), and — after the colon-strip and 
+    title-only-retry fixes — every single book resolved a real cover, 
+    including the two hardest cases (no ISBN in the export at all, author 
+    name format that broke the combined search query). User confirmed 
+    "the import worked!" after this round.
+
+**Sprint 7 — Import & Search Polish is now CURRENT** (started 2026-07-13, see 
+Sprint Rule). Scope: Goodreads CSV import, search filters/history. The 
+*search* half is already effectively done — see the "Post-Sprint-6 bug fixes, 
+round 3" entry further down in the Roadmap section (Open Library switch, 
+local-cache search, rating/series ranking) — so Goodreads CSV import is the 
+real remaining work. The entries immediately below this paragraph are the 
+backlog of ad-hoc To Do items worked before Sprint 7 was formally started 
+(Library View, book detail view, TopNav, etc.) — kept as historical record, 
+not part of Sprint 7 itself. New Sprint 7 work will be logged above this 
+paragraph as it happens.
 
 **Library View screen** ✅ done — user's own request, verbatim: "No place to 
 view books when added to library except for going into lists and scrolling down 
@@ -268,15 +507,24 @@ row is now just a single full-width "View Full Profile" button. The
 precedent in this repo for a destructive down-migration, and an unused table is 
 harmless; revisit only if DB cleanup is ever explicitly requested.
 
-**Light mode preview toggle** ✅ done — temporary, dev-only. The `:root` block in 
-`globals.css` has always had complete light-theme values, but `layout.tsx` 
-hardcodes `dark` on `<html>` with no way to switch — so light mode has never 
-actually been visible despite being "supported" per the Design rules. 
-`ThemeToggleButton` (`src/components/theme-toggle-button.tsx`) is a bare client 
-component that toggles the `dark` class on `document.documentElement` directly 
-(no persistence, no system-preference detection — this is not the real theme 
-system, just a way to eyeball light mode) — placed on `/profile` just above Log 
-out.
+**Light mode preview toggle** ✅ done, then ❌ removed — temporary, dev-only. The 
+`:root` block in `globals.css` has always had complete light-theme values, but 
+`layout.tsx` hardcodes `dark` on `<html>` with no way to switch — so light mode 
+has never actually been visible despite being "supported" per the Design 
+rules. `ThemeToggleButton` toggled the `dark` class on 
+`document.documentElement` directly (no persistence, no system-preference 
+detection) — placed on `/profile` just above Log out. Removed later the same 
+day: since the toggle was a raw DOM classList mutation rather than React 
+state, and Next.js's App Router preserves the root `<html>` element across 
+client-side navigation, tapping it once and then navigating via the bottom 
+nav left the *entire app* stuck in light mode indefinitely (only a hard 
+refresh reset it, since SSR always emits `dark` fresh) — user reported this 
+as "why do the colors keep randomly changing," which is exactly what that 
+looks like from the outside with no visible indicator of which mode you're 
+in. Deleted `theme-toggle-button.tsx` and its one usage entirely rather than 
+trying to fix the persistence — it had already served its one-time purpose 
+(letting the user actually see light mode once) and a proper toggle (if ever 
+wanted) would need real state, not a bare classList flip.
 
 **Add from Library restyled to match the Library tab** ✅ done — 
 `/lists/[id]/library` (Create List's "Add from Library" picker) previously had 
@@ -475,6 +723,62 @@ dropping `min-h-10` and, when a tier has 0 books, rendering one
 `invisible aspect-[2/3]` placeholder cell instead — same sizing mechanism a 
 real cover uses, so an empty row's height always matches a populated one 
 exactly, in every context, with no hardcoded guess.
+
+**Duplicate book catalog rows merged** ✅ done and run — SQL migration, not 
+application code, since the actual merge needs to touch every affected user's 
+`user_books`/`tier_list_items` rows, and both tables are strictly owner-scoped 
+by RLS (no public-read/write policy on either, unlike `tier_lists` itself, 
+which got a public-read policy for `is_public` lists back in migration 
+`0004`) — an app-level admin action running under the admin's own session 
+couldn't touch other users' rows at all, so this had to be a migration the 
+user runs directly (same pattern as `0018`'s data-only backfill, which also 
+needed to bypass RLS this way).
+- Scope checked directly against the live `books` table before writing 
+  anything: 86 books total, 5 duplicate groups (matched on normalized 
+  `lower(trim(title))` + `lower(trim(authors[1]))` — requiring author 
+  agreement, not just title, to avoid merging two unrelated books that happen 
+  to share a title), all pairs, matching the exact titles CLAUDE.md already 
+  called out ("Powerless," "The Fires of Vengeance") plus 3 more. Small, 
+  well-understood blast radius.
+- Migration `0020_merge_duplicate_books.sql` went through two failed attempts 
+  before landing on a working shape, both hitting `relation "book_merge_map" 
+  does not exist` — first with a `TEMP` table, then with a real one. Root 
+  cause: whatever runs this SQL (Supabase's pooler, transaction mode by 
+  default) apparently executes each semicolon-separated statement in full 
+  isolation, so nothing created by an earlier statement — even a real, 
+  committed table — was visible to a later one. Fixed by rewriting the whole 
+  thing as ONE statement: multiple chained writable CTEs (a read-only 
+  `dupe_map` CTE, then delete/update CTEs per table), which Postgres always 
+  runs to completion against one consistent snapshot regardless of whether 
+  anything later references their output. The delete/update pair on each 
+  table use mirror-image `EXISTS`/`NOT EXISTS` conditions so they provably 
+  never target the same row — safe as sibling CTEs with no ordering 
+  dependency between them. This single-statement shape is the one actually 
+  in the file now.
+- Canonical pick per duplicate group: prefers a row with a description, then 
+  one with a thumbnail, then oldest `created_at` — moot for this batch 
+  specifically since every duplicate already had both a description and 
+  thumbnail, so it actually resolved on "oldest" for all 5 pairs.
+- Known, accepted edge case (documented in the migration's own comments): if 
+  a user had *both* duplicate editions in their library, or both placed in 
+  the *same* tier list, the duplicate's entry/tier placement is deleted 
+  outright rather than merged — the canonical book's existing placement wins, 
+  and whatever tier the duplicate was ranked in in that one specific case is 
+  lost. Given the batch is 5 pairs, this was judged an acceptable tradeoff 
+  rather than something worth a more complex conflict-resolution rule.
+- Verified live after the user ran it: `books` count went 86 → 81, exactly 
+  the 5 duplicate pairs. Compare/Recommendations' existing title-based 
+  de-dupe was left in place (harmless — it just correctly no-ops now that 
+  there's one row per title).
+- This is cleanup only, not prevention — `findOrCreateBook` still matches 
+  strictly on `google_volume_id` before inserting, so nothing stops a new 
+  duplicate from being created the same way these were (most likely cause: 
+  Open Library itself has duplicate/un-merged "work" records for some books, 
+  or a book added via the old Google Books path and separately via Open 
+  Library ends up with two unrelated source ids — not really an "editions" 
+  thing). Adding a title+author fallback check to `findOrCreateBook` (same 
+  matching heuristic the migration used) would prevent future recurrences, 
+  but wasn't asked for and hasn't been built.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -786,9 +1090,12 @@ explicitly before building.
 
 - V2: Upgrade `current_tier` calculation from flat average to recency-weighted 
   average (Amazon/Netflix-style time-decay). Deferred for MVP simplicity.
-- AI photo import: let people add books by taking a photo of the physical book 
-  (the Create List action bar's "Import" button is an inert placeholder for this 
-  today). Doable for a single cover photo (vision model reads title/author, then 
+- AI photo import: let people add books by taking a photo of the physical book. 
+  The Create List action bar's "Import" button now opens a real drawer 
+  (`ImportDrawer`, built for Goodreads CSV import — see "Current sprint" above) 
+  with an "Import with AI" option already placed and labeled "Coming soon," 
+  disabled — that's the real placeholder now, not the button itself. Doable for 
+  a single cover photo (vision model reads title/author, then 
   match against the existing Google Books lookup for real metadata), much less 
   reliable for a full bookshelf photo (angled/partial spines). Needs a new vision-
   model integration (cost per call, separate from the free Google Books calls 
@@ -810,18 +1117,11 @@ explicitly before building.
   action itself. No self-service way to grant admin yet — set your own account 
   manually via `update profiles set is_admin = true where id = auth.uid();` after 
   running the migration.
-- Data quality: duplicate book catalog rows for the same title (e.g. "Powerless," 
-  "The Fires of Vengeance") — currently defended against with title-based de-dupe 
-  in Compare/Recommendations, but source rows were never merged. Cause: every 
-  distinct edition a user adds gets its own `books` row (matched by 
-  `google_volume_id`/Open Library key, which differs per edition/printing, not 
-  per title) via `findOrCreateBook` — so "The Fires of Vengeance" the paperback 
-  and "The Fires of Vengeance" the ebook can each create a separate row with 
-  their own `id`, own rating, own thumbnail, instead of sharing one canonical 
-  book. Compare/Recommendations paper over it by de-duping on title text at 
-  query time, but nothing has ever gone back and merged the underlying 
-  duplicate rows (repointing `user_books`/`tier_list_items` to one canonical id 
-  and deleting the rest) — that's the "source rows were never merged" part.
+- Data quality: duplicate book catalog rows ✅ done — see "Current sprint" below 
+  for the full spec. Migration `0020` has been run; verified live (book count 
+  went 86 → 81, exactly the 5 duplicate pairs found). Cleanup only — nothing 
+  prevents new duplicates from being created going forward; that'd be a 
+  separate change to `findOrCreateBook`'s matching logic, not yet done.
 - Saved matches ✅ removed — see "Current sprint" above (no destination screen, 
   user decided to just delete the feature rather than build one).
 - Bad word filter for comments/usernames — moved to Ideas Backlog (not being 
@@ -831,7 +1131,21 @@ explicitly before building.
   values. Don't proactively restyle colors beyond what's given. Applied so far, 
   dark mode only (`src/app/globals.css` `.dark` block; light untouched — user: 
   "I have never looked at light mode"):
-  - `--background: #030a10`, `--card: #0c1115`.
+  - `--background: #030a10`, `--card: #0c1115` — reverted 2026-07-14. The two 
+    values were only 9 RGB units apart, so cards stopped reading as an 
+    elevated surface against the background at all ("everything's just 
+    black"); the original stock defaults (`--background: oklch(0.145 0 0)`, 
+    `--card: oklch(0.205 0 0)`, a 6-point lightness gap) are back in place. 
+    Everything else in this list (buttons, `SegmentedTabs`) still correctly 
+    reads `bg-card`, so it inherited the fix automatically — no other files 
+    needed touching.
+  - Re-requested later the same sprint with new values: `--background: 
+    #03090f`, `--card`/`--popover: #0d1115` — same ~9-10-unit-gap problem 
+    recurred ("looks just a bit flat"). Rather than reverting again (the 
+    user clearly wants a much darker background than stock this time, not 
+    the original defaults), widened just the gap: `--card`/`--popover` 
+    bumped to `#141a21`, background left at `#03090f`. Not yet re-confirmed 
+    live by the user.
   - Buttons matched to card color: `Button`'s `outline` variant now uses 
     `dark:bg-card` (was `dark:bg-input/30`) — this is the shared secondary-button 
     style used almost everywhere (Edit Profile, Cancel, View Full Profile, etc.), 

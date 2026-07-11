@@ -1,5 +1,9 @@
 import { Camera } from "lucide-react";
-import { cancelListEdit, updateListDetails } from "@/app/(app)/lists/actions";
+import {
+  cancelListEdit,
+  saveAsDraft,
+  updateListDetails,
+} from "@/app/(app)/lists/actions";
 import { ListTitleInput } from "./list-title-input";
 
 export function EditListDetailsForm({
@@ -23,25 +27,50 @@ export function EditListDetailsForm({
   children?: React.ReactNode;
 }) {
   return (
-    <form action={updateListDetails} className="flex flex-col gap-6">
+    <form
+      id="edit-list-details-form"
+      action={updateListDetails}
+      className="flex flex-col gap-6"
+    >
       <input type="hidden" name="tierListId" value={tierListId} />
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <button
-            type="submit"
-            formAction={cancelListEdit.bind(null, tierListId)}
-            formNoValidate
-            className="text-sm text-muted-foreground"
-          >
-            Cancel
-          </button>
-          <h1 className="text-base font-semibold text-foreground">
-            {isNew ? "Create List" : "Edit List"}
-          </h1>
-          <button type="submit" className="text-sm font-semibold text-primary">
-            Save
-          </button>
+        {/* Same flex-1-equal-thirds centering as the profile 3-stat row —
+            justify-between on unequal-width children (Cancel vs. Draft+Save)
+            never actually centers the title on the row's true center, only
+            equal-width columns each centering their own content do. */}
+        <div className="flex items-center">
+          <div className="flex flex-1 items-center justify-start">
+            <button
+              type="submit"
+              formAction={cancelListEdit.bind(null, tierListId)}
+              formNoValidate
+              className="text-sm text-muted-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="flex flex-1 items-center justify-center">
+            <h1 className="text-base font-semibold text-foreground">
+              {isNew ? "Create List" : "Edit List"}
+            </h1>
+          </div>
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <button
+              type="submit"
+              formAction={saveAsDraft}
+              formNoValidate
+              className="text-sm text-muted-foreground"
+            >
+              Draft
+            </button>
+            <button
+              type="submit"
+              className="text-sm font-semibold text-primary"
+            >
+              Save
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 rounded-sm bg-card p-2">

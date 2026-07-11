@@ -6,7 +6,6 @@ import { SearchResultCard } from "@/components/search-result-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
 import { UsernameAutocomplete } from "@/components/username-autocomplete";
 import { BookSearchForm } from "@/components/book-search-form";
-import { Button } from "@/components/ui/button";
 
 type SearchType = "books" | "people";
 type ProfileRow = { id: string; username: string };
@@ -94,7 +93,6 @@ async function PeopleSearch({ q }: { q?: string }) {
       <form className="flex gap-2">
         <input type="hidden" name="type" value="people" />
         <UsernameAutocomplete defaultValue={q} />
-        <Button type="submit">Search</Button>
       </form>
 
       {q && people.length === 0 && (

@@ -127,6 +127,10 @@ export async function searchLocalBooks(
       "google_volume_id, title, authors, description, thumbnail_url, published_date, page_count, average_rating, categories",
     )
     .ilike("title", `%${query}%`)
+    // Unconfirmed rows from an in-progress (not-yet-saved) Goodreads import
+    // shouldn't be searchable app-wide until the importer actually saves
+    // the list — see migration 0022.
+    .eq("is_draft", false)
     .limit(limit)
     .returns<LocalBookRow[]>();
 

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
 function parseTags(raw: string): string[] | null {
   const tags = raw
     .split(",")
@@ -54,7 +56,45 @@ async function saveListFields(
     .eq("id", tierListId)
     .eq("user_id", user.id);
 
+  // Only the real Save button (markSaved) commits the list's books for
+  // real. Goodreads import stages books straight into tier_list_items
+  // without ever touching user_books, and marks genuinely new catalog rows
+  // is_draft (see migration 0022) — a large import shouldn't land in your
+  // library, or the shared catalog's search results, until you decide to
+  // keep the list. This is what actually confirms them: backfills every
+  // book currently on the list into user_books, and clears is_draft so
+  // they become searchable app-wide. A harmless no-op for books added via
+  // Search/Add from Library, which already upsert user_books (and were
+  // never is_draft) at add-time.
+  if (markSaved) {
+    await commitListBooks(supabase, user.id, tierListId);
+  }
+
   return tierListId;
+}
+
+async function commitListBooks(
+  supabase: SupabaseServerClient,
+  userId: string,
+  tierListId: string,
+) {
+  const { data: items } = await supabase
+    .from("tier_list_items")
+    .select("book_id")
+    .eq("tier_list_id", tierListId);
+
+  const bookIds = [...new Set((items ?? []).map((item) => item.book_id))];
+  if (bookIds.length === 0) return;
+
+  await Promise.all([
+    supabase
+      .from("user_books")
+      .upsert(
+        bookIds.map((bookId) => ({ user_id: userId, book_id: bookId })),
+        { onConflict: "user_id,book_id", ignoreDuplicates: true },
+      ),
+    supabase.from("books").update({ is_draft: false }).in("id", bookIds),
+  ]);
 }
 
 export async function updateListDetails(formData: FormData) {
@@ -73,6 +113,25 @@ export async function saveAndGoToLibrary(formData: FormData) {
   redirect(`/lists/${tierListId}/library`);
 }
 
+export async function saveAndGoToGoodreadsImport(formData: FormData) {
+  const tierListId = await saveListFields(formData, false);
+  redirect(`/lists/${tierListId}/import/goodreads`);
+}
+
+// The middle ground between Cancel (discards the list entirely) and Save
+// (publishes it for real): keeps whatever title/description/tags/
+// visibility and books are already on the list, but — same as Search
+// Books/Add from Library above — does NOT flip is_draft, so it still isn't
+// committed to the user's library or the shared catalog's search results.
+// Redirects to Profile, where the list now shows up (getUserListCards
+// includes the caller's own drafts) so they can pick the draft back up
+// later instead of it being orphaned with no way back to it.
+export async function saveAsDraft(formData: FormData) {
+  await saveListFields(formData, false);
+  revalidatePath("/profile");
+  redirect("/profile");
+}
+
 // Cancel on a still-unsaved draft discards it entirely (any books already
 // added cascade-delete with it) instead of leaving an orphaned row that
 // never shows up anywhere. If it's not a draft (an already-saved list being
@@ -87,6 +146,12 @@ export async function cancelListEdit(tierListId: string) {
     redirect("/login");
   }
 
+  const { data: items } = await supabase
+    .from("tier_list_items")
+    .select("book_id")
+    .eq("tier_list_id", tierListId);
+  const bookIds = [...new Set((items ?? []).map((item) => item.book_id))];
+
   const { data: deleted } = await supabase
     .from("tier_lists")
     .delete()
@@ -96,10 +161,48 @@ export async function cancelListEdit(tierListId: string) {
     .select("id");
 
   if (deleted && deleted.length > 0) {
+    await deleteOrphanedDraftBooks(supabase, bookIds);
     redirect("/profile");
   }
 
   redirect(`/lists/${tierListId}`);
+}
+
+// A canceled draft's tier_list_items are already gone (cascaded away with
+// the tier_lists row above) by the time this runs. Any book that Goodreads
+// import created fresh for this draft (still is_draft — see migration 0022)
+// and that nothing else references anymore was never real to begin with, so
+// clean it out of the shared catalog rather than leaving a dead row behind.
+// Skips anything still referenced elsewhere (another list, another user's
+// library) — the RLS delete policy also independently refuses to touch a
+// non-draft row, this check just avoids a pointless delete attempt.
+async function deleteOrphanedDraftBooks(
+  supabase: SupabaseServerClient,
+  bookIds: string[],
+) {
+  await Promise.all(
+    bookIds.map(async (bookId) => {
+      const [{ count: itemCount }, { count: libraryCount }] =
+        await Promise.all([
+          supabase
+            .from("tier_list_items")
+            .select("id", { count: "exact", head: true })
+            .eq("book_id", bookId),
+          supabase
+            .from("user_books")
+            .select("id", { count: "exact", head: true })
+            .eq("book_id", bookId),
+        ]);
+
+      if ((itemCount ?? 0) === 0 && (libraryCount ?? 0) === 0) {
+        await supabase
+          .from("books")
+          .delete()
+          .eq("id", bookId)
+          .eq("is_draft", true);
+      }
+    }),
+  );
 }
 
 export async function deleteTierList(tierListId: string) {

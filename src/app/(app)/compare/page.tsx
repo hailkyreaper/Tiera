@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTopMatches, getOtherUserCount } from "@/lib/db/top-matches";
 import { TasteScoreCard } from "@/components/taste-score-card";
 import { TopMatchCard } from "@/components/top-match-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 type Tab = "all" | "friends";
 
@@ -82,13 +81,23 @@ export default async function ComparePage({
       />
 
       {tab === "friends" && (
-        <form action={goToCompare} className="flex gap-2">
-          <Input
+        <form
+          action={goToCompare}
+          className="flex items-center gap-1 rounded-sm border border-input bg-transparent pr-1 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50"
+        >
+          <input
             name="username"
             placeholder="Search by username..."
-            className="flex-1"
+            autoComplete="off"
+            className="h-8 min-w-0 flex-1 bg-transparent px-2.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
           />
-          <Button type="submit">Go</Button>
+          <button
+            type="submit"
+            aria-label="Search"
+            className="flex size-6 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Search className="size-4" />
+          </button>
         </form>
       )}
 

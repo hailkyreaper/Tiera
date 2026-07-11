@@ -8,6 +8,35 @@ type OpenLibraryWorkResponse = {
   description?: string | { type?: string; value?: string };
 };
 
+type OpenLibraryEditionResponse = {
+  covers?: number[];
+};
+
+// A direct ISBN key lookup on the edition record itself — unambiguous,
+// unlike either guessing a cover.openlibrary.org URL from the ISBN
+// (confirmed live: the same ISBN flips between 200 and 404 under
+// `?default=false` from one check to the next) or a free-text title+author
+// search (confirmed live: relevance ranking can surface an unrelated
+// omnibus/study-guide edition with no cover ahead of the real one). This
+// endpoint either has the exact edition on file with its own indexed
+// cover ids, or it doesn't — no ranking involved.
+export async function fetchCoverUrlByIsbn(
+  isbn: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`https://openlibrary.org/isbn/${isbn}.json`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+
+    const data: OpenLibraryEditionResponse = await res.json();
+    const coverId = data.covers?.[0];
+    return coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Open Library's search.json never includes a synopsis — that only lives on
 // the separate per-work endpoint, keyed by the "key" (e.g. "/works/OL123W")
 // a search result already gives us.
@@ -150,12 +179,9 @@ export type OpenLibraryData = {
   description: string | null;
 };
 
-export async function getOpenLibraryData(
-  title: string,
-  author?: string,
-  options?: { includeDescription?: boolean },
-): Promise<OpenLibraryData> {
-  const query = author ? `${title} ${author}` : title;
+async function fetchSearchDoc(
+  query: string,
+): Promise<{ key?: string; subject?: string[]; cover_i?: number } | undefined> {
   const params = new URLSearchParams({
     q: query,
     fields: "key,subject,cover_i",
@@ -165,13 +191,28 @@ export async function getOpenLibraryData(
   const res = await fetch(`https://openlibrary.org/search.json?${params}`, {
     next: { revalidate: 3600 },
   });
-
-  if (!res.ok) {
-    return { genres: [], coverUrl: null, description: null };
-  }
+  if (!res.ok) return undefined;
 
   const data: OpenLibrarySearchResponse = await res.json();
-  const doc = data.docs?.[0];
+  return data.docs?.[0];
+}
+
+export async function getOpenLibraryData(
+  title: string,
+  author?: string,
+  options?: { includeDescription?: boolean },
+): Promise<OpenLibraryData> {
+  // Combining title + author into one free-text query can return zero
+  // results even when both individually would find the book — confirmed
+  // live with "The Sword of Kaigen M.L. Wang" (0 results combined) vs.
+  // "The Sword of Kaigen" alone (finds it immediately, real cover
+  // included). Open Library's relevance ranking seems to choke on some
+  // author-name formats (e.g. unspaced initials) when they're mixed into
+  // the same query as the title, so a title-only retry recovers cases the
+  // combined query misses instead of just accepting an empty result.
+  const doc =
+    (author ? await fetchSearchDoc(`${title} ${author}`) : undefined) ??
+    (await fetchSearchDoc(title));
   const subjects = doc?.subject ?? [];
 
   // genre:-tagged subjects are Open Library's own explicit genre

@@ -67,10 +67,20 @@ export default async function TierListPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ edit?: string; new?: string }>;
+  searchParams: Promise<{
+    edit?: string;
+    new?: string;
+    imported?: string;
+    importFailed?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { edit, new: isNewParam } = await searchParams;
+  const {
+    edit,
+    new: isNewParam,
+    imported,
+    importFailed,
+  } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -144,20 +154,36 @@ export default async function TierListPage({
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
         {edit === "true" ? (
-          <EditListDetailsForm
-            tierListId={id}
-            title={tierList.title}
-            description={tierList.description}
-            tags={tierList.tags}
-            isPublic={tierList.is_public}
-            isNew={isNewParam === "true"}
-          >
-            <TierBoard tierListId={id} initialColumns={initialColumns} />
-            <ListActionsBar tierListId={id} isEditing />
-          </EditListDetailsForm>
+          <>
+            {imported && (
+              <p className="text-sm text-muted-foreground">
+                Imported {imported} book{imported === "1" ? "" : "s"} from
+                Goodreads.
+                {importFailed && ` ${importFailed} couldn't be imported.`}
+              </p>
+            )}
+            <EditListDetailsForm
+              tierListId={id}
+              title={tierList.title}
+              description={tierList.description}
+              tags={tierList.tags}
+              isPublic={tierList.is_public}
+              isNew={isNewParam === "true"}
+            >
+              <TierBoard tierListId={id} initialColumns={initialColumns} />
+              <ListActionsBar tierListId={id} isEditing />
+            </EditListDetailsForm>
+          </>
         ) : (
           <>
             <TopNav />
+            {imported && (
+              <p className="text-sm text-muted-foreground">
+                Imported {imported} book{imported === "1" ? "" : "s"} from
+                Goodreads.
+                {importFailed && ` ${importFailed} couldn't be imported.`}
+              </p>
+            )}
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold text-foreground">

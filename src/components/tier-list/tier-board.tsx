@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   CollisionDetection,
   DndContext,
@@ -45,18 +45,18 @@ const collisionDetection: CollisionDetection = (args) => {
 
 export function TierBoard({
   tierListId,
-  initialColumns,
+  columns,
+  setColumns,
 }: {
   tierListId: string;
-  initialColumns: Columns;
+  /** Lifted into the parent (EditListDetailsForm) rather than owned here,
+   * so the "final list preview" step can render the same live state
+   * without going stale the moment a drag happens after page load. */
+  columns: Columns;
+  setColumns: Dispatch<SetStateAction<Columns>>;
 }) {
-  const [columns, setColumns] = useState<Columns>(initialColumns);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const startContainerRef = useRef<ContainerId | null>(null);
-
-  useEffect(() => {
-    setColumns(initialColumns);
-  }, [initialColumns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),

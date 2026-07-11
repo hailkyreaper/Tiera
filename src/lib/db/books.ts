@@ -47,6 +47,13 @@ export function bookFieldsFromFormData(formData: FormData): BookFields {
 export async function findOrCreateBook(
   supabase: SupabaseServerClient,
   fields: BookFields,
+  // Set true by the AI photo import flow, which can create several new
+  // catalog rows at once from unverified vision-model guesses — same
+  // "don't touch the shared catalog's search results until the list is
+  // saved" reasoning as Goodreads import (see migration 0022). Search
+  // Books/Add from Library never pass this — a manually-picked, already-
+  // confirmed real search result commits immediately, same as always.
+  { isDraft = false }: { isDraft?: boolean } = {},
 ): Promise<string | null> {
   const { data: existingBook } = await supabase
     .from("books")
@@ -83,6 +90,7 @@ export async function findOrCreateBook(
         ? parseFloat(fields.averageRating)
         : null,
       categories: categories.length > 0 ? categories : null,
+      is_draft: isDraft,
     })
     .select("id")
     .single<BookIdRow>();

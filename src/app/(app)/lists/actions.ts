@@ -118,6 +118,20 @@ export async function saveAndGoToGoodreadsImport(formData: FormData) {
   redirect(`/lists/${tierListId}/import/goodreads`);
 }
 
+export async function saveAndGoToAiImport(formData: FormData) {
+  const tierListId = await saveListFields(formData, false);
+  redirect(`/lists/${tierListId}/import/ai`);
+}
+
+// Called directly from the client (not a form submission) when Publish is
+// clicked on the create flow's first step — persists the current fields,
+// same as the "save unsaved state before navigating" actions above, but
+// deliberately doesn't redirect: the caller just flips to the review step
+// locally afterward, staying on the same page.
+export async function savePublishStep(formData: FormData) {
+  await saveListFields(formData, false);
+}
+
 // The middle ground between Cancel (discards the list entirely) and Save
 // (publishes it for real): keeps whatever title/description/tags/
 // visibility and books are already on the list, but — same as Search
@@ -128,6 +142,18 @@ export async function saveAndGoToGoodreadsImport(formData: FormData) {
 // later instead of it being orphaned with no way back to it.
 export async function saveAsDraft(formData: FormData) {
   await saveListFields(formData, false);
+  revalidatePath("/profile");
+  redirect("/profile");
+}
+
+// The manage view's "Save" button (replaces the old separate Edit/Delete
+// pair there). Board changes (drag-and-drop) are already persisted live by
+// moveBookToTier/addBookToTier/reorderTierItems as they happen — there's
+// no unsaved title/visibility state in this view to actually commit here,
+// unlike the create flow. This just revalidates Profile (its list-card
+// preview would otherwise be served stale from the router cache, same
+// root cause as the cancelListEdit fix above) and sends them back there.
+export async function finishManagingList() {
   revalidatePath("/profile");
   redirect("/profile");
 }
@@ -162,6 +188,11 @@ export async function cancelListEdit(tierListId: string) {
 
   if (deleted && deleted.length > 0) {
     await deleteOrphanedDraftBooks(supabase, bookIds);
+    // Without this, /profile's router cache can still serve the version
+    // from before this delete — the canceled draft appearing there
+    // afterward was exactly that stale-cache symptom, not the delete
+    // itself failing (saveAsDraft already does this for the same reason).
+    revalidatePath("/profile");
     redirect("/profile");
   }
 

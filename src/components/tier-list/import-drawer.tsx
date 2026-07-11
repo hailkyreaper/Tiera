@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { Drawer } from "@base-ui/react/drawer";
 import { Download, BookText, Sparkles } from "lucide-react";
-import { saveAndGoToGoodreadsImport } from "@/app/(app)/lists/actions";
+import {
+  saveAndGoToGoodreadsImport,
+  saveAndGoToAiImport,
+} from "@/app/(app)/lists/actions";
 
 export function ImportDrawer({
   tierListId,
@@ -63,17 +66,40 @@ export function ImportDrawer({
                 </Link>
               )}
 
-              <div className="flex items-center gap-3 rounded-sm bg-muted/50 p-4 text-left opacity-50">
-                <Sparkles className="size-5 shrink-0 text-muted-foreground" />
-                <span className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">
-                    Import with AI
+              {isEditing ? (
+                <button
+                  type="submit"
+                  form="edit-list-details-form"
+                  formAction={saveAndGoToAiImport}
+                  formNoValidate
+                  className="flex items-center gap-3 rounded-sm bg-muted p-4 text-left hover:bg-muted/70"
+                >
+                  <Sparkles className="size-5 shrink-0 text-primary" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      Import with AI
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Add books from a photo
+                    </span>
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    Coming soon
+                </button>
+              ) : (
+                <Link
+                  href={`/lists/${tierListId}/import/ai`}
+                  className="flex items-center gap-3 rounded-sm bg-muted p-4 text-left hover:bg-muted/70"
+                >
+                  <Sparkles className="size-5 shrink-0 text-primary" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      Import with AI
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Add books from a photo
+                    </span>
                   </span>
-                </span>
-              </div>
+                </Link>
+              )}
             </Drawer.Content>
           </Drawer.Popup>
         </Drawer.Viewport>

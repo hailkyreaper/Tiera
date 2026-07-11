@@ -37,6 +37,42 @@ export async function fetchCoverUrlByIsbn(
   }
 }
 
+type OpenLibraryEditionsResponse = {
+  entries?: { languages?: { key: string }[]; covers?: number[] }[];
+};
+
+// A work-level search result's `cover_i` is whichever edition Open
+// Library happened to associate with the work as a whole — not
+// necessarily an English one. Confirmed live: searching "Red Rising"
+// (work /works/OL17076473W, itself tagged eng/por/fre — no Spanish at
+// all) still returned the Spanish "Amanecer Rojo" cover as cover_i, even
+// though the work's own editions list has several real English covers
+// available. This checks that list directly and prefers the first
+// edition actually tagged English with a real cover, instead of trusting
+// the work-level guess.
+export async function fetchEnglishEditionCoverUrl(
+  workKey: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://openlibrary.org${workKey}/editions.json?limit=20`,
+      { next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return null;
+
+    const data: OpenLibraryEditionsResponse = await res.json();
+    const englishEdition = (data.entries ?? []).find(
+      (edition) =>
+        edition.languages?.some((lang) => lang.key === "/languages/eng") &&
+        (edition.covers?.length ?? 0) > 0,
+    );
+    const coverId = englishEdition?.covers?.[0];
+    return coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Open Library's search.json never includes a synopsis — that only lives on
 // the separate per-work endpoint, keyed by the "key" (e.g. "/works/OL123W")
 // a search result already gives us.

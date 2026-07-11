@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseGoodreadsCsv, tierForRating } from "@/lib/goodreads-csv";
 import { fetchCoverUrlByIsbn, getOpenLibraryData } from "@/lib/open-library";
+import { mapWithConcurrency } from "@/lib/concurrency";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 type BookIdRow = { id: string };
@@ -38,31 +39,6 @@ type GoodreadsImportRow = {
   isbn: string | null;
   averageRating: number | null;
 };
-
-// Runs `fn` over `items` with at most `limit` in flight at once — a large
-// Goodreads library (50+ rows) doing this fully sequentially could add up
-// to 30-60+ seconds of real time if several rows need Open Library's search
-// fallback, risking a serverless function timeout; running fully
-// unbounded-parallel instead would hammer a third-party API we don't
-// control the rate limits of. A small fixed pool is the middle ground.
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i], i);
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, worker),
-  );
-  return results;
-}
 
 const IMPORT_CONCURRENCY = 6;
 
@@ -239,36 +215,24 @@ export async function importGoodreadsCsv(formData: FormData) {
   // tier_list_items when that happens; if they Cancel an unsaved draft
   // instead, cancelListEdit garbage-collects any still-is_draft,
   // now-unreferenced books this import created.
-  let imported = 0;
-  let failed = 0;
-
   await mapWithConcurrency(rows, IMPORT_CONCURRENCY, async (row, i) => {
     const bookId = matchedBookId[i];
-    if (!bookId) {
-      failed++;
-      return;
-    }
+    if (!bookId) return;
+
+    const tier = autoTier ? tierForRating(row.myRating, row.dnf) : "unranked";
 
     try {
-      const tier = autoTier
-        ? tierForRating(row.myRating, row.dnf)
-        : "unranked";
-
       await supabase
         .from("tier_list_items")
         .upsert(
           { tier_list_id: tierListId, book_id: bookId, tier },
           { onConflict: "tier_list_id,book_id" },
         );
-
-      imported++;
     } catch {
-      failed++;
+      // A single row failing shouldn't sink the rest of the import.
     }
   });
 
   revalidatePath(`/lists/${tierListId}`);
-  redirect(
-    `/lists/${tierListId}?edit=true&imported=${imported}${failed > 0 ? `&importFailed=${failed}` : ""}`,
-  );
+  redirect(`/lists/${tierListId}?edit=true`);
 }

@@ -12,7 +12,15 @@ export type DetailedBook = {
 
 export type DetailedColumns = Record<Exclude<Tier, "unranked">, DetailedBook[]>;
 
-export function ReadOnlyTierBoard({ columns }: { columns: DetailedColumns }) {
+export function ReadOnlyTierBoard({
+  columns,
+  highQuality = false,
+}: {
+  columns: DetailedColumns;
+  /** For the shareable-image export (create flow's review step, and the
+   * published-list 3-dot menu's Export option) — see TierRowBar. */
+  highQuality?: boolean;
+}) {
   const rankedTiers = TIERS.filter(
     (tier): tier is Exclude<Tier, "unranked"> => tier !== "unranked",
   );
@@ -22,7 +30,13 @@ export function ReadOnlyTierBoard({ columns }: { columns: DetailedColumns }) {
     // board (tier-board.tsx), instead of a flex gap, so both views match.
     <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-sm">
       {rankedTiers.map((tier) => (
-        <TierRowBar key={tier} tier={tier} books={columns[tier]} interactive />
+        <TierRowBar
+          key={tier}
+          tier={tier}
+          books={columns[tier]}
+          interactive
+          highQuality={highQuality}
+        />
       ))}
     </div>
   );

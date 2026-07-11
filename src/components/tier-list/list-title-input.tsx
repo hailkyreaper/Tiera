@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
 const MAX_LENGTH = 40;
 
-export function ListTitleInput({ defaultValue }: { defaultValue: string }) {
-  const [value, setValue] = useState(defaultValue);
-
+/**
+ * Controlled by the parent (EditListDetailsForm) rather than owning its own
+ * state — the parent needs the current title to build FormData for the
+ * Publish/Save Draft/Share actions, which aren't native form submissions.
+ */
+export function ListTitleInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div className="flex flex-1 flex-col gap-1">
       <div className="flex items-center justify-between">
@@ -22,7 +30,7 @@ export function ListTitleInput({ defaultValue }: { defaultValue: string }) {
         id="title"
         name="title"
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         maxLength={MAX_LENGTH}
         required
         placeholder="Insert title"

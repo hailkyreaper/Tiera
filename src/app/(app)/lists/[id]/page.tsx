@@ -1,23 +1,15 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
-import { TierBoard } from "@/components/tier-list/tier-board";
-import {
-  ReadOnlyTierBoard,
-  type DetailedColumns,
-} from "@/components/tier-list/read-only-board";
-import { LikeButton } from "@/components/tier-list/like-button";
+import { StandaloneTierBoard } from "@/components/tier-list/standalone-tier-board";
+import type { DetailedColumns } from "@/components/tier-list/read-only-board";
 import { CommentsSection, type CommentView } from "@/components/tier-list/comments-section";
-import { DeleteListButton } from "@/components/tier-list/delete-list-button";
-import { ListCreatorHeader } from "@/components/tier-list/list-creator-header";
 import { ListDescription } from "@/components/tier-list/list-description";
 import { EditListDetailsForm } from "@/components/tier-list/edit-list-details-form";
 import { ListActionsBar } from "@/components/tier-list/list-actions-bar";
+import { ListDetailView } from "@/components/tier-list/list-detail-view";
+import { SaveAndExitButton } from "@/components/tier-list/save-and-exit-button";
 import { TopNav } from "@/components/top-nav";
-import { FollowButton } from "@/components/follow-button";
-import { Button } from "@/components/ui/button";
-import { MessageCircle } from "lucide-react";
 import type { Tier } from "@/lib/tiers";
 import type { Card, Columns } from "@/components/tier-list/types";
 
@@ -70,17 +62,11 @@ export default async function TierListPage({
   searchParams: Promise<{
     edit?: string;
     new?: string;
-    imported?: string;
-    importFailed?: string;
+    manage?: string;
   }>;
 }) {
   const { id } = await params;
-  const {
-    edit,
-    new: isNewParam,
-    imported,
-    importFailed,
-  } = await searchParams;
+  const { edit, new: isNewParam, manage } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -150,69 +136,58 @@ export default async function TierListPage({
     }
   }
 
-  if (isOwner) {
+  // Full create/publish flow — only for a still-in-progress list (a brand
+  // new one, or a draft picked back up from Profile).
+  if (isOwner && edit === "true") {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
-        {edit === "true" ? (
-          <>
-            {imported && (
-              <p className="text-sm text-muted-foreground">
-                Imported {imported} book{imported === "1" ? "" : "s"} from
-                Goodreads.
-                {importFailed && ` ${importFailed} couldn't be imported.`}
-              </p>
-            )}
-            <EditListDetailsForm
-              tierListId={id}
-              title={tierList.title}
-              description={tierList.description}
-              tags={tierList.tags}
-              isPublic={tierList.is_public}
-              isNew={isNewParam === "true"}
-            >
-              <TierBoard tierListId={id} initialColumns={initialColumns} />
-              <ListActionsBar tierListId={id} isEditing />
-            </EditListDetailsForm>
-          </>
-        ) : (
-          <>
-            <TopNav />
-            {imported && (
-              <p className="text-sm text-muted-foreground">
-                Imported {imported} book{imported === "1" ? "" : "s"} from
-                Goodreads.
-                {importFailed && ` ${importFailed} couldn't be imported.`}
-              </p>
-            )}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-semibold text-foreground">
-                  {tierList.title}
-                </h1>
-                <ListDescription
-                  description={tierList.description}
-                  tags={tierList.tags}
-                />
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Link href={`/lists/${id}?edit=true`}>
-                  <Button type="button" variant="outline" size="sm">
-                    Edit
-                  </Button>
-                </Link>
-                <DeleteListButton tierListId={id} />
-              </div>
-            </div>
-
-            <TierBoard tierListId={id} initialColumns={initialColumns} />
-
-            <ListActionsBar tierListId={id} />
-          </>
-        )}
+        <EditListDetailsForm
+          tierListId={id}
+          title={tierList.title}
+          description={tierList.description}
+          tags={tierList.tags}
+          isPublic={tierList.is_public}
+          isNew={isNewParam === "true"}
+          initialColumns={initialColumns}
+        />
       </div>
     );
   }
 
+  // Manage view — reached from the 3-dot menu's Edit item on an already-
+  // published list. Simplified: no Cancel/Publish/review dance (it's
+  // already live), just the interactive board plus a single Save that
+  // returns to Profile. Board edits are already saved as they happen
+  // (moveBookToTier etc.), so Save has nothing left to persist beyond
+  // that — see finishManagingList.
+  if (isOwner && manage === "true") {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
+        <TopNav />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">
+              {tierList.title}
+            </h1>
+            <ListDescription
+              description={tierList.description}
+              tags={tierList.tags}
+            />
+          </div>
+          <SaveAndExitButton />
+        </div>
+
+        <StandaloneTierBoard tierListId={id} initialColumns={initialColumns} />
+
+        <ListActionsBar tierListId={id} />
+      </div>
+    );
+  }
+
+  // Default view — a finished list, viewed by its owner or anyone else.
+  // Identical either way except for the header's trailing action (see
+  // ListDetailView): a 3-dot menu for the owner, a Follow button for a
+  // visitor.
   const [{ data: comments }, isLiked, isFollowing, matchPercentage] =
     await Promise.all([
       supabase
@@ -230,7 +205,7 @@ export default async function TierListPage({
             .maybeSingle()
             .then(({ data }) => Boolean(data))
         : Promise.resolve(false),
-      user
+      !isOwner && user
         ? supabase
             .from("follows")
             .select("following_id")
@@ -239,7 +214,7 @@ export default async function TierListPage({
             .maybeSingle()
             .then(({ data }) => Boolean(data))
         : Promise.resolve(false),
-      user
+      !isOwner && user
         ? Promise.all([
             getBookScores(supabase, user.id),
             getBookScores(supabase, tierList.user_id),
@@ -280,52 +255,27 @@ export default async function TierListPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
-      <TopNav />
       {creator && (
-        <ListCreatorHeader
-          username={creator.username}
-          avatarUrl={creator.avatar_url}
-          createdAt={tierList.created_at}
-          action={
-            user ? (
-              <FollowButton
-                targetUserId={tierList.user_id}
-                username={creator.username}
-                isFollowing={isFollowing}
-              />
-            ) : undefined
-          }
-        />
-      )}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          {tierList.title}
-        </h1>
-        <ListDescription
+        <ListDetailView
+          tierListId={id}
+          title={tierList.title}
           description={tierList.description}
           tags={tierList.tags}
+          creatorUsername={creator.username}
+          creatorAvatarUrl={creator.avatar_url}
+          createdAt={tierList.created_at}
+          isOwner={isOwner}
+          targetUserId={tierList.user_id}
+          isFollowing={isFollowing}
+          showFollow={!isOwner && Boolean(user)}
+          matchPercentage={isOwner ? null : matchPercentage}
+          columns={detailedColumns}
         />
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <LikeButton
-            tierListId={id}
-            likeCount={tierList.like_count}
-            isLiked={isLiked}
-          />
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MessageCircle className="size-3.5" /> {tierList.comment_count}
-          </span>
-        </div>
-        {matchPercentage !== null && (
-          <span className="text-xs font-semibold text-primary">
-            {matchPercentage}% match
-          </span>
-        )}
-      </div>
-      <ReadOnlyTierBoard columns={detailedColumns} />
+      )}
       <CommentsSection
         tierListId={id}
+        likeCount={tierList.like_count}
+        isLiked={isLiked}
         comments={commentViews}
         canComment={Boolean(user)}
       />

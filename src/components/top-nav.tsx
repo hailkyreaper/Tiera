@@ -7,9 +7,13 @@ import { cn } from "@/lib/utils";
 export function TopNav({
   title,
   center = false,
+  action,
 }: {
   title?: string;
   center?: boolean;
+  /** Rendered at the trailing end, in line with the back arrow — e.g. a
+   * 3-dot options menu on a page that needs one. */
+  action?: React.ReactNode;
 }) {
   return (
     <div
@@ -28,6 +32,9 @@ export function TopNav({
         >
           {title}
         </h1>
+      )}
+      {action && (!title || !center) && (
+        <div className={cn(!title && "ml-auto")}>{action}</div>
       )}
     </div>
   );

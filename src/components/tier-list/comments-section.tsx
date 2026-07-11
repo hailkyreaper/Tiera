@@ -4,6 +4,7 @@ import { Send } from "lucide-react";
 import { addComment, deleteComment } from "@/app/(app)/lists/social-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LikeButton } from "./like-button";
 import { formatRelativeTime } from "@/lib/format-time";
 
 export type CommentView = {
@@ -19,16 +20,27 @@ export function CommentsSection({
   tierListId,
   comments,
   canComment,
+  likeCount,
+  isLiked,
 }: {
   tierListId: string;
   comments: CommentView[];
   canComment: boolean;
+  likeCount: number;
+  isLiked: boolean;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase">
-        {comments.length} Comments
-      </h2>
+      <div className="flex items-center gap-3">
+        <LikeButton
+          tierListId={tierListId}
+          likeCount={likeCount}
+          isLiked={isLiked}
+        />
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+          {comments.length} Comments
+        </h2>
+      </div>
 
       {comments.length === 0 ? (
         <p className="text-sm text-muted-foreground">No comments yet.</p>

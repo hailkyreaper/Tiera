@@ -16,12 +16,22 @@ export function TierRowBar({
   tier,
   books,
   interactive = false,
+  highQuality = false,
 }: {
   tier: Exclude<Tier, "unranked">;
   books: PreviewBook[];
   /** Wraps each cover in a tap-to-open synopsis drawer — only used on the
    * visitor-facing list detail page, not the Explore feed's card previews. */
   interactive?: boolean;
+  /** Requests full-quality (rather than Next's default 75%) optimized
+   * images — used by the review step's shareable image export, where the
+   * capture gets upscaled (pixelRatio) and compression artifacts become
+   * visible. Deliberately still routed through Next's same-origin image
+   * proxy rather than `unoptimized` (which serves the raw external URL
+   * directly) — Open Library/Google's cover servers don't send permissive
+   * CORS headers, so a cross-origin image there made the canvas capture
+   * library fail outright instead of just looking soft. */
+  highQuality?: boolean;
 }) {
   return (
     // shrink-0: without it, a sibling row wrapping to 2 lines squeezes every
@@ -70,6 +80,7 @@ export function TierRowBar({
                     alt={book.title}
                     width={400}
                     height={600}
+                    quality={highQuality ? 100 : 75}
                     className="h-auto w-full"
                   />
                 </BookDetailDrawer>
@@ -79,6 +90,7 @@ export function TierRowBar({
                   alt={book.title}
                   width={400}
                   height={600}
+                  quality={highQuality ? 100 : 75}
                   className="h-auto w-full"
                 />
               )

@@ -31,15 +31,15 @@ export function CommentsSection({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+          {comments.length} Comments
+        </h2>
         <LikeButton
           tierListId={tierListId}
           likeCount={likeCount}
           isLiked={isLiked}
         />
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
-          {comments.length} Comments
-        </h2>
       </div>
 
       {comments.length === 0 ? (

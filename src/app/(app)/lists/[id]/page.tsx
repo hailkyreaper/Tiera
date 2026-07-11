@@ -8,6 +8,7 @@ import { ListDescription } from "@/components/tier-list/list-description";
 import { EditListDetailsForm } from "@/components/tier-list/edit-list-details-form";
 import { ListActionsBar } from "@/components/tier-list/list-actions-bar";
 import { ListDetailView } from "@/components/tier-list/list-detail-view";
+import { OwnListView } from "@/components/tier-list/own-list-view";
 import { SaveAndExitButton } from "@/components/tier-list/save-and-exit-button";
 import { TopNav } from "@/components/top-nav";
 import type { Tier } from "@/lib/tiers";
@@ -185,9 +186,9 @@ export default async function TierListPage({
   }
 
   // Default view — a finished list, viewed by its owner or anyone else.
-  // Identical either way except for the header's trailing action (see
-  // ListDetailView): a 3-dot menu for the owner, a Follow button for a
-  // visitor.
+  // Genuinely separate components (OwnListView vs. ListDetailView) — see
+  // their own doc comments for why they're kept apart rather than one
+  // component branching on isOwner.
   const [{ data: comments }, isLiked, isFollowing, matchPercentage] =
     await Promise.all([
       supabase
@@ -255,22 +256,30 @@ export default async function TierListPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4">
-      {creator && (
-        <ListDetailView
+      {isOwner ? (
+        <OwnListView
           tierListId={id}
           title={tierList.title}
           description={tierList.description}
           tags={tierList.tags}
-          creatorUsername={creator.username}
-          creatorAvatarUrl={creator.avatar_url}
-          createdAt={tierList.created_at}
-          isOwner={isOwner}
-          targetUserId={tierList.user_id}
-          isFollowing={isFollowing}
-          showFollow={!isOwner && Boolean(user)}
-          matchPercentage={isOwner ? null : matchPercentage}
           columns={detailedColumns}
         />
+      ) : (
+        creator && (
+          <ListDetailView
+            title={tierList.title}
+            description={tierList.description}
+            tags={tierList.tags}
+            creatorUsername={creator.username}
+            creatorAvatarUrl={creator.avatar_url}
+            createdAt={tierList.created_at}
+            targetUserId={tierList.user_id}
+            isFollowing={isFollowing}
+            showFollow={Boolean(user)}
+            matchPercentage={matchPercentage}
+            columns={detailedColumns}
+          />
+        )
       )}
       <CommentsSection
         tierListId={id}

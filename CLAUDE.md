@@ -598,51 +598,61 @@ now rather than build a new page). `SIDEBAR_ITEMS`
 
 **Desktop layout, phase 3 (right-rail Top Matches panel)** ✅ done — the 
 mockup's other deferred piece. Scope agreed first: Explore only (not 
-app-wide like Sidebar).
+app-wide like Sidebar). Went through three iterations before landing on the 
+mockup's actual proportions — worth reading since the lesson (crop/zoom the 
+reference image directly rather than eyeballing it at full size) is the 
+real takeaway:
+1. First pass: a compact avatar/username/match%-only row, reasoning that 
+   `TopMatchCard`'s richer version (genres, top-favorite covers) costs 2 
+   extra per-candidate queries a narrow rail has no room for. User feedback: 
+   "the current one looks weak."
+2. Second pass: switched to reusing the real `TopMatchCard` as-is, widened 
+   the rail `w-72` → `w-96` to fit it (that card was originally sized for 
+   Compare's own `max-w-md`/448px container). User feedback: "the card is 
+   not complete. its one full card" — asked for an actual screenshot 
+   comparison against `design/Desktop.png`, which showed the real mockup 
+   is a **plain divided list** (no per-row card background/border), each 
+   row just an avatar + stacked name/@username + a match% pill top-right — 
+   nowhere near as tall as `TopMatchCard`. Cropping and zooming the mockup 
+   image directly (rather than eyeballing the full 1536px-wide reference) is 
+   what actually revealed this.
+3. Final version: a dedicated compact row (not `TopMatchCard`) matching the 
+   cropped reference almost exactly — avatar (40px) + stacked `displayName`/
+   `@username` (falls back to bold `@username` alone when no display name is 
+   set) + a `bg-primary/15` match% pill, rows separated by `divide-y 
+   divide-border` inside one `bg-card` panel, not individually boxed. Rail 
+   back down to `w-80`, `includeDetails: false` again (no genres/favorites 
+   rendered, so no reason to fetch them). The mockup also shows small 
+   lettered tier-color badges (S/A/B/D) under each name, which appear to 
+   vary slightly per person — **deliberately not built**: it isn't backed 
+   by any real computed value in the app today, and the user's call was to 
+   skip it rather than invent meaning for data that doesn't exist, once 
+   asked directly.
 - `getTopMatches` (`src/lib/db/top-matches.ts`) gained `includeDetails` and 
-  `limit` options rather than a separate parallel function — 
-  `includeDetails: false` skips the `getTopGenres`/`getFavoriteBooks` calls 
-  entirely (every candidate still has to be matched to know who ranks in the 
-  top N, so `limit` only slices the final sorted list, it doesn't reduce 
-  that part of the cost). Fully backward-compatible — Compare's existing 
-  calls are unaffected since both default to the old behavior. Also added 
-  `displayName` to `TopMatchPerson` (was missing entirely — `profiles.
-  display_name` alongside `username`/`avatar_url`).
-- First pass used a compact avatar/username/match%-only row instead of 
-  reusing `TopMatchCard` (reasoning: its richer version costs 2 extra 
-  per-candidate queries a narrow rail seemed to have no room for) — user 
-  feedback: "the current one looks weak." Switched to reusing the real 
-  `TopMatchCard` (genres + top-favorite covers) after all, and widened the 
-  rail from `w-72` to `w-96` to give it the room it actually needs — 
-  `TopMatchCard` was originally built for Compare's own `max-w-md` (448px) 
-  container, not a narrow sidebar rail. `includeDetails` stays at its 
-  default (true) accordingly, since the full card actually renders what it 
-  fetches.
-- `TopMatchCard` itself (`src/components/top-match-card.tsx`) now shows 
-  `displayName` (bold) above `@username` when set, matching the mockup — 
-  falls back to just a bold `@username` when a profile has no display name, 
-  same fallback pattern as Sidebar's mini user-card.
-- Added a "Find more matches" button (`Users` icon, `outline` button 
-  variant, links to `/compare`) below the card list, matching the mockup — 
-  shown even when the match list is empty, as a next-step prompt.
-- New `TopMatchesRail` (`src/components/top-matches-rail.tsx`, server 
-  component) — `sticky top-4`, `hidden xl:flex` (a wider breakpoint than 
-  Sidebar's `lg`, so there's a graceful middle ground: sidebar-but-no-rail 
-  between 1024–1279px, both at 1280px+). Wired into `explore/page.tsx` only, 
-  which needed restructuring from a single centered column into a flex row 
-  (outer cap widened `max-w-2xl` → `max-w-6xl` to fit the wider rail; inner 
-  content kept its own `max-w-2xl mx-auto` so it still self-centers 
-  correctly whenever the rail isn't rendered, rather than going flush-left 
-  once the outer cap widened).
-- Verified live at every stage: mobile (412px), tablet (834px, confirms 
-  centering held with no rail/sidebar), 1100px (sidebar present, rail 
-  correctly absent below `xl`), 1440px and 1680px (both present). Zero 
-  console errors at any width throughout. Pixel-diffed mobile against the 
-  pre-change capture after each change (0.026%, then 0.162% after the 
-  full-card swap) — both confirmed via visual inspection to be live-data 
-  drift (timestamps etc.), not layout regressions. Also confirmed Compare's 
-  own page (which shares `TopMatchCard`) still renders correctly after the 
-  `displayName` addition, on both desktop and mobile.
+  `limit` options rather than a separate parallel function (every candidate 
+  still has to be matched to know who ranks in the top N, so `limit` only 
+  slices the final sorted list — it doesn't reduce that part of the cost). 
+  Fully backward-compatible, Compare's existing calls unaffected. Also added 
+  `displayName` to `TopMatchPerson` (was missing entirely) — used by both 
+  the new rail and `TopMatchCard` itself (Compare's own page benefits too).
+- Added a "Find more matches" button (`Users` icon, `outline` variant, links 
+  to `/compare`) below the list, matching the mockup — shown even when the 
+  match list is empty, as a next-step prompt.
+- `TopMatchesRail` (`src/components/top-matches-rail.tsx`, server 
+  component): `sticky top-4`, `hidden xl:flex` (wider than Sidebar's `lg`, so 
+  there's a graceful sidebar-but-no-rail middle ground between 1024–1279px). 
+  Wired into `explore/page.tsx` only, restructured from a single centered 
+  column into a flex row (outer cap `max-w-2xl` → `max-w-6xl`; inner content 
+  kept its own `max-w-2xl mx-auto` so it still self-centers whenever the 
+  rail isn't rendered, rather than going flush-left once the outer cap 
+  widened).
+- Verified live at every stage, across mobile/tablet/1100px/1440px/1680px, 
+  zero console errors throughout. Pixel-diffed mobile against the 
+  pre-change capture after each iteration (0.026% → 0.162% → back to 
+  0.026%) — confirmed via visual inspection to be live-data drift 
+  (timestamps etc.), never a real layout regression. Also confirmed 
+  Compare's own page (shares `TopMatchCard`/`displayName`) still renders 
+  correctly on both desktop and mobile.
 - "Recent Activity" (the mockup's other right-rail panel) remains explicitly 
   out of scope — real feature, not built.
 

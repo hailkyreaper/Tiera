@@ -714,6 +714,16 @@ way to preview it until the toggle above existed.
   mode's rendering is byte-identical to before (shadow correctly `none` 
   there).
 
+**App icon updated to v4** ✅ done — logo swapped again, `design/Tiera Logo 
+V4.png` (bottom bar back to blue rather than v2's purple; softer/lighter 
+tier-color tones). Same regeneration process as the v1→v2 swap: a one-off 
+`sharp` script re-resizing into `public/icons/icon-{192,512}.png`, 
+`src/app/icon.png`, and `src/app/apple-icon.png` — confirms that pipeline is 
+genuinely reusable, not just a one-time thing. Verified live via a Sidebar 
+screenshot. `design/Tier LogoV3.png` also exists (an intermediate iteration, 
+never used for the app icon) — kept alongside the others as historical 
+design record, same as v1 after v2 replaced it.
+
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 
 The *search* half was already effectively done before Sprint 7 formally started — 

@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +16,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tiera",
   description: "Discover entertainment you'll actually enjoy.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Tiera",
+  },
+  // Next's appleWebApp option only emits the modern `mobile-web-app-capable`
+  // tag — iOS versions before 17.4 only honor the apple-prefixed one, so add
+  // it explicitly to cover both.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6D5DF6",
 };
 
 export default function RootLayout({
@@ -32,6 +48,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         {children}
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

@@ -8,7 +8,9 @@ Actively in development. Sprints 1-7 are complete (Sprint 6 finished incidentall
 its items were either already done in 5.5, or merged into the Sprint 5 addendum's 
 Top Matches work; Sprint 7 finished 2026-07-11 — CSV import was the real remaining 
 work, search polish had already landed incidentally in the Post-Sprint-6 round 3 
-bug-fix pass). Sprint 8 is next but not yet marked CURRENT — see Sprint Rule.
+bug-fix pass). Sprint 8 is CURRENT (started 2026-07-11, see Sprint Rule) — 
+Capacitor is explicitly out of scope this round (user's call), so it's PWA setup 
++ responsive polish only.
 
 ## Vision
 
@@ -458,6 +460,56 @@ the list entirely); the explicit way to keep a draft is Publish → Save Draft.
   `/profile`; Publish → Save Draft still correctly keeps it (200 on revisit, 
   visible on `/profile` tagged "DRAFT"). Test drafts created during 
   verification were cleaned up afterward via Cancel.
+
+**Sprint 8 — Mobile Packaging & Polish is now CURRENT** (started 2026-07-11, 
+see Sprint Rule). Capacitor is explicitly out of scope this round (user's 
+call, asked directly) — scope is PWA setup + responsive polish only.
+
+**PWA setup** ✅ done:
+- App icons regenerated from `design/Tiera Logov2.png` (the user's updated 
+  logo — purple bottom bar instead of v1's blue, matching the app's actual 
+  `#6D5DF6` accent) via a one-off `sharp` script (not kept — swapping the 
+  source logo again later is just re-running the same resize commands): 
+  `public/icons/icon-192.png` + `icon-512.png` (used twice each in the 
+  manifest, once `purpose: "any"` and once `"maskable"` — the logo's mark is 
+  small and centered enough to already sit safely inside a maskable icon's 
+  circular safe zone with no extra padding needed), `src/app/icon.png` (512, 
+  Next's auto favicon convention) and `src/app/apple-icon.png` (180, flattened 
+  onto the app's `#03090f` background since Apple touch icons don't support 
+  transparency).
+- `src/app/manifest.ts` (Next's App Router manifest convention — auto-emits 
+  `/manifest.webmanifest` and the `<link rel="manifest">` tag, no manual 
+  wiring needed): name/short_name "Tiera", `start_url: "/"` (root already 
+  branches correctly for logged-in vs. logged-out, see `src/app/page.tsx`), 
+  `display: "standalone"`, `background_color: "#03090f"`, 
+  `theme_color: "#6D5DF6"`.
+- `layout.tsx`: added `viewport.themeColor` and `metadata.appleWebApp` 
+  (capable/statusBarStyle/title) — Next auto-emits the modern 
+  `mobile-web-app-capable` meta tag from this, but iOS versions before 17.4 
+  only honor the older apple-prefixed tag, so `metadata.other` adds 
+  `apple-mobile-web-app-capable` explicitly alongside it.
+- Minimal service worker (`public/sw.js`), registered by a new 
+  `ServiceWorkerRegistration` client component mounted in `layout.tsx`, 
+  **production-only** (`process.env.NODE_ENV !== "production"` bails out) — 
+  registering it under `next dev`'s constant hot-reloading risked exactly the 
+  kind of confusing stale-state bug that got the light-mode toggle reverted 
+  earlier (see that entry above). Deliberately does NOT cache app JS/CSS/data 
+  — this app deploys frequently, and aggressively caching build assets risks 
+  silently serving a stale build after a deploy. Its only job is to satisfy 
+  PWA installability (a registered SW with a fetch handler is one of the 
+  criteria) and give navigations a graceful offline fallback: network-first, 
+  falling back to one pre-cached static page (`src/app/offline/page.tsx`, new 
+  `/offline` route, no auth/data fetching so it can render with zero network) 
+  when a navigation's `fetch()` fails.
+- Verified live: production build (`npm run build` + `npm run start`, since 
+  dev mode intentionally skips registration), confirmed via Playwright that 
+  the service worker actually reaches `active`/`controller: true` 
+  (`navigator.serviceWorker.ready`), and that simulating offline 
+  (`context.setOffline(true)`) and navigating correctly renders the "You're 
+  offline" fallback page instead of the browser's own network-error page. 
+  Manifest, icons, and both apple/standard `*-web-app-capable` meta tags 
+  confirmed present in the rendered HTML.
+- Responsive polish (the other half of Sprint 8's scope) not yet started.
 
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 
@@ -1160,10 +1212,11 @@ pass, and unifying the two book-search implementations into one.
 - Search filters/history ✅ done — landed incidentally in "Post-Sprint-6 bug fixes, 
   round 3" (Open Library switch, local-cache search, rating/series ranking)
 
-### Sprint 8 — Mobile Packaging & Polish
-- PWA setup
-- Capacitor app wrap (optional)
-- Responsive polish
+### Sprint 8 — Mobile Packaging & Polish (CURRENT)
+- PWA setup ✅ done (see "Current sprint" section above for full spec)
+- Capacitor app wrap (optional) — explicitly skipped for this sprint, user's 
+  call when asked directly
+- Responsive polish — not yet started
 
 ### Sprint 9 — Launch Prep
 - Performance, error/empty states

@@ -158,20 +158,16 @@ export async function finishManagingList() {
   redirect("/profile");
 }
 
-// Cancel on a still-unsaved draft discards it entirely (any books already
-// added cascade-delete with it) instead of leaving an orphaned row that
-// never shows up anywhere. If it's not a draft (an already-saved list being
-// edited), the delete matches nothing and Cancel just navigates back.
-export async function cancelListEdit(tierListId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+// Shared by cancelListEdit and discardUnsavedDraft below — discards a still-
+// unsaved draft entirely (any books already added cascade-delete with it)
+// instead of leaving an orphaned row that never shows up anywhere. If it's
+// not a draft (an already-saved list being edited), the delete matches
+// nothing and this is a no-op. Returns whether it actually deleted anything.
+async function discardDraftList(
+  supabase: SupabaseServerClient,
+  userId: string,
+  tierListId: string,
+): Promise<boolean> {
   const { data: items } = await supabase
     .from("tier_list_items")
     .select("book_id")
@@ -182,21 +178,53 @@ export async function cancelListEdit(tierListId: string) {
     .from("tier_lists")
     .delete()
     .eq("id", tierListId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("is_draft", true)
     .select("id");
 
-  if (deleted && deleted.length > 0) {
-    await deleteOrphanedDraftBooks(supabase, bookIds);
-    // Without this, /profile's router cache can still serve the version
-    // from before this delete — the canceled draft appearing there
-    // afterward was exactly that stale-cache symptom, not the delete
-    // itself failing (saveAsDraft already does this for the same reason).
-    revalidatePath("/profile");
-    redirect("/profile");
+  if (!deleted || deleted.length === 0) {
+    return false;
   }
 
-  redirect(`/lists/${tierListId}`);
+  await deleteOrphanedDraftBooks(supabase, bookIds);
+  // Without this, /profile's router cache can still serve the version
+  // from before this delete — the canceled draft appearing there
+  // afterward was exactly that stale-cache symptom, not the delete
+  // itself failing (saveAsDraft already does this for the same reason).
+  revalidatePath("/profile");
+  return true;
+}
+
+export async function cancelListEdit(tierListId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const discarded = await discardDraftList(supabase, user.id, tierListId);
+  redirect(discarded ? "/profile" : `/lists/${tierListId}`);
+}
+
+// The create/edit flow only ever runs against a still-unsaved draft (see
+// lists/[id]/page.tsx's own comment) — Cancel and Publish -> Save Draft/Share
+// are the two explicit ways to keep or discard it. Tapping away to another
+// bottom-nav tab is neither of those, so NavBar calls this to treat it the
+// same as Cancel rather than leaving the draft dangling — the user's own
+// call: "users can go to the Publish tab to save their draft if they want."
+// Doesn't redirect itself; NavBar navigates once this resolves.
+export async function discardUnsavedDraft(tierListId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  await discardDraftList(supabase, user.id, tierListId);
 }
 
 // A canceled draft's tier_list_items are already gone (cascaded away with

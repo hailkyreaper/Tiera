@@ -423,6 +423,41 @@ server actions in `lists/[id]/import/ai/actions.ts`.
   `capture="environment"` to the input in `AiPhotoImportForm` (opens the rear 
   camera directly on mobile; no-op on desktop, which ignores the attribute). 
   User confirmed live on their phone: camera opens correctly.
+- **`MAX_BOOKS_PER_PHOTO` raised 50 → 150** (`src/lib/gemini.ts`) — user's own 
+  request, for larger full-shelf photos. Single constant drives the Gemini 
+  prompt text, the response schema's `maxItems`, and the import page's own 
+  copy, so nothing else needed changing beyond two stale "50 books"/"50 
+  selections" code comments in `import/ai/actions.ts`.
+
+**Abandoning an unsaved draft via the bottom nav now deletes it** ✅ done — 
+previously, tapping another bottom-nav tab (Explore/Search/Compare/Profile) 
+while still in the create/edit flow (`?edit=true`, always a still-unsaved 
+draft per `lists/[id]/page.tsx`'s own comment) just navigated away and left 
+the draft row sitting in the database untouched — not deleted, but also 
+never explicitly kept. User's call: treat that the same as Cancel (delete 
+the list entirely); the explicit way to keep a draft is Publish → Save Draft.
+- `lists/actions.ts`: extracted `cancelListEdit`'s delete logic into a shared 
+  `discardDraftList` helper (deletes the `tier_lists` row only if still 
+  `is_draft`, cleans up orphaned draft books, revalidates `/profile`) plus a 
+  new non-redirecting `discardUnsavedDraft(tierListId)` for NavBar to call — 
+  `cancelListEdit` itself is unchanged behavior, just now built on the shared 
+  helper.
+- `NavBar` derives the currently-being-edited draft's id straight from the 
+  URL (`pathname` + `?edit=true`, no extra context/prop plumbing needed since 
+  `edit=true` is only ever a draft). Nav `Link` clicks call 
+  `event.preventDefault()` + `discardUnsavedDraft(...).then(() => 
+  router.push(href))` when a draft is being edited — awaited before 
+  navigating so the tab being landed on (e.g. Profile) never has a chance to 
+  render the about-to-be-discarded draft. Applies to all five nav items, 
+  Create included (so tapping Create again mid-draft cleans up the 
+  abandoned one instead of leaving two).
+- Verified live end-to-end via Playwright against the real dev server/account 
+  (`scripts/draft-discard-check.mjs`, `scripts/draft-save-check.mjs`, same 
+  convention as the existing `scripts/library-*-check.mjs`): tapping Profile 
+  mid-draft correctly 404s the list on direct revisit and never shows it on 
+  `/profile`; Publish → Save Draft still correctly keeps it (200 on revisit, 
+  visible on `/profile` tagged "DRAFT"). Test drafts created during 
+  verification were cleaned up afterward via Cancel.
 
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 

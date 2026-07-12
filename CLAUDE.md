@@ -562,6 +562,40 @@ call, asked directly) — scope is PWA setup + responsive polish only.
     pass, since it raises its own questions (which pages get it, full 
     Top-Matches data or a trimmed preview) worth its own discussion.
 
+**Desktop layout, phase 2 (fuller sidebar item set)** ✅ done — user's 
+follow-up: expand the sidebar to Explore, Search, Compare, Library, Lists, 
+Profile, Settings ("Home" dropped — no distinct destination from Explore, 
+user's call when asked; Settings confirmed to just link to `/profile` for 
+now rather than build a new page). `SIDEBAR_ITEMS` 
+(`src/components/use-app-nav.ts`) is a separate list from the mobile bar's 
+`NAV_ITEMS` — Library/Lists reuse `ProfileTabs`' exact hrefs/icons 
+(`BookOpen`/`List`) rather than new pages.
+- **Bug found and fixed**: Lists, Profile, and Settings all resolve to the 
+  identical URL (bare `/profile` — Settings has no real page yet, Lists is 
+  just Profile's default tab), so a first pass had all three highlighting 
+  simultaneously — user caught this live ("only the one that's clicked 
+  should have a highlight"). Fixed in `SidebarNav` by tracking whichever of 
+  the three was actually clicked last (client state, `AMBIGUOUS_PROFILE_
+  LABELS`), falling back to "Lists" — the page's real default tab — before 
+  any click or after navigating there some other way (back button, a direct 
+  link elsewhere). New `isProfileTabActive(tab)` in `useAppNav` handles 
+  Library/Lists' own tab-aware matching (`pathname.startsWith(href)` alone 
+  can't tell them apart, since `usePathname()` never includes the query 
+  string). Verified via direct navigation to every route 
+  (`/profile`, `/profile?tab=library`, `/profile?tab=lists`, `/explore`, 
+  `/search`, `/compare`): exactly one sidebar item highlighted every time, 
+  zero duplicates.
+- Also hit, purely as a testing artifact (not a real bug — user confirmed 
+  manual clicks worked fine throughout): Playwright clicks on sidebar links 
+  intermittently failed to navigate during verification. Root cause was 
+  Next.js's own dev-mode build-activity indicator (`<nextjs-portal>`) 
+  intercepting pointer events, compounded by on-demand route compilation 
+  being slower than the test's wait times — confirmed by Playwright's own 
+  actionability log ("subtree intercepts pointer events") and by direct-
+  navigation tests working reliably every time. Not fixed (would mean 
+  disabling Next's `devIndicators`, a real dev-workflow change not asked 
+  for) — flagged to the user as optional, not applied.
+
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 
 The *search* half was already effectively done before Sprint 7 formally started — 

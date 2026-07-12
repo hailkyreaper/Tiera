@@ -2,15 +2,42 @@
 
 import type * as React from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Home, Search, Plus, Users, CircleUserRound } from "lucide-react";
+import {
+  Home,
+  Search,
+  Plus,
+  Users,
+  CircleUserRound,
+  BookOpen,
+  List,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { discardUnsavedDraft } from "@/app/(app)/lists/actions";
 
+// Mobile bottom bar — unchanged, 5 items.
 export const NAV_ITEMS = [
   { href: "/explore", label: "Explore", icon: Home, isCreate: false },
   { href: "/search", label: "Search", icon: Search, isCreate: false },
   { href: "/lists", label: "Create", icon: Plus, isCreate: true },
   { href: "/compare", label: "Compare", icon: Users, isCreate: false },
   { href: "/profile", label: "Profile", icon: CircleUserRound, isCreate: false },
+] as const;
+
+// Desktop sidebar only — a fuller set than the mobile bar. Library/Lists
+// reuse Profile's existing tabs (same hrefs/icons as ProfileTabs) rather than
+// new pages. Settings also points at /profile for now — there's no
+// dedicated settings page yet (Edit Profile/Log out just live inline there),
+// user's call to reuse it rather than build a new page. Lists/Profile/
+// Settings all share that one URL, so SidebarNav tracks which was actually
+// clicked to keep exactly one highlighted at a time (see its own comment).
+export const SIDEBAR_ITEMS = [
+  { href: "/explore", label: "Explore", icon: Home },
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/compare", label: "Compare", icon: Users },
+  { href: "/profile?tab=library", label: "Library", icon: BookOpen, tab: "library" },
+  { href: "/profile", label: "Lists", icon: List, tab: "lists" },
+  { href: "/profile", label: "Profile", icon: CircleUserRound },
+  { href: "/profile", label: "Settings", icon: SettingsIcon },
 ] as const;
 
 // List detail pages are reachable from several different tabs (Explore,
@@ -49,11 +76,21 @@ export function useAppNav() {
     return isListDetail ? activeHref === href : pathname.startsWith(href);
   }
 
+  // Library/Lists both live at /profile, distinguished only by ?tab= — a
+  // plain isActive(href) can't tell them apart, since Next's usePathname()
+  // never includes the query string. Mirrors ProfileTabs' own default-tab
+  // logic (no/unrecognized tab param falls back to "lists").
+  function isProfileTabActive(tab: "lists" | "library") {
+    if (pathname !== "/profile") return false;
+    const currentTab = searchParams.get("tab") === "library" ? "library" : "lists";
+    return currentTab === tab;
+  }
+
   function handleNavClick(event: React.MouseEvent, href: string) {
     if (!editingDraftId) return;
     event.preventDefault();
     discardUnsavedDraft(editingDraftId).then(() => router.push(href));
   }
 
-  return { isActive, handleNavClick };
+  return { isActive, isProfileTabActive, handleNavClick };
 }

@@ -42,7 +42,21 @@ export default function RootLayout({
     <html
       lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Runs before hydration/paint so a stored "light" preference (see
+            ThemeToggleButton) takes effect immediately on reload instead of
+            flashing dark first, or worse, silently reverting to dark with
+            no visible explanation — exactly what broke the previous
+            version of this toggle. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('theme')==='light'){document.documentElement.classList.remove('dark')}}catch(e){}",
+          }}
+        />
+      </head>
       <body
         className="min-h-full flex flex-col"
         suppressHydrationWarning

@@ -598,10 +598,9 @@ now rather than build a new page). `SIDEBAR_ITEMS`
 
 **Desktop layout, phase 3 (right-rail Top Matches panel)** ✅ done — the 
 mockup's other deferred piece. Scope agreed first: Explore only (not 
-app-wide like Sidebar). Went through three iterations before landing on the 
-mockup's actual proportions — worth reading since the lesson (crop/zoom the 
-reference image directly rather than eyeballing it at full size) is the 
-real takeaway:
+app-wide like Sidebar). Went through four iterations before landing here — 
+worth reading since the lesson (crop/zoom the reference image directly 
+rather than eyeballing it at full size) is the real takeaway:
 1. First pass: a compact avatar/username/match%-only row, reasoning that 
    `TopMatchCard`'s richer version (genres, top-favorite covers) costs 2 
    extra per-candidate queries a narrow rail has no room for. User feedback: 
@@ -616,18 +615,27 @@ real takeaway:
    nowhere near as tall as `TopMatchCard`. Cropping and zooming the mockup 
    image directly (rather than eyeballing the full 1536px-wide reference) is 
    what actually revealed this.
-3. Final version: a dedicated compact row (not `TopMatchCard`) matching the 
+3. Third pass: a dedicated compact row (not `TopMatchCard`) matching the 
    cropped reference almost exactly — avatar (40px) + stacked `displayName`/
    `@username` (falls back to bold `@username` alone when no display name is 
    set) + a `bg-primary/15` match% pill, rows separated by `divide-y 
    divide-border` inside one `bg-card` panel, not individually boxed. Rail 
-   back down to `w-80`, `includeDetails: false` again (no genres/favorites 
-   rendered, so no reason to fetch them). The mockup also shows small 
-   lettered tier-color badges (S/A/B/D) under each name, which appear to 
-   vary slightly per person — **deliberately not built**: it isn't backed 
-   by any real computed value in the app today, and the user's call was to 
-   skip it rather than invent meaning for data that doesn't exist, once 
-   asked directly.
+   back down to `w-80`, `includeDetails: false` (no genres/favorites 
+   rendered at this point). The mockup also shows small lettered tier-color 
+   badges (S/A/B/D) under each name, which appear to vary slightly per 
+   person — **deliberately not built**: it isn't backed by any real 
+   computed value in the app today, and the user's call was to skip it 
+   rather than invent meaning for data that doesn't exist, once asked 
+   directly.
+4. Final version: user noticed the top-favorite book covers were gone 
+   entirely ("wait what happened to the Top favorites??") — asked back in, 
+   even though the literal mockup doesn't show them in this panel. Each row 
+   is now `flex-col`: the same avatar/name/match%-pill line on top, plus a 
+   second line below (`pl-[52px]` to align under the name, not the avatar) 
+   showing up to 3 small (40px) `BookCover`s via `includeDetails: true` 
+   (back to the default). Still deliberately skips the genres text line and 
+   the tier-letter badges — the goal was restoring the one specific thing 
+   asked for, not reverting all the way back to `TopMatchCard`.
 - `getTopMatches` (`src/lib/db/top-matches.ts`) gained `includeDetails` and 
   `limit` options rather than a separate parallel function (every candidate 
   still has to be matched to know who ranks in the top N, so `limit` only 
@@ -648,13 +656,63 @@ real takeaway:
   widened).
 - Verified live at every stage, across mobile/tablet/1100px/1440px/1680px, 
   zero console errors throughout. Pixel-diffed mobile against the 
-  pre-change capture after each iteration (0.026% → 0.162% → back to 
-  0.026%) — confirmed via visual inspection to be live-data drift 
-  (timestamps etc.), never a real layout regression. Also confirmed 
+  pre-change capture after each iteration (0.026% → 0.162% → 0.026% → 0.162% 
+  again once favorites came back) — confirmed via visual inspection each 
+  time to be live-data drift (timestamps etc.), never a real layout 
+  regression. Also confirmed 
   Compare's own page (shares `TopMatchCard`/`displayName`) still renders 
   correctly on both desktop and mobile.
 - "Recent Activity" (the mockup's other right-rail panel) remains explicitly 
   out of scope — real feature, not built.
+
+**Dark mode toggle, rebuilt properly** ✅ done — user wanted to preview a 
+`:root` (light theme) edit live, which needs a real way to switch themes. 
+The original version of this (see "Light mode preview toggle" further down) 
+was deleted after it broke navigation: a raw `classList` mutation with no 
+persistence and no visible indicator, so toggling light then navigating via 
+the bottom nav left the whole app stuck in light mode with no explanation 
+("why do the colors keep randomly changing"). Fixed both root causes this 
+time rather than repeating the same shortcut:
+- `ThemeToggleButton` (`src/components/theme-toggle-button.tsx`) persists 
+  the choice to `localStorage` and always shows which mode is active (sun/
+  moon icon + "Light mode"/"Dark mode" label + "Tap to switch") — never 
+  ambiguous which state you're in, unlike the bare-icon original.
+- `layout.tsx` gained a small inline `<script>` in a real `<head>` tag, 
+  running before hydration/paint: reads `localStorage`, strips the `dark` 
+  class if set to `"light"`. This is what actually fixes the reload case — 
+  the previous version's other failure mode was a real page reload always 
+  re-running SSR, which hardcodes `dark`, silently reverting the toggle. 
+  `suppressHydrationWarning` added to `<html>` (className legitimately 
+  differs between server output and what the script produces).
+- Placed back on `/profile`, same spot as before (above Log out).
+- Verified live via Playwright: toggled light on `/profile`, navigated to 
+  `/explore` via a real navigation (not just internal state) — still light, 
+  zero page errors. Then a hard reload on top of that — still light, still 
+  zero errors. Both are the exact two failure modes that killed the 
+  original version.
+
+**Light mode card shadow** ✅ done — follow-up, same session: user noticed 
+cards blend into the background in light mode once they could actually see 
+it. Root cause: light mode's `--background` (`#fafaf9`) and `--card` 
+(`#ffffff`) are only 5 RGB units apart — the same category of problem dark 
+mode hit earlier (see the `--background`/`--card` entries under "UI is 
+extremely inconsistent" below), just never noticed since light mode had no 
+way to preview it until the toggle above existed.
+- New `--shadow-card` custom property (`globals.css`) rather than a flat 
+  black shadow, per the user's own suggestion — a two-layer shadow tinted 
+  with `color-mix(in oklch, var(--foreground) N%, transparent)`, so it's 
+  theme-derived instead of a hardcoded color. Set to `none` in `.dark` — 
+  dark mode's card/background gap is already sufficient, doesn't need it.
+- Applied via a plain `.bg-card { box-shadow: var(--shadow-card); }` rule 
+  (not threaded through the shared `Card` component specifically) — most 
+  card surfaces across the app are raw `bg-card` divs, not all routed 
+  through one shared component, so a selector-level rule is what actually 
+  reaches all of them, matching how `bg-card`/`rounded-sm` are already 
+  treated as a flat utility convention rather than a component API.
+- Verified live: cropped/zoomed a light-mode screenshot to confirm the 
+  shadow is actually visible along a list card's edges, and confirmed dark 
+  mode's rendering is byte-identical to before (shadow correctly `none` 
+  there).
 
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 

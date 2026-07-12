@@ -11,6 +11,7 @@ import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { ProfileTabs } from "@/components/profile-tabs";
 import { LibrarySection } from "@/components/library-section";
+import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { getUserListCards } from "@/lib/db/list-cards";
@@ -304,11 +305,14 @@ export default async function ProfilePage({
           </>
         )}
 
-        <form action={logout} className="mt-auto pt-6">
-          <Button type="submit" variant="ghost" size="sm">
-            Log out
-          </Button>
-        </form>
+        <div className="mt-auto flex flex-col gap-2 pt-6">
+          <ThemeToggleButton />
+          <form action={logout}>
+            <Button type="submit" variant="ghost" size="sm">
+              Log out
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );

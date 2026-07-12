@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTopMatches } from "@/lib/db/top-matches";
+import { BookCover } from "@/components/book-cover";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +13,13 @@ const RAIL_LIMIT = 4;
 // preview of the existing Compare/Top Matches feature, not a new one.
 // Matches the mockup's actual proportions (design/Desktop.png): a plain
 // divided list, not individual bordered cards — avatar + stacked name/
-// @username on the left, a match% pill top-right of each row. No genres/
-// top-favorite covers (that's TopMatchCard, used on Compare's own page —
-// too tall for a rail, per user feedback: "the current one looks weak"
-// then "its one full card" once it was swapped in) and no tier-letter
-// badges (mockup shows those, but they're not backed by any real computed
-// data in the app today — user's call to skip rather than invent meaning
-// for them). `includeDetails: false` since none of that data is rendered.
+// @username on the left, a match% pill top-right of each row. Top-favorite
+// covers were dropped in an earlier pass (to strictly match the mockup,
+// which doesn't show them here) then asked back in — kept the covers strip
+// but still skip the genres text line and the mockup's tier-letter badges
+// (not backed by any real computed data), so each row stays closer to a
+// list item than a full card. `includeDetails: true` (the default) since
+// this now does render favorites.
 export async function TopMatchesRail() {
   const supabase = await createClient();
   const {
@@ -28,7 +29,6 @@ export async function TopMatchesRail() {
   if (!user) return null;
 
   const matches = await getTopMatches(supabase, user.id, {
-    includeDetails: false,
     limit: RAIL_LIMIT,
   });
 
@@ -51,43 +51,55 @@ export async function TopMatchesRail() {
             <Link
               key={person.userId}
               href={`/compare/${person.username}`}
-              className="flex items-center gap-3 py-3 hover:bg-muted"
+              className="flex flex-col gap-2 py-3 hover:bg-muted"
             >
-              {person.avatarUrl ? (
-                <Image
-                  src={person.avatarUrl}
-                  alt={person.username}
-                  width={40}
-                  height={40}
-                  className="size-10 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                  {person.username[0]?.toUpperCase() ?? "?"}
-                </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                {person.displayName && (
-                  <div className="truncate text-sm font-semibold text-foreground">
-                    {person.displayName}
+              <div className="flex items-center gap-3">
+                {person.avatarUrl ? (
+                  <Image
+                    src={person.avatarUrl}
+                    alt={person.username}
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                    {person.username[0]?.toUpperCase() ?? "?"}
                   </div>
                 )}
-                <div
-                  className={cn(
-                    "truncate",
-                    person.displayName
-                      ? "text-xs text-muted-foreground"
-                      : "text-sm font-semibold text-foreground",
+
+                <div className="min-w-0 flex-1">
+                  {person.displayName && (
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {person.displayName}
+                    </div>
                   )}
-                >
-                  @{person.username}
+                  <div
+                    className={cn(
+                      "truncate",
+                      person.displayName
+                        ? "text-xs text-muted-foreground"
+                        : "text-sm font-semibold text-foreground",
+                    )}
+                  >
+                    @{person.username}
+                  </div>
                 </div>
+
+                <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+                  {person.matchPercentage}% match
+                </span>
               </div>
 
-              <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-                {person.matchPercentage}% match
-              </span>
+              {person.topFavorites.length > 0 && (
+                <div className="flex gap-1.5 pl-[52px]">
+                  {person.topFavorites.map((book) => (
+                    <div key={book.bookId} className="w-10 shrink-0">
+                      <BookCover src={book.thumbnail} alt={book.title} size={40} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </Link>
           ))}
         </div>

@@ -509,7 +509,58 @@ call, asked directly) — scope is PWA setup + responsive polish only.
   offline" fallback page instead of the browser's own network-error page. 
   Manifest, icons, and both apple/standard `*-web-app-capable` meta tags 
   confirmed present in the rendered HTML.
-- Responsive polish (the other half of Sprint 8's scope) not yet started.
+- Responsive polish (the other half of Sprint 8's scope) — see below.
+
+**Responsive polish** — in progress:
+- **Mobile edge-case audit** ✅ done, no bugs found. Checked real small/short 
+  viewports (iPhone SE 375px, small Android 360px, a landscape-short 812×375) 
+  across Explore/Search/Profile/Compare/Create List — fixed-width book covers 
+  wrap correctly without squishing, the profile 3-stat row and Top Favorites 
+  stay readable even at 360px, no overflow or text-wrap breakage anywhere. 
+  One apparent bug (bottom nav rendering mid-page, overlapping content) 
+  turned out to be a Playwright `fullPage`-screenshot artifact with 
+  `position: fixed` elements, not real — confirmed via an actual 
+  scroll-to-bottom capture, which cleared the nav bar correctly. No code 
+  changes needed for this half.
+- **Desktop layout, phase 1 (sidebar nav)** ✅ done — reference: 
+  `design/Desktop.png`. Scope explicitly agreed with the user first, since 
+  the mockup includes several things that don't exist yet (notifications, 
+  Messages, a Recent Activity feed, profile tags, tier-row subtitles) and 
+  one that directly conflicts with an earlier decision (its third profile 
+  stat is "Avg Match," which CLAUDE.md already documents as replaced by 
+  "Following" since no avg-match algorithm exists) — user chose "layout 
+  only, existing features" over building those new subsystems now, and 
+  confirmed the sidebar should replace the bottom tab bar at desktop widths 
+  while mobile keeps the bottom nav unchanged.
+  - Extracted `useAppNav` (`src/components/use-app-nav.ts`) out of `NavBar` — 
+    both the bottom bar and the new sidebar need identical active-tab logic 
+    and the discard-unsaved-draft-on-navigate behavior, so it's shared in one 
+    hook rather than copy-pasted (avoids the two nav UIs silently drifting 
+    apart on a future fix to either).
+  - New `Sidebar` (`src/components/sidebar.tsx`, server component — fetches 
+    the current user's username/display_name/avatar_url directly for the 
+    bottom mini user-card) + `SidebarNav` (`src/components/sidebar-nav.tsx`, 
+    client, the interactive nav links + a standout "Create List" button, 
+    matching the mockup's separated-CTA treatment rather than NavBar's inline 
+    circular button). Reuses only the 4 existing nav destinations (Explore/
+    Search/Compare/Profile) — not the mockup's extra Home/Library/Lists/
+    Activity/Messages/Settings items, none of which map to a real distinct 
+    route today.
+  - `NavBar` gained `lg:hidden`; `Sidebar` is `hidden lg:flex` — pure CSS 
+    breakpoint swap, no conditional mounting, so there's no hydration risk. 
+    `(app)/layout.tsx` restructured to a flex row (`Sidebar` + content), 
+    content's `pb-16` (bottom-nav clearance) becomes `lg:pb-0` since there's 
+    no bottom bar to clear at that width.
+  - Verified live: screenshotted Explore/Profile/Search/Compare at both 
+    1440px and the original 412px mobile width, zero console errors either 
+    way, and — since "mobile must stay exactly the same" was an explicit 
+    requirement — did a byte-level pixel diff of the mobile Explore capture 
+    against the pre-sidebar screenshot: **0.000% difference**, confirming the 
+    mobile view is untouched, not just visually similar.
+  - Deliberately NOT built yet: the mockup's right-rail "Top Matches" panel — 
+    left as an explicit next increment rather than folded into this same 
+    pass, since it raises its own questions (which pages get it, full 
+    Top-Matches data or a trimmed preview) worth its own discussion.
 
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 

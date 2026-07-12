@@ -1,60 +1,20 @@
 "use client";
 
-import type * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Home, Search, Plus, Users, CircleUserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { discardUnsavedDraft } from "@/app/(app)/lists/actions";
+import { NAV_ITEMS, useAppNav } from "./use-app-nav";
 
-const NAV_ITEMS = [
-  { href: "/explore", label: "Explore", icon: Home, isCreate: false },
-  { href: "/search", label: "Search", icon: Search, isCreate: false },
-  { href: "/lists", label: "Create", icon: Plus, isCreate: true },
-  { href: "/compare", label: "Compare", icon: Users, isCreate: false },
-  { href: "/profile", label: "Profile", icon: CircleUserRound, isCreate: false },
-] as const;
-
-// List detail pages are reachable from several different tabs (Explore,
-// Profile, ...). Keep the nav highlighted on wherever the user actually came
-// from — Reddit-post-style — instead of force-switching to Create just
-// because that's where the /lists URL happens to live.
-const FROM_TO_HREF: Record<string, string> = {
-  explore: "/explore",
-  profile: "/profile",
-};
-
+// Mobile-only bottom tab bar — hidden at desktop widths in favor of Sidebar
+// (see that component). Kept as its own component rather than folded into
+// Sidebar since the visual shape (bottom bar vs. vertical rail) and the
+// Create button's treatment (inline circular button vs. a separate CTA)
+// are different enough not to share markup, just the nav logic (useAppNav).
 export function NavBar() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const isListDetail = pathname !== "/lists" && /^\/lists\/[^/]+/.test(pathname);
-  const activeHref = isListDetail
-    ? FROM_TO_HREF[searchParams.get("from") ?? ""]
-    : undefined;
-
-  // `?edit=true` only ever runs against a still-unsaved draft — tapping any
-  // other tab from here counts as abandoning it, same as Cancel (see
-  // discardUnsavedDraft). Await the delete before navigating so the tab
-  // being landed on never renders the about-to-be-discarded draft.
-  const editingDraftId =
-    isListDetail && searchParams.get("edit") === "true"
-      ? pathname.match(/^\/lists\/([^/]+)/)?.[1]
-      : undefined;
-
-  function handleNavClick(event: React.MouseEvent, href: string) {
-    if (!editingDraftId) return;
-    event.preventDefault();
-    discardUnsavedDraft(editingDraftId).then(() => router.push(href));
-  }
+  const { isActive, handleNavClick } = useAppNav();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-around border-t border-border bg-background/95 py-2 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-around border-t border-border bg-background/95 py-2 backdrop-blur lg:hidden">
       {NAV_ITEMS.map((item) => {
-        const isActive = isListDetail
-          ? activeHref === item.href
-          : pathname.startsWith(item.href);
         const Icon = item.icon;
 
         if (item.isCreate) {
@@ -87,7 +47,7 @@ export function NavBar() {
             onClick={(event) => handleNavClick(event, item.href)}
             className={cn(
               "flex flex-col items-center gap-0.5 px-3 py-1 text-xs",
-              isActive ? "text-primary" : "text-muted-foreground",
+              isActive(item.href) ? "text-primary" : "text-muted-foreground",
             )}
           >
             <Icon className="size-5" />

@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/top-nav";
 import { FollowButton } from "@/components/follow-button";
+import { Avatar } from "@/components/avatar";
 
 type ProfileRow = {
   id: string;
@@ -53,19 +53,13 @@ export default async function FollowingPage() {
                 href={`/u/${profile.username}`}
                 className="flex min-w-0 items-center gap-2"
               >
-                {profile.avatar_url ? (
-                  <Image
-                    src={profile.avatar_url}
-                    alt={profile.username}
-                    width={40}
-                    height={40}
-                    className="size-10 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                    {profile.username[0]?.toUpperCase() ?? "?"}
-                  </div>
-                )}
+                <Avatar
+                  src={profile.avatar_url}
+                  name={profile.username}
+                  imageSize={40}
+                  sizeClassName="size-10"
+                  textClassName="text-sm"
+                />
                 <div className="flex min-w-0 flex-col">
                   {profile.display_name && (
                     <span className="truncate text-sm font-medium text-foreground">

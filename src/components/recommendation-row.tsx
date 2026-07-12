@@ -1,4 +1,5 @@
 import { BookCover } from "@/components/book-cover";
+import { MatchBadge } from "@/components/match-badge";
 import { Button } from "@/components/ui/button";
 import { addRecommendationToLibrary } from "@/lib/actions/library";
 import type { BookRecommendation } from "@/lib/db/recommendations";
@@ -26,9 +27,7 @@ export function RecommendationRow({
         <span className="truncate text-sm text-muted-foreground">
           {recommendation.authors?.[0] ?? "Unknown author"}
         </span>
-        <span className="text-xs font-medium text-primary">
-          {recommendation.matchPercentage}% match
-        </span>
+        <MatchBadge percentage={recommendation.matchPercentage} />
       </div>
       <form action={addRecommendationToLibrary}>
         <input type="hidden" name="bookId" value={recommendation.bookId} />

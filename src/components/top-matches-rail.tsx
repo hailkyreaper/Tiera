@@ -1,9 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTopMatches } from "@/lib/db/top-matches";
 import { BookCover } from "@/components/book-cover";
+import { Avatar } from "@/components/avatar";
+import { MatchBadge } from "@/components/match-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -33,16 +34,16 @@ export async function TopMatchesRail() {
   });
 
   return (
-    <aside className="sticky top-4 hidden h-fit w-80 shrink-0 flex-col gap-3 rounded-sm bg-card p-4 xl:flex">
+    <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 rounded-sm bg-card p-6 xl:flex">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Top Matches</h2>
-        <Link href="/compare" className="text-xs font-medium text-primary">
+        <h2 className="text-base font-semibold text-foreground">Top Matches</h2>
+        <Link href="/compare" className="text-sm font-medium text-primary">
           View all
         </Link>
       </div>
 
       {matches.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Rank some books to see who you match with.
         </p>
       ) : (
@@ -51,26 +52,20 @@ export async function TopMatchesRail() {
             <Link
               key={person.userId}
               href={`/compare/${person.username}`}
-              className="flex flex-col gap-2 py-3 hover:bg-muted"
+              className="flex flex-col gap-2.5 py-3.5 hover:bg-muted"
             >
               <div className="flex items-center gap-3">
-                {person.avatarUrl ? (
-                  <Image
-                    src={person.avatarUrl}
-                    alt={person.username}
-                    width={40}
-                    height={40}
-                    className="size-10 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                    {person.username[0]?.toUpperCase() ?? "?"}
-                  </div>
-                )}
+                <Avatar
+                  src={person.avatarUrl}
+                  name={person.username}
+                  imageSize={48}
+                  sizeClassName="size-12"
+                  textClassName="text-base"
+                />
 
                 <div className="min-w-0 flex-1">
                   {person.displayName && (
-                    <div className="truncate text-sm font-semibold text-foreground">
+                    <div className="truncate text-base font-semibold text-foreground">
                       {person.displayName}
                     </div>
                   )}
@@ -78,24 +73,22 @@ export async function TopMatchesRail() {
                     className={cn(
                       "truncate",
                       person.displayName
-                        ? "text-xs text-muted-foreground"
-                        : "text-sm font-semibold text-foreground",
+                        ? "text-sm text-muted-foreground"
+                        : "text-base font-semibold text-foreground",
                     )}
                   >
                     @{person.username}
                   </div>
                 </div>
 
-                <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-                  {person.matchPercentage}% match
-                </span>
+                <MatchBadge percentage={person.matchPercentage} />
               </div>
 
               {person.topFavorites.length > 0 && (
-                <div className="flex gap-1.5 pl-[52px]">
+                <div className="flex gap-2 pl-[60px]">
                   {person.topFavorites.map((book) => (
-                    <div key={book.bookId} className="w-10 shrink-0">
-                      <BookCover src={book.thumbnail} alt={book.title} size={40} />
+                    <div key={book.bookId} className="w-12 shrink-0">
+                      <BookCover src={book.thumbnail} alt={book.title} size={48} />
                     </div>
                   ))}
                 </div>

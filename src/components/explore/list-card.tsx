@@ -1,9 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Heart, Lock, MessageCircle } from "lucide-react";
 import { TIERS, type Tier } from "@/lib/tiers";
 import { formatRelativeTime } from "@/lib/format-time";
 import { TierRowBar } from "@/components/tier-list/tier-row-bar";
+import { Avatar } from "@/components/avatar";
+import { MatchBadge } from "@/components/match-badge";
 
 type PreviewBook = { id: string; title: string; thumbnail: string | null };
 
@@ -47,7 +48,7 @@ export function ExploreListCard({
       : `/lists/${id}`;
 
   return (
-    <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 transition-colors hover:bg-muted">
+    <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 transition-colors hover:bg-muted lg:gap-4 lg:p-5">
       <Link
         href={href}
         className="absolute inset-0 rounded-sm"
@@ -56,34 +57,28 @@ export function ExploreListCard({
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt={username}
-              width={28}
-              height={28}
-              className="size-7 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-              {username[0]?.toUpperCase() ?? "?"}
-            </div>
-          )}
+          <Avatar
+            src={avatarUrl}
+            name={username}
+            imageSize={28}
+            sizeClassName="size-7 lg:size-9"
+            textClassName="text-xs lg:text-sm"
+          />
           <Link
             href={`/u/${username}`}
-            className="relative z-10 text-xs font-medium text-foreground hover:underline"
+            className="relative z-10 text-xs font-medium text-foreground hover:underline lg:text-sm"
           >
             @{username}
           </Link>
         </div>
         {createdAt && (
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="shrink-0 text-xs text-muted-foreground lg:text-sm">
             {formatRelativeTime(createdAt)}
           </span>
         )}
       </div>
 
-      <h3 className="-mt-1 flex items-center gap-1.5 font-semibold text-foreground">
+      <h3 className="-mt-1 flex items-center gap-1.5 font-semibold text-foreground lg:text-lg">
         {title}
         {isDraft ? (
           <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -105,18 +100,16 @@ export function ExploreListCard({
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground lg:text-sm">
           <span className="flex items-center gap-1">
-            <Heart className="size-3.5" /> {likeCount}
+            <Heart className="size-3.5 lg:size-4" /> {likeCount}
           </span>
           <span className="flex items-center gap-1">
-            <MessageCircle className="size-3.5" /> {commentCount}
+            <MessageCircle className="size-3.5 lg:size-4" /> {commentCount}
           </span>
         </div>
         {matchPercentage !== null && matchPercentage !== undefined && (
-          <span className="text-xs font-semibold text-primary">
-            {matchPercentage}% match
-          </span>
+          <MatchBadge percentage={matchPercentage} />
         )}
       </div>
     </div>

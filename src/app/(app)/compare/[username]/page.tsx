@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -9,31 +8,13 @@ import { CompareStatsRow } from "@/components/compare-stats-row";
 import { RecommendationRow } from "@/components/recommendation-row";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/avatar";
 
 type ProfileRow = {
   id: string;
   username: string;
   avatar_url: string | null;
 };
-
-function Avatar({ profile }: { profile: ProfileRow }) {
-  if (profile.avatar_url) {
-    return (
-      <Image
-        src={profile.avatar_url}
-        alt={profile.username}
-        width={80}
-        height={80}
-        className="size-20 rounded-full object-cover ring-4 ring-primary"
-      />
-    );
-  }
-  return (
-    <div className="flex size-20 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground ring-4 ring-primary">
-      {profile.username[0]?.toUpperCase() ?? "?"}
-    </div>
-  );
-}
 
 export default async function CompareWithUserPage({
   params,
@@ -91,14 +72,28 @@ export default async function CompareWithUserPage({
       <div className="flex flex-col items-center gap-8 text-center">
         <div className="flex w-full items-center justify-center gap-6">
           <div className="flex flex-col items-center gap-2">
-            <Avatar profile={me} />
+            <Avatar
+              src={me.avatar_url}
+              name={me.username}
+              imageSize={80}
+              sizeClassName="size-20"
+              textClassName="text-xl"
+              className="ring-4 ring-primary"
+            />
             <span className="text-sm text-foreground">@{me.username}</span>
           </div>
           <span className="text-sm font-semibold text-muted-foreground">
             VS
           </span>
           <div className="flex flex-col items-center gap-2">
-            <Avatar profile={them} />
+            <Avatar
+              src={them.avatar_url}
+              name={them.username}
+              imageSize={80}
+              sizeClassName="size-20"
+              textClassName="text-xl"
+              className="ring-4 ring-primary"
+            />
             <Link
               href={`/u/${them.username}`}
               className="text-sm text-foreground hover:underline"

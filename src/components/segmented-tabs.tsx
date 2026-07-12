@@ -22,7 +22,7 @@ export function SegmentedTabs<T extends string>({
             key={tab.value}
             href={`${basePath}?${paramName}=${tab.value}`}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors lg:px-5 lg:py-2 lg:text-base",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "bg-card text-muted-foreground hover:text-foreground",

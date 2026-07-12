@@ -1,10 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Send } from "lucide-react";
 import { addComment, deleteComment } from "@/app/(app)/lists/social-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LikeButton } from "./like-button";
+import { Avatar } from "@/components/avatar";
 import { formatRelativeTime } from "@/lib/format-time";
 
 export type CommentView = {
@@ -48,19 +48,13 @@ export function CommentsSection({
         <div className="flex flex-col gap-3">
           {comments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-2">
-              {comment.avatarUrl ? (
-                <Image
-                  src={comment.avatarUrl}
-                  alt={comment.username}
-                  width={32}
-                  height={32}
-                  className="size-8 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                  {comment.username[0]?.toUpperCase() ?? "?"}
-                </div>
-              )}
+              <Avatar
+                src={comment.avatarUrl}
+                name={comment.username}
+                imageSize={32}
+                sizeClassName="size-8"
+                textClassName="text-xs"
+              />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="flex items-center gap-2">
                   <Link

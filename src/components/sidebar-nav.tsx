@@ -46,13 +46,13 @@ export function SidebarNav() {
                 handleNavClick(event, item.href);
               }}
               className={cn(
-                "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium",
+                "flex items-center gap-3 rounded-sm px-3 py-2.5 text-base font-medium",
                 active
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className="size-5" />
+              <Icon className="size-6" />
               {item.label}
             </Link>
           );
@@ -65,9 +65,9 @@ export function SidebarNav() {
         // new draft unconditionally on every load.
         prefetch={false}
         onClick={(event) => handleNavClick(event, createItem.href)}
-        className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90"
       >
-        <CreateIcon className="size-4" />
+        <CreateIcon className="size-5" />
         Create List
       </Link>
     </div>

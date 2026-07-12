@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { MapPin, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +5,7 @@ import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { BackButton } from "@/components/back-button";
 import { FollowButton } from "@/components/follow-button";
+import { Avatar } from "@/components/avatar";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { getUserListCards } from "@/lib/db/list-cards";
 
@@ -107,23 +107,15 @@ export default async function PublicUserPage({
           </div>
         )}
 
-        {profile.avatar_url ? (
-          <div className="z-10 rounded-full p-1">
-            <Image
-              src={profile.avatar_url}
-              alt={profile.username}
-              width={96}
-              height={96}
-              className="size-24 rounded-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="z-10 rounded-full p-1">
-            <div className="flex size-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground">
-              {profile.username[0]?.toUpperCase() ?? "?"}
-            </div>
-          </div>
-        )}
+        <div className="z-10 rounded-full p-1">
+          <Avatar
+            src={profile.avatar_url}
+            name={profile.username}
+            imageSize={96}
+            sizeClassName="size-24"
+            textClassName="text-2xl"
+          />
+        </div>
 
         <div className="z-10 text-center">
           {profile.display_name && (

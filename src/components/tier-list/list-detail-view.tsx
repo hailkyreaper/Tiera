@@ -2,6 +2,7 @@ import { TopNav } from "@/components/top-nav";
 import { ListCreatorHeader } from "./list-creator-header";
 import { ListDescription } from "./list-description";
 import { FollowButton } from "@/components/follow-button";
+import { MatchBadge } from "@/components/match-badge";
 import { ReadOnlyTierBoard, type DetailedColumns } from "./read-only-board";
 
 /**
@@ -60,11 +61,7 @@ export function ListDetailView({
         <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
         <ListDescription description={description} tags={tags} />
       </div>
-      {matchPercentage !== null && (
-        <span className="text-xs font-semibold text-primary">
-          {matchPercentage}% match
-        </span>
-      )}
+      {matchPercentage !== null && <MatchBadge percentage={matchPercentage} />}
       <div className="rounded-sm bg-card p-4">
         <ReadOnlyTierBoard columns={columns} />
       </div>

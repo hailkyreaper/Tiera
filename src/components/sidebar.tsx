@@ -1,7 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarNav } from "./sidebar-nav";
+import { Avatar } from "@/components/avatar";
+
+// Logo lives in TopBar now, not here — having it in both places read as
+// redundant once the top bar existed. Sidebar starts straight at the nav.
 
 type ProfileRow = {
   username: string;
@@ -30,18 +33,7 @@ export async function Sidebar() {
   }
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border p-4 lg:flex">
-      <Link href="/explore" className="flex items-center gap-2 px-2 py-3">
-        <Image
-          src="/icons/icon-192.png"
-          alt=""
-          width={28}
-          height={28}
-          className="rounded-sm"
-        />
-        <span className="text-lg font-semibold text-foreground">Tiera</span>
-      </Link>
-
+    <aside className="sticky top-20 hidden h-[calc(100vh-5rem)] w-80 shrink-0 flex-col border-r border-border p-6 lg:flex">
       <SidebarNav />
 
       <div className="flex-1" />
@@ -49,23 +41,20 @@ export async function Sidebar() {
       {profile && (
         <Link
           href="/profile"
-          className="flex items-center gap-2 rounded-sm p-2 hover:bg-muted"
+          className="flex items-center gap-3 rounded-sm p-2.5 hover:bg-muted"
         >
-          <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-muted">
-            {profile.avatar_url && (
-              <Image
-                src={profile.avatar_url}
-                alt=""
-                fill
-                className="object-cover"
-              />
-            )}
-          </div>
+          <Avatar
+            src={profile.avatar_url}
+            name={profile.display_name || profile.username}
+            imageSize={40}
+            sizeClassName="size-10"
+            textClassName="text-sm"
+          />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium text-foreground">
               {profile.display_name || profile.username}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-sm text-muted-foreground">
               @{profile.username}
             </span>
           </div>

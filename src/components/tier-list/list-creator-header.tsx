@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Avatar } from "@/components/avatar";
 import { formatRelativeTime } from "@/lib/format-time";
 
 export function ListCreatorHeader({
@@ -16,19 +16,13 @@ export function ListCreatorHeader({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt={username}
-            width={32}
-            height={32}
-            className="size-8 shrink-0 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-            {username[0]?.toUpperCase() ?? "?"}
-          </div>
-        )}
+        <Avatar
+          src={avatarUrl}
+          name={username}
+          imageSize={32}
+          sizeClassName="size-8"
+          textClassName="text-xs"
+        />
         <div className="flex flex-col">
           <Link
             href={`/u/${username}`}

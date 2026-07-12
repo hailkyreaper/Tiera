@@ -24,11 +24,24 @@ const TOP_FAVORITES_LIMIT = 3;
 // Powers both the Compare landing page's "All" tab (every user with a
 // computable match) and "Friends" tab (same ranking, restricted to people
 // the viewer follows) — same "person you might vibe with" idea either way,
-// just a different candidate pool.
+// just a different candidate pool. Also powers the Explore sidebar rail
+// (`includeDetails: false, limit: N`) — that's a compact avatar/name/match%
+// preview with no genres/favorites shown, so it skips those two extra
+// per-candidate queries entirely rather than fetching data nothing renders.
+// `limit` only slices the final sorted list — every candidate still has to
+// be matched first to know who ranks in the top N.
 export async function getTopMatches(
   supabase: SupabaseServerClient,
   viewerId: string,
-  { followingOnly = false }: { followingOnly?: boolean } = {},
+  {
+    followingOnly = false,
+    includeDetails = true,
+    limit,
+  }: {
+    followingOnly?: boolean;
+    includeDetails?: boolean;
+    limit?: number;
+  } = {},
 ): Promise<TopMatchPerson[]> {
   const viewerScores = await getBookScores(supabase, viewerId);
 
@@ -63,10 +76,12 @@ export async function getTopMatches(
     const match = computeMatch(viewerScores, theirScores);
     if (match.percentage === null) continue;
 
-    const [topGenres, topFavorites] = await Promise.all([
-      getTopGenres(supabase, profile.id),
-      getFavoriteBooks(supabase, profile.id, TOP_FAVORITES_LIMIT),
-    ]);
+    const [topGenres, topFavorites] = includeDetails
+      ? await Promise.all([
+          getTopGenres(supabase, profile.id),
+          getFavoriteBooks(supabase, profile.id, TOP_FAVORITES_LIMIT),
+        ])
+      : [[], []];
 
     results.push({
       userId: profile.id,
@@ -79,7 +94,8 @@ export async function getTopMatches(
     });
   }
 
-  return results.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  const sorted = results.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 // Every other profile that exists, regardless of whether a match is

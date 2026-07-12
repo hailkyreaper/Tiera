@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
+import { TopMatchesRail } from "@/components/top-matches-rail";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
@@ -150,47 +152,53 @@ export default async function ExplorePage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
-        <Link href="/recommendations" className="text-sm font-medium text-primary">
-          Recommendations
-        </Link>
+    <div className="mx-auto flex w-full max-w-5xl flex-1 gap-6 p-4">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-foreground">Explore</h1>
+          <Link href="/recommendations" className="text-sm font-medium text-primary">
+            Recommendations
+          </Link>
+        </div>
+
+        <SegmentedTabs
+          basePath="/explore"
+          tabs={[
+            { value: "for-you", label: "For You" },
+            { value: "following", label: "Following" },
+            { value: "recent", label: "Recent" },
+          ]}
+          current={tab}
+        />
+
+        {lists.length === 0 ? (
+          <p className="text-muted-foreground">
+            No public tier lists yet — be the first to make one public!
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {lists.map((list) => (
+              <ExploreListCard
+                key={list.id}
+                id={list.id}
+                title={list.title}
+                username={profileByUserId.get(list.user_id)?.username ?? "unknown"}
+                avatarUrl={profileByUserId.get(list.user_id)?.avatar_url}
+                createdAt={list.created_at}
+                likeCount={list.like_count}
+                commentCount={list.comment_count}
+                matchPercentage={matchByUserId.get(list.user_id)}
+                preview={previewByListId[list.id]}
+                fromTab="explore"
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <SegmentedTabs
-        basePath="/explore"
-        tabs={[
-          { value: "for-you", label: "For You" },
-          { value: "following", label: "Following" },
-          { value: "recent", label: "Recent" },
-        ]}
-        current={tab}
-      />
-
-      {lists.length === 0 ? (
-        <p className="text-muted-foreground">
-          No public tier lists yet — be the first to make one public!
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {lists.map((list) => (
-            <ExploreListCard
-              key={list.id}
-              id={list.id}
-              title={list.title}
-              username={profileByUserId.get(list.user_id)?.username ?? "unknown"}
-              avatarUrl={profileByUserId.get(list.user_id)?.avatar_url}
-              createdAt={list.created_at}
-              likeCount={list.like_count}
-              commentCount={list.comment_count}
-              matchPercentage={matchByUserId.get(list.user_id)}
-              preview={previewByListId[list.id]}
-              fromTab="explore"
-            />
-          ))}
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <TopMatchesRail />
+      </Suspense>
     </div>
   );
 }

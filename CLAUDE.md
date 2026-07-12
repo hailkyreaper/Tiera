@@ -596,6 +596,37 @@ now rather than build a new page). `SIDEBAR_ITEMS`
   disabling Next's `devIndicators`, a real dev-workflow change not asked 
   for) — flagged to the user as optional, not applied.
 
+**Desktop layout, phase 3 (right-rail Top Matches panel)** ✅ done — the 
+mockup's other deferred piece. Scope agreed first: Explore only (not 
+app-wide like Sidebar), and a compact preview (avatar/username/match% only) 
+rather than reusing `TopMatchCard` as-is — that card's richer version 
+(genres, top-favorite covers) costs two extra per-candidate queries in 
+`getTopMatches` that a narrow rail has no room to render anyway.
+- `getTopMatches` (`src/lib/db/top-matches.ts`) gained two new optional 
+  params rather than a separate parallel function: `includeDetails` (skips 
+  the `getTopGenres`/`getFavoriteBooks` calls entirely when false — every 
+  candidate still has to be matched to know who ranks in the top N, so 
+  `limit` only slices the final sorted list, it doesn't reduce that part of 
+  the cost) and `limit`. Fully backward-compatible — Compare's existing 
+  calls are unaffected since both default to the old behavior.
+- New `TopMatchesRail` (`src/components/top-matches-rail.tsx`, server 
+  component) — `sticky top-4`, `hidden xl:flex` (a wider breakpoint than 
+  Sidebar's `lg`, so there's a graceful middle ground: sidebar-but-no-rail 
+  between 1024–1279px, both at 1280px+). Wired into `explore/page.tsx` only, 
+  which needed restructuring from a single centered column into a flex row 
+  (outer `max-w-5xl`, inner content its own `max-w-2xl mx-auto` so it still 
+  self-centers correctly whenever the rail isn't rendered, rather than 
+  going flush-left once the outer cap widened).
+- Verified live: screenshotted Explore at mobile (412px), tablet (834px, 
+  confirms centering held with no rail and no sidebar), 1100px (sidebar 
+  present, rail correctly absent below the `xl` cutoff), and 1440px (both 
+  present, matching the mockup's spirit). Zero console errors at any width. 
+  Pixel-diffed mobile against the pre-change capture: 0.026% difference — 
+  confirmed via visual inspection to be live-data drift (timestamps etc.), 
+  not a layout regression.
+- "Recent Activity" (the mockup's other right-rail panel) remains explicitly 
+  out of scope — real feature, not built.
+
 **Sprint 7 — Import & Search Polish** ✅ COMPLETE (started 2026-07-13, finished 
 2026-07-11 — see Sprint Rule). Scope: Goodreads CSV import, search filters/history. 
 The *search* half was already effectively done before Sprint 7 formally started — 

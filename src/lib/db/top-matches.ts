@@ -8,6 +8,7 @@ import { getFavoriteBooks, type FavoriteBook } from "@/lib/db/favorites";
 export type TopMatchPerson = {
   userId: string;
   username: string;
+  displayName: string | null;
   avatarUrl: string | null;
   matchPercentage: number;
   booksRankedCount: number;
@@ -15,7 +16,12 @@ export type TopMatchPerson = {
   topFavorites: FavoriteBook[];
 };
 
-type ProfileRow = { id: string; username: string; avatar_url: string | null };
+type ProfileRow = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
 type CategoryRow = { books: { categories: string[] | null } };
 
 const TOP_GENRES_LIMIT = 3;
@@ -65,7 +71,7 @@ export async function getTopMatches(
 
   const { data: profileRows } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url")
+    .select("id, username, display_name, avatar_url")
     .in("id", candidateIds)
     .returns<ProfileRow[]>();
 
@@ -86,6 +92,7 @@ export async function getTopMatches(
     results.push({
       userId: profile.id,
       username: profile.username,
+      displayName: profile.display_name,
       avatarUrl: profile.avatar_url,
       matchPercentage: match.percentage,
       booksRankedCount: theirScores.size,

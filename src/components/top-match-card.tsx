@@ -26,7 +26,18 @@ export function TopMatchCard({ person }: { person: TopMatchPerson }) {
         )}
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate font-semibold text-foreground">
+          {person.displayName && (
+            <span className="truncate font-semibold text-foreground">
+              {person.displayName}
+            </span>
+          )}
+          <span
+            className={
+              person.displayName
+                ? "truncate text-sm text-muted-foreground"
+                : "truncate font-semibold text-foreground"
+            }
+          >
             @{person.username}
           </span>
           <span className="w-fit rounded-full border border-primary/40 px-2 py-0.5 text-xs font-medium text-primary">

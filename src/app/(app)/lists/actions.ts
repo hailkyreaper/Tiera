@@ -14,6 +14,14 @@ function parseTags(raw: string): string[] | null {
   return tags.length > 0 ? tags : null;
 }
 
+// Same cooldown as migration 0025's trigger, and for the same reason: this
+// is a direct tier_lists column write, not a tier_list_items change, so the
+// trigger's own cooldown never applies here — without this, scripting
+// repeated calls to updateListDetails (or even just saveAndGoToSearch, which
+// also runs through here on every navigation) would bypass it entirely and
+// still be able to keep a list pinned at the top of Explore's Recent sort.
+const UPDATED_AT_COOLDOWN_MS = 15 * 60 * 1000;
+
 // Shared by updateListDetails and the "save and go to search/library"
 // actions below — the title/visibility fields live in client state and are
 // otherwise lost the instant you navigate to a different route (which
@@ -44,6 +52,16 @@ async function saveListFields(
   const tags = parseTags((formData.get("tags") as string) ?? "");
   const isPublic = formData.get("isPublic") === "true";
 
+  const { data: currentList } = await supabase
+    .from("tier_lists")
+    .select("updated_at")
+    .eq("id", tierListId)
+    .maybeSingle();
+  const offCooldown =
+    !currentList?.updated_at ||
+    Date.now() - new Date(currentList.updated_at).getTime() >
+      UPDATED_AT_COOLDOWN_MS;
+
   await supabase
     .from("tier_lists")
     .update({
@@ -51,7 +69,7 @@ async function saveListFields(
       description,
       tags,
       is_public: isPublic,
-      updated_at: new Date().toISOString(),
+      ...(offCooldown ? { updated_at: new Date().toISOString() } : {}),
       ...(markSaved ? { is_draft: false } : {}),
     })
     .eq("id", tierListId)

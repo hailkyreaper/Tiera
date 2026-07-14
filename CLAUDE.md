@@ -1448,6 +1448,15 @@ explicitly before building.
   started). Needs a decision first: simple hardcoded wordlist (free, easy to 
   bypass) vs. a real moderation library/API (better coverage, more setup), and 
   whether it should hard-block submission or just flag for review.
+- Real rate-limiting / bot-pattern detection on the tier-list mutation actions 
+  (moveBookToTier, addBookToTier, etc.), not just the blunt updated_at cooldown 
+  added 2026-07-14 (migration 0025 + lists/actions.ts `UPDATED_AT_COOLDOWN_MS`) 
+  to stop scripted edits from gaming Explore's Recent sort. The cooldown only 
+  caps how often the *ranking benefit* can refresh — it can't tell "a few 
+  legitimate edits" from "a script hammering the endpoint," and does nothing to 
+  protect the DB itself from abuse. Not started; needs a decision on approach 
+  (e.g. a request-count table + short window, or an existing rate-limit 
+  service/library).
 
 ## To Do
 

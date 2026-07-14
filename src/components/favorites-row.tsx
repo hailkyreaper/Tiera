@@ -14,7 +14,7 @@ export function FavoritesRow({
   }
 
   return (
-    <div className="flex w-full flex-col gap-2">
+    <div className="flex w-full flex-col gap-2 lg:hidden">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">
           Top Favorites

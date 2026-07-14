@@ -15,12 +15,14 @@ export function BookSearchForm({
   action,
   extraFields,
   extraParams,
+  autoFocus,
 }: {
   basePath: string;
   defaultValue?: string;
   action: (formData: FormData) => void | Promise<void>;
   extraFields?: Record<string, string>;
   extraParams?: Record<string, string>;
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
 
@@ -40,6 +42,7 @@ export function BookSearchForm({
         defaultValue={defaultValue}
         action={action}
         extraFields={extraFields}
+        autoFocus={autoFocus}
       />
     </form>
   );

@@ -14,17 +14,26 @@ export function ListOptionsMenu({
   tierListId,
   exportRef,
   exportFilename,
+  hideEdit = false,
 }: {
   tierListId: string;
   /** The DOM node to capture — same export mechanism as the create flow's
-   * review step (see export-image.ts). */
-  exportRef: RefObject<HTMLElement | null>;
-  exportFilename: string;
+   * review step (see export-image.ts). Omitted entirely (no Export menu
+   * item) at call sites that have no single exportable element to point a
+   * ref at, e.g. Profile's list-card feed, where the tier board isn't
+   * wrapped in its own client boundary. */
+  exportRef?: RefObject<HTMLElement | null>;
+  exportFilename?: string;
+  /** Profile's list-card feed already shows its own dedicated Edit button
+   * next to this menu (design/Desktop.png's separate Filter/Edit/••• trio)
+   * — skips the menu's own Edit item there so the same action isn't offered
+   * twice. */
+  hideEdit?: boolean;
 }) {
   const [exporting, setExporting] = useState(false);
 
   async function handleExport() {
-    if (!exportRef.current || exporting) return;
+    if (!exportRef?.current || !exportFilename || exporting) return;
     setExporting(true);
     try {
       await exportElementAsImage(exportRef.current, exportFilename);
@@ -60,21 +69,25 @@ export function ListOptionsMenu({
       <Menu.Portal>
         <Menu.Positioner sideOffset={4} align="end">
           <Menu.Popup className="min-w-40 rounded-sm bg-popover p-1 shadow-md ring-1 ring-foreground/10">
-            <Menu.Item
-              disabled={exporting}
-              onClick={handleExport}
-              className={itemClassName}
-            >
-              <Download className="size-4" />
-              {exporting ? "Exporting..." : "Export"}
-            </Menu.Item>
-            <Menu.Item
-              render={<Link href={`/lists/${tierListId}?manage=true`} />}
-              className={itemClassName}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Menu.Item>
+            {exportRef && (
+              <Menu.Item
+                disabled={exporting}
+                onClick={handleExport}
+                className={itemClassName}
+              >
+                <Download className="size-4" />
+                {exporting ? "Exporting..." : "Export"}
+              </Menu.Item>
+            )}
+            {!hideEdit && (
+              <Menu.Item
+                render={<Link href={`/lists/${tierListId}?manage=true`} />}
+                className={itemClassName}
+              >
+                <Pencil className="size-4" />
+                Edit
+              </Menu.Item>
+            )}
             <Menu.Item
               onClick={handleDelete}
               className={`${itemClassName} text-destructive hover:text-destructive`}

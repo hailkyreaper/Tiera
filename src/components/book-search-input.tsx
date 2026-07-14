@@ -19,10 +19,12 @@ export function BookSearchInput({
   defaultValue,
   action,
   extraFields,
+  autoFocus = true,
 }: {
   defaultValue?: string;
   action: (formData: FormData) => void | Promise<void>;
   extraFields?: Record<string, string>;
+  autoFocus?: boolean;
 }) {
   const [query, setQuery] = useState(defaultValue ?? "");
   const [suggestions, setSuggestions] = useState<GoogleBookVolume[]>([]);
@@ -71,7 +73,7 @@ export function BookSearchInput({
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 150)}
           autoComplete="off"
-          autoFocus
+          autoFocus={autoFocus}
           className="h-8 min-w-0 flex-1 bg-transparent px-2.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
         />
         <button

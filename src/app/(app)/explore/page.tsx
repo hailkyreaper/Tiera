@@ -7,7 +7,8 @@ import { TopMatchesRail } from "@/components/top-matches-rail";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
-type ExploreTab = "for-you" | "following" | "recent";
+type ExploreTab = "for-you" | "following";
+type ExploreSort = "popular" | "recent";
 
 type TierListRow = {
   id: string;
@@ -35,11 +36,11 @@ type PreviewMap = Record<
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; sort?: string }>;
 }) {
-  const { tab: rawTab } = await searchParams;
-  const tab: ExploreTab =
-    rawTab === "recent" || rawTab === "following" ? rawTab : "for-you";
+  const { tab: rawTab, sort: rawSort } = await searchParams;
+  const tab: ExploreTab = rawTab === "following" ? "following" : "for-you";
+  const sort: ExploreSort = rawSort === "recent" ? "recent" : "popular";
 
   const supabase = await createClient();
 
@@ -55,30 +56,35 @@ export default async function ExplorePage({
 
   if (tab === "following") {
     const followingIds = user
-      ? (
+      ? ((
           await supabase
             .from("follows")
             .select("following_id")
             .eq("follower_id", user.id)
-        ).data?.map((row) => row.following_id as string) ?? []
+        ).data?.map((row) => row.following_id as string) ?? [])
       : [];
 
     // No one followed yet (or logged out) — show nothing rather than
     // silently falling back to the unfiltered feed.
     listsQuery = listsQuery.in(
       "user_id",
-      followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"],
+      followingIds.length > 0
+        ? followingIds
+        : ["00000000-0000-0000-0000-000000000000"],
     );
   }
 
-  // "For You" is a placeholder until real taste-match scoring exists
-  // (Sprint 5) — for now it sorts by popularity. Both branches add a final
-  // `id` tiebreaker so ties (e.g. everything at like_count 0 in a fresh
-  // dataset) return in a stable, deterministic order instead of shuffling
-  // between requests.
+  // "Popular" is a placeholder until real taste-match scoring exists
+  // (Sprint 5) — for now it sorts by like count. "Recent" sorts by
+  // updated_at (bumped by the tier_list_items trigger — see migration 0024
+  // — whenever a book is ranked/moved/removed, not just list creation), so
+  // it actually reflects "last edited," not just "first created". Both
+  // branches add a final `id` tiebreaker so ties (e.g. everything at
+  // like_count 0 in a fresh dataset) return in a stable, deterministic order
+  // instead of shuffling between requests.
   listsQuery =
-    tab === "recent"
-      ? listsQuery.order("created_at", { ascending: false }).order("id")
+    sort === "recent"
+      ? listsQuery.order("updated_at", { ascending: false }).order("id")
       : listsQuery
           .order("like_count", { ascending: false })
           .order("created_at", { ascending: false })
@@ -94,7 +100,9 @@ export default async function ExplorePage({
     listIds.length > 0
       ? supabase
           .from("tier_list_items")
-          .select("tier_list_id, tier, position, books(id, title, thumbnail_url)")
+          .select(
+            "tier_list_id, tier, position, books(id, title, thumbnail_url)",
+          )
           .in("tier_list_id", listIds)
           .order("position", { ascending: true })
           .returns<ItemRow[]>()
@@ -155,7 +163,9 @@ export default async function ExplorePage({
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">Explore</h1>
+          <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">
+            Explore
+          </h1>
           <Link
             href="/recommendations"
             className="text-sm font-medium text-primary lg:text-base"
@@ -164,15 +174,29 @@ export default async function ExplorePage({
           </Link>
         </div>
 
-        <SegmentedTabs
-          basePath="/explore"
-          tabs={[
-            { value: "for-you", label: "For You" },
-            { value: "following", label: "Following" },
-            { value: "recent", label: "Recent" },
-          ]}
-          current={tab}
-        />
+        <div className="flex items-center justify-between gap-2">
+          <SegmentedTabs
+            basePath="/explore"
+            tabs={[
+              { value: "for-you", label: "For You" },
+              { value: "following", label: "Following" },
+            ]}
+            current={tab}
+          />
+
+          {tab === "for-you" && (
+            <SegmentedTabs
+              basePath="/explore"
+              paramName="sort"
+              extraParams={{ tab: "for-you" }}
+              tabs={[
+                { value: "popular", label: "Popular" },
+                { value: "recent", label: "Recent" },
+              ]}
+              current={sort}
+            />
+          )}
+        </div>
 
         {lists.length === 0 ? (
           <p className="text-muted-foreground">
@@ -185,7 +209,9 @@ export default async function ExplorePage({
                 key={list.id}
                 id={list.id}
                 title={list.title}
-                username={profileByUserId.get(list.user_id)?.username ?? "unknown"}
+                username={
+                  profileByUserId.get(list.user_id)?.username ?? "unknown"
+                }
                 avatarUrl={profileByUserId.get(list.user_id)?.avatar_url}
                 createdAt={list.created_at}
                 likeCount={list.like_count}

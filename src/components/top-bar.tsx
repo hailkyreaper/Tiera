@@ -30,6 +30,7 @@ export function TopBar() {
             basePath="/search"
             action={addBookToLibrary}
             extraParams={{ type: "books" }}
+            autoFocus={false}
           />
         </div>
 

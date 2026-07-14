@@ -5,6 +5,8 @@ import { formatRelativeTime } from "@/lib/format-time";
 import { TierRowBar } from "@/components/tier-list/tier-row-bar";
 import { Avatar } from "@/components/avatar";
 import { MatchBadge } from "@/components/match-badge";
+import { ListCardOwnerControls } from "@/components/explore/list-card-owner-controls";
+import { cn } from "@/lib/utils";
 
 type PreviewBook = { id: string; title: string; thumbnail: string | null };
 
@@ -21,6 +23,7 @@ export function ExploreListCard({
   isDraft,
   preview,
   fromTab,
+  showOwnerControls,
 }: {
   id: string;
   title: string;
@@ -39,6 +42,10 @@ export function ExploreListCard({
   isDraft?: boolean;
   preview: Record<Tier, PreviewBook[]>;
   fromTab?: "explore" | "profile";
+  /** Shows the desktop Edit + ••• toolbar next to the title (design/
+   * Desktop.png) — only ever true from the owner's own Profile, never on
+   * Explore or someone else's `/u/[username]`. */
+  showOwnerControls?: boolean;
 }) {
   const rankedTiers = TIERS.filter((tier) => tier !== "unranked");
   const href = isDraft
@@ -55,7 +62,18 @@ export function ExploreListCard({
         aria-label={title}
       />
 
-      <div className="flex items-center justify-between gap-2">
+      {/* Redundant on the owner's own Profile at desktop — the card is
+          already obviously yours (it's sitting right below your own header,
+          and now also carries the Edit/••• owner controls below), same
+          reasoning already applied to the dedicated list edit page's "no
+          creator header" rule. Kept on mobile and everywhere else (Explore,
+          `/u/[username]`) where it's the only "whose list is this" cue. */}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          showOwnerControls && "lg:hidden",
+        )}
+      >
         <div className="flex items-center gap-2">
           <Avatar
             src={avatarUrl}
@@ -78,18 +96,23 @@ export function ExploreListCard({
         )}
       </div>
 
-      <h3 className="-mt-1 flex items-center gap-1.5 font-semibold text-foreground lg:text-lg">
-        {title}
-        {isDraft ? (
-          <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            Draft
-          </span>
-        ) : (
-          isPublic === false && (
-            <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-          )
+      <div className="-mt-1 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 font-semibold text-foreground lg:text-lg">
+          {title}
+          {isDraft ? (
+            <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+              Draft
+            </span>
+          ) : (
+            isPublic === false && (
+              <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+            )
+          )}
+        </h3>
+        {showOwnerControls && !isDraft && (
+          <ListCardOwnerControls tierListId={id} />
         )}
-      </h3>
+      </div>
 
       {/* Same divide-y hairline-block style as the interactive Create List
           board (tier-board.tsx), instead of a flex gap, so both views match. */}

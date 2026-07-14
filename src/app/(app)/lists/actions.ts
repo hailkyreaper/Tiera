@@ -51,6 +51,7 @@ async function saveListFields(
       description,
       tags,
       is_public: isPublic,
+      updated_at: new Date().toISOString(),
       ...(markSaved ? { is_draft: false } : {}),
     })
     .eq("id", tierListId)
@@ -87,12 +88,10 @@ async function commitListBooks(
   if (bookIds.length === 0) return;
 
   await Promise.all([
-    supabase
-      .from("user_books")
-      .upsert(
-        bookIds.map((bookId) => ({ user_id: userId, book_id: bookId })),
-        { onConflict: "user_id,book_id", ignoreDuplicates: true },
-      ),
+    supabase.from("user_books").upsert(
+      bookIds.map((bookId) => ({ user_id: userId, book_id: bookId })),
+      { onConflict: "user_id,book_id", ignoreDuplicates: true },
+    ),
     supabase.from("books").update({ is_draft: false }).in("id", bookIds),
   ]);
 }
@@ -241,8 +240,8 @@ async function deleteOrphanedDraftBooks(
 ) {
   await Promise.all(
     bookIds.map(async (bookId) => {
-      const [{ count: itemCount }, { count: libraryCount }] =
-        await Promise.all([
+      const [{ count: itemCount }, { count: libraryCount }] = await Promise.all(
+        [
           supabase
             .from("tier_list_items")
             .select("id", { count: "exact", head: true })
@@ -251,7 +250,8 @@ async function deleteOrphanedDraftBooks(
             .from("user_books")
             .select("id", { count: "exact", head: true })
             .eq("book_id", bookId),
-        ]);
+        ],
+      );
 
       if ((itemCount ?? 0) === 0 && (libraryCount ?? 0) === 0) {
         await supabase
@@ -380,4 +380,3 @@ export async function reorderTierItems(
 
   revalidatePath(`/lists/${tierListId}`);
 }
-

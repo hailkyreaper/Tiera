@@ -99,6 +99,10 @@ async function commitListBooks(
 export async function updateListDetails(formData: FormData) {
   const tierListId = await saveListFields(formData, true);
   revalidatePath(`/lists/${tierListId}`);
+  // Title/description/visibility changes should show up on Explore right
+  // away too, not just the list's own page — same staleness class as the
+  // tier_list_items mutations below.
+  revalidatePath("/explore");
   redirect(`/lists/${tierListId}`);
 }
 
@@ -299,7 +303,7 @@ export async function removeBookFromList(itemId: string, tierListId: string) {
 
   await supabase.from("tier_list_items").delete().eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
-  revalidateCompare();
+  revalidateFeeds();
 }
 
 export async function addBookToTier(
@@ -324,7 +328,7 @@ export async function addBookToTier(
     );
 
   revalidatePath(`/lists/${tierListId}`);
-  revalidateCompare();
+  revalidateFeeds();
 }
 
 export async function moveBookToTier(
@@ -343,17 +347,20 @@ export async function moveBookToTier(
 
   await supabase.from("tier_list_items").update({ tier }).eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
-  revalidateCompare();
+  revalidateFeeds();
 }
 
 // Ranking a book (or moving it between tiers) changes the score
-// computeMatch uses, which every Compare page depends on — but those are
-// separate routes revalidatePath(`/lists/${id}`) above never touches.
-// Compare/[username] is a dynamic route, so revalidating it needs the
-// 'page' type to cover every username, not just one specific instance.
-function revalidateCompare() {
+// computeMatch uses, which every Compare page depends on, and also bumps
+// tier_lists.updated_at (via the tier_list_items trigger, migration 0024),
+// which Explore's Recent sort depends on — none of those are the
+// revalidatePath(`/lists/${id}`) route above already covers. Compare/
+// [username] is a dynamic route, so revalidating it needs the 'page' type
+// to cover every username, not just one specific instance.
+function revalidateFeeds() {
   revalidatePath("/compare");
   revalidatePath("/compare/[username]", "page");
+  revalidatePath("/explore");
 }
 
 export async function reorderTierItems(
@@ -379,4 +386,9 @@ export async function reorderTierItems(
   );
 
   revalidatePath(`/lists/${tierListId}`);
+  // Reordering doesn't change computeMatch's score (Compare doesn't care),
+  // but it does change both the book order Explore's card preview shows
+  // within a tier and (via the same trigger) updated_at — so Explore still
+  // needs to be revalidated here, just not the full revalidateFeeds().
+  revalidatePath("/explore");
 }

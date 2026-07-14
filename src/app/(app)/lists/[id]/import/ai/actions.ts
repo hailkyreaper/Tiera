@@ -195,5 +195,9 @@ export async function confirmAiBooks(
   );
 
   revalidatePath(`/lists/${tierListId}`);
+  // Same tier_list_items -> tier_lists.updated_at trigger as the other
+  // ranking mutations (migration 0024) — keep Explore's Recent sort fresh,
+  // relevant if this import runs against an already-published list.
+  revalidatePath("/explore");
   return { added: results.filter(Boolean).length };
 }

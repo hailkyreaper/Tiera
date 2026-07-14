@@ -29,4 +29,7 @@ export async function addBooksToUnranked(
   );
 
   revalidatePath(`/lists/${tierListId}/library`);
+  // Same tier_list_items -> tier_lists.updated_at trigger as
+  // addToUnrankedAndStay (migration 0024) — keep Explore's Recent sort fresh.
+  revalidatePath("/explore");
 }

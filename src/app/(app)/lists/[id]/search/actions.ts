@@ -53,4 +53,9 @@ export async function addToUnrankedAndStay(formData: FormData) {
     );
 
   revalidatePath(`/lists/${tierListId}/search?q=${encodeURIComponent(q)}`);
+  // Bumps tier_lists.updated_at via the tier_list_items trigger (migration
+  // 0024) even though it lands in Unranked — Explore's Recent sort should
+  // still pick that up immediately rather than waiting on some other
+  // unrelated revalidation to catch it.
+  revalidatePath("/explore");
 }

@@ -1132,6 +1132,51 @@ needed to bypass RLS this way).
   matching heuristic the migration used) would prevent future recurrences, 
   but wasn't asked for and hasn't been built.
 
+**Desktop Profile redesign + Explore Recent fixes** ✅ done (2026-07-14):
+- Fixed `TopBar`'s search input auto-focusing on every desktop page load 
+  (and colliding with `/search`'s own input) — `BookSearchInput`/
+  `BookSearchForm` gained an opt-in `autoFocus` prop, `TopBar` passes 
+  `false`. Also the source of a recurring hydration-mismatch warning.
+- Profile page restyled for desktop to match `design/Desktop.png`: header 
+  is now one horizontal card (avatar + name + bio/location + stats aligned 
+  right), container widened at `lg`/`xl`, new `RecommendationsRail` (reuses 
+  `getRecommendations`) fills the right column. Kept "Following" as the 
+  third stat rather than the mockup's "Avg Match" and skipped its 
+  personality-tag pills (no real data for either) — intentional, matches 
+  prior decisions.
+- Own list cards on Profile gained a desktop-only Edit + `•••` menu 
+  (`ListCardOwnerControls`, reuses the existing manage view + 
+  `ListOptionsMenu`) and hide the redundant creator-avatar header row 
+  (`showOwnerControls` prop on `ExploreListCard`) — scoped so Explore/
+  `u/[username]` are unaffected.
+- Desktop sidebar trimmed to the mobile nav's 4 destinations (Explore/
+  Search/Compare/Profile) — Library is reached via Profile's own Lists/
+  Library tab toggle again, same as mobile, not a separate sidebar item. 
+  Removed the Lists/Profile/Settings URL-disambiguation logic in 
+  `SidebarNav` that only existed for the removed items.
+- Library tab: 10 covers per row on desktop (`grid-cols-5 lg:grid-cols-10`), 
+  still 5 on mobile.
+- Explore: dropped the "Recent" top-level tab for a Popular/Recent toggle 
+  nested under "For You" (`SegmentedTabs` gained `extraParams` to carry 
+  `tab=for-you` through the nested toggle's links).
+- **Bug fixed**: `tier_lists.updated_at` existed since the original schema 
+  but nothing ever set it, so "Recent" was really just sorting by creation 
+  date forever. Migration `0024` triggers a bump whenever `tier_list_items` 
+  change; `saveListFields` bumps it directly for title/description/
+  visibility edits.
+- **Bug fixed**: even with `updated_at` correct, Explore kept serving stale 
+  results after an edit — none of the book-ranking actions revalidated 
+  `/explore`. Added `revalidatePath("/explore")` to all of them 
+  (`moveBookToTier`, `addBookToTier`, `removeBookFromList`, 
+  `reorderTierItems`, Search Books, Add from Library, Goodreads/AI import); 
+  renamed `revalidateCompare()` → `revalidateFeeds()`. Verified live: adding 
+  a book moved that list straight to #1 under Recent with no delay.
+- **Anti-gaming cooldown** (migration `0025`): the `updated_at` bump (both 
+  the trigger and `saveListFields`'s direct write) is capped to once per 15 
+  minutes per list, so scripting repeated edits can't keep a list pinned at 
+  the top of Recent. Real rate-limiting/bot-detection on the mutation 
+  actions themselves is a deeper fix, not done — logged to Ideas Backlog.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -1429,7 +1474,7 @@ pass, and unifying the two book-search implementations into one.
 - PWA setup ✅ done (see "Current sprint" section above for full spec)
 - Capacitor app wrap (optional) — explicitly skipped for this sprint, user's 
   call when asked directly
-- Responsive polish — not yet started
+- Responsive polish — in progress (see "Current sprint" section above)
 
 ### Sprint 9 — Launch Prep
 - Performance, error/empty states

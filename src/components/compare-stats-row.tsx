@@ -1,13 +1,19 @@
-import { CheckCircle2, ChevronDown, FileWarning } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileWarning, Sparkles } from "lucide-react";
 
 export function CompareStatsRow({
   sharedFavoritesCount,
   sharedDislikesCount,
   disagreementsCount,
+  topSharedGenre,
 }: {
   sharedFavoritesCount: number;
   sharedDislikesCount: number;
   disagreementsCount: number;
+  // Text-only stat (no count) — design2/04's 4th tile. Omitted entirely
+  // rather than showing a fabricated genre when there's no real category
+  // data to tally (see taste-match.ts's tallyTopGenre — only ever computed
+  // from real bothLove books now, no more all-shared-books fallback).
+  topSharedGenre: string | null;
 }) {
   const stats = [
     {
@@ -34,7 +40,9 @@ export function CompareStatsRow({
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div
+      className={`grid gap-2 ${topSharedGenre ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"}`}
+    >
       {stats.map(({ icon: Icon, value, label, caption, color }) => (
         <div
           key={label}
@@ -50,6 +58,21 @@ export function CompareStatsRow({
           </span>
         </div>
       ))}
+
+      {topSharedGenre && (
+        <div className="flex flex-col items-center gap-1 rounded-sm bg-card p-3 text-center ring-1 ring-foreground/10">
+          <Sparkles className="size-5 text-pink-500" />
+          <span className="text-xl font-semibold text-foreground">
+            {topSharedGenre}
+          </span>
+          <span className="text-xs font-medium text-foreground">
+            Top Shared Genre
+          </span>
+          <span className="text-[0.65rem] text-muted-foreground">
+            You both love this genre
+          </span>
+        </div>
+      )}
     </div>
   );
 }

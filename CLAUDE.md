@@ -1557,3 +1557,10 @@ explicitly before building.
     three screens' tab rows at once.
 - Book detail view ✅ done — see "Current sprint" below for the full spec.
 - Site-wide page padding ✅ done — see "Current sprint" below for the full spec.
+
+## Session Tooling Rule
+Playwright is already set up and verified working (`scripts/*.mjs`, saved 
+login session at `scripts/.auth/state.json`) — don't reinstall or reconfigure 
+it, just reuse it. The test account's password is never stored in this repo 
+(see "Never hardcode secrets" above) — if a fresh login is ever needed, look 
+for it in prior chat/session history instead of asking the user to repeat it.

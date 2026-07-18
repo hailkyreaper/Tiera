@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getComparisonSummary, getMatchRecommendations } from "@/lib/db/taste-match";
+import {
+  getComparisonSummary,
+  getMatchRecommendations,
+  MIN_PANEL_BOOKS,
+  MIN_RECOMMENDATION_SHARED_BOOKS,
+  MIN_RECOMMENDATION_MATCH_PERCENTAGE,
+} from "@/lib/db/taste-match";
 import { MatchedBookRow } from "@/components/matched-book-row";
-import { DisagreementsTable } from "@/components/disagreements-table";
 import { CompareStatsRow } from "@/components/compare-stats-row";
-import { RecommendationRow } from "@/components/recommendation-row";
+import { DisagreementsRail } from "@/components/disagreements-rail";
+import { MatchRecommendationsRail } from "@/components/match-recommendations-rail";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/avatar";
@@ -13,6 +19,7 @@ import { Avatar } from "@/components/avatar";
 type ProfileRow = {
   id: string;
   username: string;
+  display_name: string | null;
   avatar_url: string | null;
 };
 
@@ -34,13 +41,13 @@ export default async function CompareWithUserPage({
 
   const { data: me } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url")
+    .select("id, username, display_name, avatar_url")
     .eq("id", user.id)
     .maybeSingle<ProfileRow>();
 
   const { data: them } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url")
+    .select("id, username, display_name, avatar_url")
     .ilike("username", username)
     .maybeSingle<ProfileRow>();
 
@@ -59,120 +66,161 @@ export default async function CompareWithUserPage({
     );
   }
 
-  const [{ match, bothLove, disagreeOn, sharedDislikes }, matchRecommendations] =
-    await Promise.all([
-      getComparisonSummary(supabase, me.id, them.id),
-      getMatchRecommendations(supabase, me.id, them.id),
-    ]);
+  const { match, bothLove, disagreeOn, sharedDislikes, topSharedGenre } =
+    await getComparisonSummary(supabase, me.id, them.id);
+
+  // Recommendations (and every summary panel below) only make sense once
+  // there's a real match — see the audit: this used to run unconditionally,
+  // so a pair with "not enough shared books yet" could still show a
+  // confident-looking "Based on this match, you might like" section.
+  // Recommendations specifically need both MIN_RECOMMENDATION_SHARED_BOOKS
+  // (8) and MIN_RECOMMENDATION_MATCH_PERCENTAGE (65) — stricter than the
+  // bare 3-book/non-null minimum a match % itself needs. A "strong pre-rec"
+  // means real agreement across many books, not just a lot of shared books
+  // (a high-volume but low-percentage match, e.g. someone with genuinely
+  // opposite taste, shouldn't get recommendations just because they've
+  // ranked a lot of the same titles).
+  const matchRecommendations =
+    match.percentage !== null &&
+    match.percentage >= MIN_RECOMMENDATION_MATCH_PERCENTAGE &&
+    match.sharedBookCount >= MIN_RECOMMENDATION_SHARED_BOOKS
+      ? await getMatchRecommendations(supabase, me.id, them.id, match.percentage)
+      : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 p-4">
-      <TopNav title="Compare" center />
+    <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
+        <TopNav title="Compare" center />
 
-      <div className="flex flex-col items-center gap-8 text-center">
-        <div className="flex w-full items-center justify-center gap-6">
+        <div className="flex items-center justify-center gap-6 sm:gap-10">
           <div className="flex flex-col items-center gap-2">
             <Avatar
               src={me.avatar_url}
               name={me.username}
-              imageSize={80}
-              sizeClassName="size-20"
-              textClassName="text-xl"
+              imageSize={64}
+              sizeClassName="size-16"
+              textClassName="text-lg"
               className="ring-4 ring-primary"
             />
-            <span className="text-sm text-foreground">@{me.username}</span>
+            <div className="flex flex-col items-center">
+              <span className="text-sm font-semibold text-foreground">You</span>
+              <span className="text-xs text-muted-foreground">
+                @{me.username}
+              </span>
+            </div>
           </div>
-          <span className="text-sm font-semibold text-muted-foreground">
-            VS
-          </span>
+
+          <div className="flex flex-col items-center gap-1">
+            {match.percentage === null ? (
+              <p className="max-w-[12rem] text-center text-sm text-muted-foreground">
+                Not enough shared books yet ({match.sharedBookCount}/3)
+              </p>
+            ) : (
+              <>
+                <span className="text-4xl font-bold text-primary sm:text-5xl">
+                  {match.percentage}%
+                </span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Taste Match
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {match.sharedBookCount} shared books
+                </span>
+              </>
+            )}
+          </div>
+
           <div className="flex flex-col items-center gap-2">
             <Avatar
               src={them.avatar_url}
               name={them.username}
-              imageSize={80}
-              sizeClassName="size-20"
-              textClassName="text-xl"
+              imageSize={64}
+              sizeClassName="size-16"
+              textClassName="text-lg"
               className="ring-4 ring-primary"
             />
-            <Link
-              href={`/u/${them.username}`}
-              className="text-sm text-foreground hover:underline"
-            >
-              @{them.username}
-            </Link>
+            <div className="flex flex-col items-center">
+              {them.display_name && (
+                <span className="truncate text-sm font-semibold text-foreground">
+                  {them.display_name}
+                </span>
+              )}
+              <Link
+                href={`/u/${them.username}`}
+                className={
+                  them.display_name
+                    ? "text-xs text-muted-foreground hover:underline"
+                    : "text-sm font-semibold text-foreground hover:underline"
+                }
+              >
+                @{them.username}
+              </Link>
+            </div>
           </div>
         </div>
 
-        {match.percentage === null ? (
-          <p className="text-muted-foreground">
-            Not enough shared books yet ({match.sharedBookCount}/3) — rank
-            more of the same books to see a taste match here.
-          </p>
-        ) : (
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-4xl font-bold text-foreground">
-              {match.percentage}%
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Taste Match ({match.sharedBookCount} shared books)
-            </span>
-          </div>
+        {match.percentage !== null && (
+          <>
+            <CompareStatsRow
+              sharedFavoritesCount={bothLove.length}
+              sharedDislikesCount={sharedDislikes.length}
+              disagreementsCount={disagreeOn.length}
+              topSharedGenre={topSharedGenre}
+            />
+
+            <div className="flex flex-col gap-3 text-left">
+              <h2 className="text-lg font-semibold text-foreground">
+                Top Books You Both Love
+              </h2>
+              {bothLove.length < MIN_PANEL_BOOKS ? (
+                <p className="text-sm text-muted-foreground">
+                  Nothing here yet.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {bothLove.slice(0, 5).map((book) => (
+                    <MatchedBookRow key={book.bookId} book={book} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 text-left">
+              <h2 className="text-lg font-semibold text-foreground">
+                Shared Dislikes
+              </h2>
+              {sharedDislikes.length < MIN_PANEL_BOOKS ? (
+                <p className="text-sm text-muted-foreground">
+                  Nothing here yet.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {sharedDislikes.slice(0, 5).map((book) => (
+                    <MatchedBookRow key={book.bookId} book={book} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
+
+        <Link href={`/u/${them.username}`}>
+          <Button type="button" variant="outline" className="w-full">
+            View Full Profile
+          </Button>
+        </Link>
       </div>
 
-      <CompareStatsRow
-        sharedFavoritesCount={bothLove.length}
-        sharedDislikesCount={sharedDislikes.length}
-        disagreementsCount={disagreeOn.length}
-      />
-
-      <div className="flex flex-col gap-3 text-left">
-        <h2 className="text-lg font-semibold text-foreground">
-          Top Books You Both Love
-        </h2>
-        {bothLove.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing here yet.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {bothLove.slice(0, 5).map((book) => (
-              <MatchedBookRow key={book.bookId} book={book} />
-            ))}
-          </div>
+      {match.percentage !== null &&
+        (disagreeOn.length > 0 || matchRecommendations.length > 0) && (
+          <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 xl:flex">
+            <DisagreementsRail books={disagreeOn.slice(0, 5)} />
+            <MatchRecommendationsRail
+              recommendations={matchRecommendations}
+              path={`/compare/${username}`}
+            />
+          </aside>
         )}
-      </div>
-
-      <div className="flex flex-col gap-3 text-left">
-        <h2 className="text-lg font-semibold text-foreground">
-          Biggest Disagreements
-        </h2>
-        <DisagreementsTable
-          books={disagreeOn.slice(0, 5)}
-          theirUsername={them.username}
-        />
-      </div>
-
-      {matchRecommendations.length > 0 && (
-        <div className="flex flex-col gap-3 text-left">
-          <h2 className="text-lg font-semibold text-foreground">
-            Based on this match, you might like
-          </h2>
-          <div className="flex flex-col gap-2">
-            {matchRecommendations.map((recommendation) => (
-              <RecommendationRow
-                key={recommendation.bookId}
-                recommendation={recommendation}
-                path={`/compare/${username}`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <Link href={`/u/${them.username}`}>
-        <Button type="button" variant="outline" className="w-full">
-          View Full Profile
-        </Button>
-      </Link>
     </div>
   );
 }

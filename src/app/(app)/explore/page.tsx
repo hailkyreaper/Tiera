@@ -4,11 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
 import { TopMatchesRail } from "@/components/top-matches-rail";
+import { TrendingThisWeekRail } from "@/components/trending-this-week-rail";
+import { PopularGenresRail } from "@/components/popular-genres-rail";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
 type ExploreTab = "for-you" | "following";
 type ExploreSort = "popular" | "recent";
+// Mobile/tablet only — restores the original single 3-tab bar (see git
+// history prior to the desktop-only Popular/Recent nesting below), which
+// got applied to every viewport width by mistake rather than staying
+// desktop-only. `tab=recent` (the old direct value) and the new
+// `tab=for-you&sort=recent` pair are treated as equivalent below.
+type MobileExploreTab = "for-you" | "following" | "recent";
 
 type TierListRow = {
   id: string;
@@ -40,7 +48,10 @@ export default async function ExplorePage({
 }) {
   const { tab: rawTab, sort: rawSort } = await searchParams;
   const tab: ExploreTab = rawTab === "following" ? "following" : "for-you";
-  const sort: ExploreSort = rawSort === "recent" ? "recent" : "popular";
+  const sort: ExploreSort =
+    rawTab === "recent" || rawSort === "recent" ? "recent" : "popular";
+  const mobileTab: MobileExploreTab =
+    tab === "following" ? "following" : sort === "recent" ? "recent" : "for-you";
 
   const supabase = await createClient();
 
@@ -174,7 +185,22 @@ export default async function ExplorePage({
           </Link>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        {/* Mobile/tablet: original single 3-tab bar — see MobileExploreTab. */}
+        <div className="lg:hidden">
+          <SegmentedTabs
+            basePath="/explore"
+            tabs={[
+              { value: "for-you", label: "For You" },
+              { value: "following", label: "Following" },
+              { value: "recent", label: "Recent" },
+            ]}
+            current={mobileTab}
+          />
+        </div>
+
+        {/* Desktop only: For You/Following, plus a nested Popular/Recent
+         * sort toggle under For You. */}
+        <div className="hidden items-center justify-between gap-2 lg:flex">
           <SegmentedTabs
             basePath="/explore"
             tabs={[
@@ -225,9 +251,17 @@ export default async function ExplorePage({
         )}
       </div>
 
-      <Suspense fallback={null}>
-        <TopMatchesRail />
-      </Suspense>
+      <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 xl:flex">
+        <Suspense fallback={null}>
+          <TrendingThisWeekRail />
+        </Suspense>
+        <Suspense fallback={null}>
+          <TopMatchesRail />
+        </Suspense>
+        <Suspense fallback={null}>
+          <PopularGenresRail />
+        </Suspense>
+      </aside>
     </div>
   );
 }

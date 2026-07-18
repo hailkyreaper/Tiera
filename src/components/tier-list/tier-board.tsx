@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   CollisionDetection,
   DndContext,
@@ -47,6 +47,7 @@ export function TierBoard({
   tierListId,
   columns,
   setColumns,
+  sidebar,
 }: {
   tierListId: string;
   /** Lifted into the parent (EditListDetailsForm) rather than owned here,
@@ -54,6 +55,17 @@ export function TierBoard({
    * without going stale the moment a drag happens after page load. */
   columns: Columns;
   setColumns: Dispatch<SetStateAction<Columns>>;
+  /** Opt-in (Create List only, design2): renders Unranked Books and this
+   * slot together in one divided sidebar container next to the ranked
+   * board, instead of Unranked stacking below it and the caller rendering
+   * its own actions bar separately. Has to live inside this component's
+   * own DndContext (not just visually beside it) so Unranked stays a real
+   * drag-and-drop target — SortableContext/useDroppable only care about
+   * React-tree ancestry, not DOM position, so moving Unranked's on-screen
+   * location doesn't affect that. Omitted entirely by every other caller
+   * (StandaloneTierBoard's manage view), which keeps the original stacked
+   * layout with its own separately-rendered ListActionsBar underneath. */
+  sidebar?: ReactNode;
 }) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const startContainerRef = useRef<ContainerId | null>(null);

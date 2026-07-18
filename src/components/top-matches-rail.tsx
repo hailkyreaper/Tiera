@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTopMatches } from "@/lib/db/top-matches";
-import { BookCover } from "@/components/book-cover";
 import { Avatar } from "@/components/avatar";
 import { MatchBadge } from "@/components/match-badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -12,15 +11,19 @@ const RAIL_LIMIT = 4;
 
 // Desktop-only right rail, Explore only (not app-wide like Sidebar) — a
 // preview of the existing Compare/Top Matches feature, not a new one.
-// Matches the mockup's actual proportions (design/Desktop.png): a plain
-// divided list, not individual bordered cards — avatar + stacked name/
-// @username on the left, a match% pill top-right of each row. Top-favorite
-// covers were dropped in an earlier pass (to strictly match the mockup,
-// which doesn't show them here) then asked back in — kept the covers strip
-// but still skip the genres text line and the mockup's tier-letter badges
-// (not backed by any real computed data), so each row stays closer to a
-// list item than a full card. `includeDetails: true` (the default) since
-// this now does render favorites.
+// Matches design2/01_Explore_Desktop.png exactly: a small, plain divided
+// list — one line per person (small avatar, @username or display name, a
+// match% pill), no genres, no favorite covers, no tier-letter badges (that
+// last one still isn't backed by any real computed data). Went through a
+// bigger card-style version first; this compact form is what the mockup
+// actually shows. `includeDetails: false` since nothing here needs
+// topGenres/topFavorites anymore — skips those two extra per-candidate
+// queries entirely.
+//
+// No `<aside>`/sticky/width wrapper of its own — Explore now stacks this
+// alongside TrendingThisWeekRail/PopularGenresRail (design2/01), so the
+// single outer wrapper in explore/page.tsx owns sticky positioning and
+// width, and each panel is just its own bg-card block.
 export async function TopMatchesRail() {
   const supabase = await createClient();
   const {
@@ -31,10 +34,11 @@ export async function TopMatchesRail() {
 
   const matches = await getTopMatches(supabase, user.id, {
     limit: RAIL_LIMIT,
+    includeDetails: false,
   });
 
   return (
-    <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 rounded-sm bg-card p-6 xl:flex">
+    <div className="flex flex-col gap-4 rounded-sm bg-card p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-foreground">Top Matches</h2>
         <Link href="/compare" className="text-sm font-medium text-primary">
@@ -52,47 +56,24 @@ export async function TopMatchesRail() {
             <Link
               key={person.userId}
               href={`/compare/${person.username}`}
-              className="flex flex-col gap-2.5 py-3.5 hover:bg-muted"
+              className="flex items-center gap-3 py-2.5 hover:bg-muted"
             >
-              <div className="flex items-center gap-3">
-                <Avatar
-                  src={person.avatarUrl}
-                  name={person.username}
-                  imageSize={48}
-                  sizeClassName="size-12"
-                  textClassName="text-base"
-                />
+              <Avatar
+                src={person.avatarUrl}
+                name={person.username}
+                imageSize={32}
+                sizeClassName="size-8"
+                textClassName="text-xs"
+              />
 
-                <div className="min-w-0 flex-1">
-                  {person.displayName && (
-                    <div className="truncate text-base font-semibold text-foreground">
-                      {person.displayName}
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "truncate",
-                      person.displayName
-                        ? "text-sm text-muted-foreground"
-                        : "text-base font-semibold text-foreground",
-                    )}
-                  >
-                    @{person.username}
-                  </div>
-                </div>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                {person.displayName ?? `@${person.username}`}
+              </span>
 
-                <MatchBadge percentage={person.matchPercentage} />
-              </div>
-
-              {person.topFavorites.length > 0 && (
-                <div className="flex gap-2 pl-[60px]">
-                  {person.topFavorites.map((book) => (
-                    <div key={book.bookId} className="w-12 shrink-0">
-                      <BookCover src={book.thumbnail} alt={book.title} size={48} />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <MatchBadge
+                percentage={person.matchPercentage}
+                className="px-2 py-0.5 text-xs"
+              />
             </Link>
           ))}
         </div>
@@ -105,6 +86,6 @@ export async function TopMatchesRail() {
         <Users className="size-4" />
         Find more matches
       </Link>
-    </aside>
+    </div>
   );
 }

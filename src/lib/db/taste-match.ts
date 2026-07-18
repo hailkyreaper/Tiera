@@ -14,6 +14,20 @@ export const TIER_SCORES: Record<string, number> = {
 const MAX_DIFF = 5; // largest possible gap: S (6) vs F (1)
 const MIN_SHARED_BOOKS = 3;
 
+// A 1-tier gap (e.g. B vs A) is normal variance, not a real disagreement —
+// require at least a 2-tier gap before it counts as one. Used both by
+// computeMatch (the disagreement penalty below) and getComparisonSummary
+// (the "Biggest Disagreements" list) — same definition everywhere.
+const DISAGREEMENT_THRESHOLD = 2;
+
+// A single shared book isn't enough to present a section as real insight
+// (see the audit: a 1-book overlap was showing a confident "Top Shared
+// Genre" tile and a populated "Biggest Differences" panel on a pair the
+// headline itself called "not enough shared books yet"). Both Love/Shared
+// Dislikes require this many qualifying books before they render as
+// populated instead of "Nothing here yet."
+export const MIN_PANEL_BOOKS = 2;
+
 type RankedRow = { book_id: string; tier: string };
 
 export async function getBookScores(
@@ -62,18 +76,37 @@ export type TasteMatch = {
 
 // Pure comparison of two users' book-score maps — shared by Compare's
 // per-pair summary and Recommendations' scan across many candidate users.
+//
+// A plain mean of per-book agreement can't tell "consistently moderate
+// agreement" apart from "a mix of real agreement and real disagreement" —
+// two very different signals that can average out to the same number (see
+// the Compare logic audit's follow-up: a pair with 2 close agreements and
+// 2 real disagreements, one severe, still landed at a mildly-positive 65%).
+// Real disagreements (>= DISAGREEMENT_THRESHOLD, the same bar
+// getComparisonSummary's "Biggest Disagreements" already uses) now cost an
+// *extra* penalty on top of their already-reduced agreement score — spread
+// across every shared book, not just the disagreeing ones, so the same
+// couple of disagreements barely register against a large pool of shared
+// books but meaningfully drag down a thin one. This is what makes "18
+// books agreed, 2 disagreed" score very differently from "2 agreed, 2
+// disagreed" even though a plain mean wouldn't.
 export function computeMatch(
   scoresA: Map<string, number>,
   scoresB: Map<string, number>,
 ): TasteMatch {
   let totalAgreement = 0;
+  let totalDisagreementSeverity = 0;
   let sharedBookCount = 0;
 
   for (const [bookId, scoreA] of scoresA) {
     const scoreB = scoresB.get(bookId);
     if (scoreB === undefined) continue;
 
-    totalAgreement += 1 - Math.abs(scoreA - scoreB) / MAX_DIFF;
+    const diff = Math.abs(scoreA - scoreB);
+    totalAgreement += 1 - diff / MAX_DIFF;
+    if (diff >= DISAGREEMENT_THRESHOLD) {
+      totalDisagreementSeverity += diff / MAX_DIFF;
+    }
     sharedBookCount += 1;
   }
 
@@ -81,8 +114,12 @@ export function computeMatch(
     return { percentage: null, sharedBookCount };
   }
 
+  const meanAgreement = totalAgreement / sharedBookCount;
+  const disagreementPenalty = totalDisagreementSeverity / sharedBookCount;
+  const adjusted = Math.min(Math.max(meanAgreement - disagreementPenalty, 0), 1);
+
   return {
-    percentage: Math.round((totalAgreement / sharedBookCount) * 100),
+    percentage: Math.round(adjusted * 100),
     sharedBookCount,
   };
 }
@@ -92,6 +129,7 @@ export type SharedBook = {
   title: string;
   authors: string[] | null;
   thumbnail: string | null;
+  categories: string[] | null;
   scoreA: number;
   scoreB: number;
 };
@@ -101,6 +139,17 @@ export type ComparisonSummary = {
   bothLove: SharedBook[];
   disagreeOn: SharedBook[];
   sharedDislikes: SharedBook[];
+  // Every book both users have ranked, unfiltered — powers the Shared Tier
+  // List (design2/04), unlike bothLove/disagreeOn/sharedDislikes which are
+  // each a narrow slice of it.
+  shared: SharedBook[];
+  // Most common category among bothLove books — "Top Shared Genre" stat.
+  // null when there aren't at least MIN_PANEL_BOOKS of them (see that
+  // constant's comment) — no fallback to all shared books anymore: that
+  // used to let a single disagreement-heavy book produce a confident-
+  // looking genre label with no real "you both love this" evidence behind
+  // it at all.
+  topSharedGenre: string | null;
 };
 
 type BookRow = {
@@ -108,7 +157,19 @@ type BookRow = {
   title: string;
   authors: string[] | null;
   thumbnail_url: string | null;
+  categories: string[] | null;
 };
+
+function tallyTopGenre(books: SharedBook[]): string | null {
+  const tally = new Map<string, number>();
+  for (const book of books) {
+    for (const category of book.categories ?? []) {
+      tally.set(category, (tally.get(category) ?? 0) + 1);
+    }
+  }
+  if (tally.size === 0) return null;
+  return [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
 
 // Both users rated the book A-tier or higher.
 const BOTH_LOVE_THRESHOLD = TIER_SCORES.A;
@@ -117,10 +178,6 @@ const BOTH_LOVE_THRESHOLD = TIER_SCORES.A;
 // BOTH_LOVE_THRESHOLD, leaving B as a neutral middle ground that counts as
 // neither a shared favorite nor a shared dislike.
 const BOTH_DISLIKE_THRESHOLD = TIER_SCORES.C;
-
-// A 1-tier gap (e.g. B vs A) is normal variance, not a real disagreement —
-// require at least a 2-tier gap before it counts as one.
-const DISAGREEMENT_THRESHOLD = 2;
 
 export async function getComparisonSummary(
   supabase: SupabaseServerClient,
@@ -146,12 +203,19 @@ export async function getComparisonSummary(
   }
 
   if (sharedIds.length === 0) {
-    return { match, bothLove: [], disagreeOn: [], sharedDislikes: [] };
+    return {
+      match,
+      bothLove: [],
+      disagreeOn: [],
+      sharedDislikes: [],
+      shared: [],
+      topSharedGenre: null,
+    };
   }
 
   const { data: books } = await supabase
     .from("books")
-    .select("id, title, authors, thumbnail_url")
+    .select("id, title, authors, thumbnail_url, categories")
     .in("id", sharedIds)
     .returns<BookRow[]>();
 
@@ -160,6 +224,7 @@ export async function getComparisonSummary(
     title: book.title,
     authors: book.authors,
     thumbnail: book.thumbnail_url,
+    categories: book.categories,
     scoreA: rawShared.get(book.id)!.scoreA,
     scoreB: rawShared.get(book.id)!.scoreB,
   }));
@@ -178,7 +243,17 @@ export async function getComparisonSummary(
       (a, b) => Math.abs(b.scoreA - b.scoreB) - Math.abs(a.scoreA - a.scoreB),
     );
 
-  return { match, bothLove, disagreeOn, sharedDislikes };
+  const topSharedGenre =
+    bothLove.length >= MIN_PANEL_BOOKS ? tallyTopGenre(bothLove) : null;
+
+  return {
+    match,
+    bothLove,
+    disagreeOn,
+    sharedDislikes,
+    shared,
+    topSharedGenre,
+  };
 }
 
 const SCORE_TO_TIER: Record<number, string> = Object.fromEntries(
@@ -256,13 +331,50 @@ export type MatchRecommendation = {
   matchPercentage: number;
 };
 
+// Only recommend books the other person rated highly enough to mean "they
+// loved it" — matches the standalone Recommendations feature's own bar
+// (lib/db/recommendations.ts's RECOMMENDATION_TIER_THRESHOLD), rather than
+// just "whatever's left after excluding what the viewer already owns," which
+// could be as low as their single C-tier book.
+const RECOMMENDATION_TIER_THRESHOLD = TIER_SCORES.A;
+
+// A real match (3+ shared books) isn't enough evidence to call a
+// recommendation "strong" — the actual product goal is "10 books tiered
+// mostly the same way, and this person's A/S books you haven't read are a
+// strong pre-rec." 8 shared books is the bar for that: enough overlap that
+// agreement across them means something, short of requiring the full 10.
+// Only gates recommendations specifically — the 3-book minimum still
+// governs whether a match percentage/summary panels show at all.
+export const MIN_RECOMMENDATION_SHARED_BOOKS = 8;
+
+// Recommendations need a real, above-baseline match, not just "some
+// overlap" — a distinct constant from top-matches.ts's
+// PREFERRED_MATCH_THRESHOLD (both currently 65, chosen as the same "beats
+// the ~61% random-chance baseline" bar) since one governs whether someone
+// shows up in Top Matches at all (a ranking/display decision) and this one
+// governs whether we suggest specific books off a match (a content-quality
+// decision) — kept separate so retuning one doesn't silently retune the
+// other.
+export const MIN_RECOMMENDATION_MATCH_PERCENTAGE = 65;
+
 // "Based on this match, you might like" — the other user's top N
-// highest-rated books the viewer doesn't have, each with a per-book
-// confidence % (their own score for that book, scaled to a percentage).
+// highest-rated (A-tier+) books the viewer doesn't have. Requires the
+// caller to already know there's a real match *and* enough shared books to
+// clear MIN_RECOMMENDATION_SHARED_BOOKS (see the compare detail page) —
+// this function has no way to check either itself, since it never computes
+// an overall match, only looks at one user's individual book scores.
+//
+// matchPercentage is the pair's real, already-computed taste-match
+// percentage — the same number for every recommendation from this person.
+// It used to be `score / TIER_SCORES.S` (how highly *they* personally
+// rated that one book), which meant a "100% match" badge could show up
+// on a recommendation from someone the viewer barely overlaps with at all;
+// that number never had anything to do with the viewer.
 export async function getMatchRecommendations(
   supabase: SupabaseServerClient,
   viewerId: string,
   otherId: string,
+  matchPercentage: number,
   limit = 4,
 ): Promise<MatchRecommendation[]> {
   const candidates = await getRankedRecommendationCandidates(
@@ -271,11 +383,14 @@ export async function getMatchRecommendations(
     otherId,
   );
 
-  return candidates.slice(0, limit).map(({ book, score }) => ({
-    bookId: book.id,
-    title: book.title,
-    authors: book.authors,
-    thumbnail: book.thumbnail_url,
-    matchPercentage: Math.round((score / TIER_SCORES.S) * 100),
-  }));
+  return candidates
+    .filter(({ score }) => score >= RECOMMENDATION_TIER_THRESHOLD)
+    .slice(0, limit)
+    .map(({ book }) => ({
+      bookId: book.id,
+      title: book.title,
+      authors: book.authors,
+      thumbnail: book.thumbnail_url,
+      matchPercentage,
+    }));
 }

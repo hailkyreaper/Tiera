@@ -4,9 +4,9 @@ import { scoreToTier } from "@/lib/db/taste-match";
 import type { SharedBook } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
-// A single row in "Top Books You Both Love": cover, title/author, and a tier
-// badge (the higher of the two shared scores, since both already cleared
-// the "both love it" bar).
+// A single row in a shared-book list (Top Books You Both Love, Shared
+// Dislikes): cover, title/author, and a tier badge showing the higher of
+// the two shared scores.
 export function MatchedBookRow({ book }: { book: SharedBook }) {
   const tier = scoreToTier(Math.max(book.scoreA, book.scoreB)) as Tier;
   const badgeColor =

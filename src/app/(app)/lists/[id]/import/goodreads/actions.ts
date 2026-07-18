@@ -10,27 +10,42 @@ import { mapWithConcurrency } from "@/lib/concurrency";
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 type BookIdRow = { id: string };
 
-// ISBN-keyed edition lookup first (exact, unambiguous — no relevance
-// ranking involved), then a title+author search as a fallback for the rows
-// with no ISBN at all. The search fallback strips anything after a colon —
-// confirmed live that a long marketing subtitle (common on nonfiction,
-// e.g. "Atomic Habits: An Easy & Proven Way to...") throws off Open
-// Library's relevance ranking badly enough that it surfaces unrelated
+type BookMetadata = {
+  coverUrl: string | null;
+  categories: string[];
+  publishedDate: string | null;
+};
+
+// Cover: ISBN-keyed edition lookup first (exact, unambiguous — no relevance
+// ranking involved), falling back to the same title+author search doc used
+// for genres/published date below. The search fallback strips anything
+// after a colon — confirmed live that a long marketing subtitle (common on
+// nonfiction, e.g. "Atomic Habits: An Easy & Proven Way to...") throws off
+// Open Library's relevance ranking badly enough that it surfaces unrelated
 // "Summary of..."/study-guide editions with no cover instead of the real
 // book; the same search with just "Atomic Habits" finds it immediately.
-async function resolveCoverUrl(
+//
+// Categories/published date always come from the search-doc lookup (there's
+// no ISBN-keyed equivalent for those) — every other import path
+// (findOrCreateBook) sets these from Open Library, but this one originally
+// didn't, which meant Search's Genre/Published filters silently dropped
+// every Goodreads-imported book with no indication why.
+async function resolveBookMetadata(
   isbn: string | null,
   title: string,
   author: string | null,
-): Promise<string | null> {
-  if (isbn) {
-    const byIsbn = await fetchCoverUrlByIsbn(isbn);
-    if (byIsbn) return byIsbn;
-  }
-
+): Promise<BookMetadata> {
   const searchTitle = title.split(":")[0].trim();
-  const openLibrary = await getOpenLibraryData(searchTitle, author ?? undefined);
-  return openLibrary.coverUrl;
+  const [isbnCoverUrl, openLibrary] = await Promise.all([
+    isbn ? fetchCoverUrlByIsbn(isbn) : Promise.resolve(null),
+    getOpenLibraryData(searchTitle, author ?? undefined),
+  ]);
+
+  return {
+    coverUrl: isbnCoverUrl ?? openLibrary.coverUrl,
+    categories: openLibrary.genres,
+    publishedDate: openLibrary.publishedDate,
+  };
 }
 
 type GoodreadsImportRow = {
@@ -103,7 +118,11 @@ async function createGoodreadsBook(
   row: GoodreadsImportRow,
 ): Promise<string | null> {
   try {
-    const thumbnailUrl = await resolveCoverUrl(row.isbn, row.title, row.author);
+    const { coverUrl, categories, publishedDate } = await resolveBookMetadata(
+      row.isbn,
+      row.title,
+      row.author,
+    );
 
     const { data: newBook, error } = await supabase
       .from("books")
@@ -113,8 +132,10 @@ async function createGoodreadsBook(
           : `goodreads:${crypto.randomUUID()}`,
         title: row.title,
         authors: row.author ? [row.author] : null,
-        thumbnail_url: thumbnailUrl,
+        thumbnail_url: coverUrl,
         average_rating: row.averageRating,
+        categories: categories.length > 0 ? categories : null,
+        published_date: publishedDate,
         // Genuinely new catalog rows start unconfirmed — a tier_list_items
         // row has to reference a real book, so this can't wait until Save,
         // but staying is_draft keeps it out of everyone's search results

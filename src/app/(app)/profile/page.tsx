@@ -16,7 +16,7 @@ import { Avatar } from "@/components/avatar";
 import { RecommendationsRail } from "@/components/recommendations-rail";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteBooks } from "@/lib/db/favorites";
-import { getUserListCards } from "@/lib/db/list-cards";
+import { getUserListCards, cleanupAbandonedDrafts } from "@/lib/db/list-cards";
 import { cn } from "@/lib/utils";
 import {
   getLibraryBooks,
@@ -172,6 +172,9 @@ export default async function ProfilePage({
   });
 
   const favoriteBooks = await getFavoriteBooks(supabase, user.id, 5);
+  if (tab === "lists") {
+    await cleanupAbandonedDrafts(supabase, user.id);
+  }
   const listCards =
     tab === "lists" ? await getUserListCards(supabase, user.id) : [];
 

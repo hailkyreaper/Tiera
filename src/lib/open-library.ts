@@ -213,14 +213,21 @@ export type OpenLibraryData = {
   genres: string[];
   coverUrl: string | null;
   description: string | null;
+  publishedDate: string | null;
 };
 
-async function fetchSearchDoc(
-  query: string,
-): Promise<{ key?: string; subject?: string[]; cover_i?: number } | undefined> {
+async function fetchSearchDoc(query: string): Promise<
+  | {
+      key?: string;
+      subject?: string[];
+      cover_i?: number;
+      first_publish_year?: number;
+    }
+  | undefined
+> {
   const params = new URLSearchParams({
     q: query,
-    fields: "key,subject,cover_i",
+    fields: "key,subject,cover_i,first_publish_year",
     limit: "1",
   });
 
@@ -280,5 +287,7 @@ export async function getOpenLibraryData(
       ? await fetchOpenLibraryDescription(doc.key)
       : null;
 
-  return { genres, coverUrl, description };
+  const publishedDate = doc?.first_publish_year?.toString() ?? null;
+
+  return { genres, coverUrl, description, publishedDate };
 }

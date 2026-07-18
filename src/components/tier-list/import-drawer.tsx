@@ -8,16 +8,21 @@ import {
   saveAndGoToAiImport,
 } from "@/app/(app)/lists/actions";
 
+const BAR_TRIGGER_CLASS =
+  "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-foreground hover:bg-muted";
+
 export function ImportDrawer({
   tierListId,
   isEditing = false,
+  triggerClassName = BAR_TRIGGER_CLASS,
 }: {
   tierListId: string;
   isEditing?: boolean;
+  triggerClassName?: string;
 }) {
   return (
     <Drawer.Root>
-      <Drawer.Trigger className="flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-foreground hover:bg-muted">
+      <Drawer.Trigger className={triggerClassName}>
         <Download className="size-4" />
         Import
       </Drawer.Trigger>

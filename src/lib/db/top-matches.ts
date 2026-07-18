@@ -11,6 +11,13 @@ export type TopMatchPerson = {
   displayName: string | null;
   avatarUrl: string | null;
   matchPercentage: number;
+  // How many books this percentage is actually built on — a 96% match on
+  // 20 shared books and a 90% match on 3 are different-strength signals,
+  // but the UI couldn't tell them apart before this existed (see the
+  // Compare logic audit). Always available regardless of `includeDetails`
+  // since computeMatch already returns it as a side effect of the
+  // percentage itself — no extra query.
+  sharedBookCount: number;
   booksRankedCount: number;
   topGenres: string[];
   topFavorites: FavoriteBook[];
@@ -95,14 +102,77 @@ export async function getTopMatches(
       displayName: profile.display_name,
       avatarUrl: profile.avatar_url,
       matchPercentage: match.percentage,
+      sharedBookCount: match.sharedBookCount,
       booksRankedCount: theirScores.size,
       topGenres,
       topFavorites,
     });
   }
 
-  const sorted = results.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  const sorted = results.sort(
+    (a, b) =>
+      weightedRankScore(b.matchPercentage, b.sharedBookCount) -
+      weightedRankScore(a.matchPercentage, a.sharedBookCount),
+  );
   return limit ? sorted.slice(0, limit) : sorted;
+}
+
+// Two people with completely uncorrelated taste still average ~61% under
+// computeMatch's tier-gap formula (see PREFERRED_MATCH_THRESHOLD below) —
+// used here as the "no real evidence" baseline that a thin match gets
+// pulled toward.
+const RANDOM_BASELINE_PERCENTAGE = 61;
+
+// How many shared books it takes to trust a match's raw percentage at face
+// value — below this, the percentage gets shrunk toward the random
+// baseline proportionally to how little evidence backs it. Standard
+// "weighted rating" formula (the same shape IMDB uses for its own ranked
+// list): at exactly this many shared books, a match is weighted 50/50
+// between its own percentage and the baseline; more shared books trusts the
+// real percentage more, fewer trusts it less. This is what actually makes
+// "95% match on 3 books" rank below "90% match on 20 books" — the raw
+// percentage alone never would, no matter how the display or the curation
+// floor were tuned, since neither of those touch *ordering*.
+const RANKING_CONFIDENCE_CONSTANT = 8;
+
+function weightedRankScore(
+  matchPercentage: number,
+  sharedBookCount: number,
+): number {
+  const v = sharedBookCount;
+  const m = RANKING_CONFIDENCE_CONSTANT;
+  return (
+    (v / (v + m)) * matchPercentage + (m / (v + m)) * RANDOM_BASELINE_PERCENTAGE
+  );
+}
+
+// Below this, a match isn't a real signal — computeMatch's tier-gap formula
+// means two people with completely uncorrelated taste still average ~61%
+// (tiers are usually only 1-2 apart out of a possible 5 even at random), so
+// anything meaningfully below that is actively worse than chance, not just
+// a weak match.
+const PREFERRED_MATCH_THRESHOLD = 65;
+
+// If fewer than this many clear the preferred threshold, backfill with the
+// next-best matches anyway so a small user base doesn't leave the list
+// empty or sparse — same prefer-high-quality/fall-back-rather-than-show-
+// nothing pattern the standalone Recommendations feature already uses for
+// its own candidate pool (lib/db/recommendations.ts's CANDIDATE_POOL_SIZE).
+const MIN_DISPLAY_COUNT = 5;
+
+// Curates an already-sorted (desc) match list for actual display: everyone
+// at/above PREFERRED_MATCH_THRESHOLD, or the top MIN_DISPLAY_COUNT overall
+// if fewer than that many clear the bar. Deliberately separate from
+// getTopMatches itself — callers that need the *true* full count (e.g. the
+// "you match with N% of users" coverage stat) should keep using the raw
+// list, not this curated view.
+export function curateTopMatches(
+  sortedMatches: TopMatchPerson[],
+): TopMatchPerson[] {
+  const strongCount = sortedMatches.filter(
+    (person) => person.matchPercentage >= PREFERRED_MATCH_THRESHOLD,
+  ).length;
+  return sortedMatches.slice(0, Math.max(strongCount, MIN_DISPLAY_COUNT));
 }
 
 // Every other profile that exists, regardless of whether a match is
@@ -118,7 +188,7 @@ export async function getOtherUserCount(
   return count ?? 0;
 }
 
-async function getTopGenres(
+export async function getTopGenres(
   supabase: SupabaseServerClient,
   userId: string,
 ): Promise<string[]> {

@@ -4,6 +4,58 @@ import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+const ABANDONED_DRAFT_GRACE_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_LIST_TITLE = "My Tier List";
+
+type DraftCandidateRow = { id: string };
+
+// Visiting /lists eagerly creates a blank draft row immediately, before any
+// title/books/Save — the in-app "abandon this draft" cleanup
+// (discardUnsavedDraft) only runs on an actual NavBar/Cancel click, so
+// closing the tab, hitting back, or navigating by URL leaves an orphaned
+// row behind forever. This sweeps ones old enough (24h) that it's clearly
+// not just an in-progress session, and untouched enough (still the default
+// title, no description/tags, zero books ever added) that it can only be a
+// truly-abandoned blank — a real in-progress "Save Draft" always has a real
+// title and/or at least one book, so this can never delete one of those.
+// Called opportunistically from Profile's own Lists tab load rather than a
+// scheduled job — no new infrastructure, and it only ever touches the
+// signed-in user's own rows (same DELETE policy Cancel already uses).
+export async function cleanupAbandonedDrafts(
+  supabase: SupabaseServerClient,
+  userId: string,
+): Promise<void> {
+  const cutoff = new Date(Date.now() - ABANDONED_DRAFT_GRACE_MS).toISOString();
+
+  const { data: candidates } = await supabase
+    .from("tier_lists")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_draft", true)
+    .eq("title", DEFAULT_LIST_TITLE)
+    .is("description", null)
+    .is("tags", null)
+    .lt("created_at", cutoff)
+    .returns<DraftCandidateRow[]>();
+
+  const candidateIds = (candidates ?? []).map((row) => row.id);
+  if (candidateIds.length === 0) return;
+
+  const { data: itemRows } = await supabase
+    .from("tier_list_items")
+    .select("tier_list_id")
+    .in("tier_list_id", candidateIds);
+
+  const idsWithItems = new Set(
+    (itemRows ?? []).map((row) => row.tier_list_id as string),
+  );
+  const emptyIds = candidateIds.filter((id) => !idsWithItems.has(id));
+
+  if (emptyIds.length === 0) return;
+
+  await supabase.from("tier_lists").delete().in("id", emptyIds);
+}
+
 type PreviewBook = { id: string; title: string; thumbnail: string | null };
 
 export type ListCardData = {

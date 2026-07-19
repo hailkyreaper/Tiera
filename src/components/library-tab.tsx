@@ -427,7 +427,7 @@ export function LibraryTab({
 
           {orderedLibraryBooks.length === 0 && !dragStartTbr ? (
             <p className="text-sm text-muted-foreground">
-              Your library is empty.
+              No books in your library yet.
             </p>
           ) : (
             <SortableContext items={libraryOrder} strategy={rectSortingStrategy}>

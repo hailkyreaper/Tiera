@@ -212,7 +212,7 @@ export default async function CompareWithUserPage({
               </h2>
               {bothLove.length < MIN_PANEL_BOOKS ? (
                 <p className="text-sm text-muted-foreground">
-                  Nothing here yet.
+                  No shared favorites yet.
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -229,7 +229,7 @@ export default async function CompareWithUserPage({
               </h2>
               {sharedDislikes.length < MIN_PANEL_BOOKS ? (
                 <p className="text-sm text-muted-foreground">
-                  Nothing here yet.
+                  No shared dislikes yet.
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">

@@ -353,7 +353,7 @@ export default async function ProfilePage({
                   </h2>
                   {listCards.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      You don&apos;t have any tier lists yet.
+                      No tier lists yet.
                     </p>
                   ) : (
                     listCards.map((list) => (

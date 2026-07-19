@@ -81,7 +81,7 @@ export default async function FollowingPage() {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          You&apos;re not following anyone yet.
+          Not following anyone yet.
         </p>
       )}
     </div>

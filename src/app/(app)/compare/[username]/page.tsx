@@ -92,8 +92,15 @@ export default async function CompareWithUserPage({
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
         <TopNav title="Compare" center />
 
-        <div className="flex items-center justify-center gap-6 sm:gap-10">
-          <div className="flex flex-col items-center gap-2">
+        {/* Each column is an equal flex-1 third with its own items-center,
+         * not justify-center on the row — with 3 children of different
+         * natural widths (the middle percentage text is narrower than
+         * either avatar+name block), justify-center on the row only
+         * centers the *group*, so the middle item's visual center drifts
+         * off the row's true center. Same fix already applied to Profile's
+         * 3-stat row for the same reason. */}
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-1 flex-col items-center gap-2">
             <Avatar
               src={me.avatar_url}
               name={me.username}
@@ -110,7 +117,7 @@ export default async function CompareWithUserPage({
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-1 flex-col items-center gap-1">
             {match.percentage === null ? (
               <p className="max-w-[12rem] text-center text-sm text-muted-foreground">
                 Not enough shared books yet ({match.sharedBookCount}/3)
@@ -130,7 +137,7 @@ export default async function CompareWithUserPage({
             )}
           </div>
 
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-1 flex-col items-center gap-2">
             <Avatar
               src={them.avatar_url}
               name={them.username}
@@ -201,6 +208,23 @@ export default async function CompareWithUserPage({
                 </div>
               )}
             </div>
+
+            {/* Below xl, the right-rail aside further down doesn't render
+             * at all (it's xl:flex) — this was the only place Biggest
+             * Differences/Recommendations ever showed, so mobile/tablet
+             * never saw them. Same data, rendered again here and hidden at
+             * xl (where the aside takes over instead), matching the
+             * "duplicate but only one ever visible via CSS" approach
+             * already used elsewhere in the app. */}
+            {(disagreeOn.length > 0 || matchRecommendations.length > 0) && (
+              <div className="flex flex-col gap-4 xl:hidden">
+                <DisagreementsRail books={disagreeOn.slice(0, 5)} />
+                <MatchRecommendationsRail
+                  recommendations={matchRecommendations}
+                  path={`/compare/${username}`}
+                />
+              </div>
+            )}
           </>
         )}
 

@@ -27,23 +27,21 @@ export function TopMatchCard({ person }: { person: TopMatchPerson }) {
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-center gap-2">
-            {person.displayName ? (
-              <span className="truncate font-semibold text-foreground">
-                {person.displayName}
-              </span>
-            ) : (
-              <span className="truncate font-semibold text-foreground">
-                @{person.username}
-              </span>
-            )}
-            <MatchBadge percentage={person.matchPercentage} />
-          </div>
+          {person.displayName ? (
+            <span className="truncate font-semibold text-foreground">
+              {person.displayName}
+            </span>
+          ) : (
+            <span className="truncate font-semibold text-foreground">
+              @{person.username}
+            </span>
+          )}
           {person.displayName && (
             <span className="truncate text-sm text-muted-foreground">
               @{person.username}
             </span>
           )}
+          <MatchBadge percentage={person.matchPercentage} />
           <span className="text-xs text-muted-foreground">
             {person.booksRankedCount} books ranked · {person.sharedBookCount}{" "}
             shared

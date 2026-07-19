@@ -71,6 +71,35 @@ export async function findOrCreateBook(
     return existingBook.id;
   }
 
+  // The exact id can miss a book that's already in the catalog under a
+  // *different* source id for the same real book — Open Library carries
+  // multiple duplicate work records for many popular titles, and a book
+  // originally added via Google Books has no Open Library id at all.
+  // Confirmed live: this created 7 orphaned duplicate rows across this
+  // project's test data (Red Rising saga books added twice under a Google
+  // id and a separate Open Library work id, plus a sparse "Gone Girl"
+  // duplicate) before this fallback existed. A normalized title+first-
+  // author match reuses the existing row instead of creating another one.
+  const firstAuthorForMatch = fields.authors
+    ? fields.authors.split(", ")[0]
+    : undefined;
+  if (fields.title && firstAuthorForMatch) {
+    const { data: titleMatches } = await supabase
+      .from("books")
+      .select("id, authors")
+      .ilike("title", fields.title.trim())
+      .returns<{ id: string; authors: string[] | null }[]>();
+
+    const existingByTitleAuthor = titleMatches?.find(
+      (book) =>
+        book.authors?.[0]?.trim().toLowerCase() ===
+        firstAuthorForMatch.trim().toLowerCase(),
+    );
+    if (existingByTitleAuthor) {
+      return existingByTitleAuthor.id;
+    }
+  }
+
   const googleCategories = fields.categories
     ? [...new Set(fields.categories.split("|").map(normalizeCategory))]
     : [];
@@ -84,11 +113,10 @@ export async function findOrCreateBook(
   // richly populated) — a fresh search has no way to know which one the
   // user actually meant, but the id they clicked on already tells us
   // exactly.
-  const firstAuthor = fields.authors ? fields.authors.split(", ")[0] : undefined;
   const workKey = extractOpenLibraryWorkKey(fields.googleVolumeId);
   const openLibrary = workKey
     ? await fetchOpenLibraryDataByWorkKey(workKey)
-    : await getOpenLibraryData(fields.title, firstAuthor, {
+    : await getOpenLibraryData(fields.title, firstAuthorForMatch, {
         includeDescription: !fields.description,
       });
   const categories =

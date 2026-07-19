@@ -78,3 +78,56 @@ export async function removeBooksFromLibrary(bookIds: string[]) {
 
   revalidatePath("/profile");
 }
+
+// Clears want_to_read only — the book stays in the library either way, this
+// just takes it out of the "To Be Read" shelf (e.g. once they've actually
+// read/ranked it, or just don't want it queued anymore).
+export async function clearWantToRead(bookId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  await supabase
+    .from("user_books")
+    .update({ want_to_read: false })
+    .eq("user_id", user.id)
+    .eq("book_id", bookId);
+
+  revalidatePath("/profile");
+}
+
+// Persists a drag-reordered Custom Order. No revalidatePath here on
+// purpose — the caller already holds the new order in optimistic client
+// state (that's what's actually rendered mid-drag and after), so
+// revalidating here would just refetch and risk visually snapping the
+// grid back before the DB write is even confirmed. Same position-bulk-
+// update shape as reorderTierItems (lists/actions.ts), keyed by
+// user_id+book_id instead of a tier_list_items row id since LibraryBook has
+// no separate row id of its own.
+export async function reorderLibraryBooks(bookIds: string[]) {
+  if (bookIds.length === 0) return;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  await Promise.all(
+    bookIds.map((bookId, index) =>
+      supabase
+        .from("user_books")
+        .update({ position: index })
+        .eq("user_id", user.id)
+        .eq("book_id", bookId),
+    ),
+  );
+}

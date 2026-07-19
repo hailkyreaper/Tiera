@@ -269,7 +269,51 @@ type RecommendationBookRow = {
   title: string;
   authors: string[] | null;
   thumbnail_url: string | null;
+  categories: string[] | null;
+  description: string | null;
+  average_rating: number | null;
 };
+
+// Genres pulled from books both people rated similarly (not a real
+// disagreement, same DISAGREEMENT_THRESHOLD definition used everywhere
+// else) — this is "the part of their taste that's actually driving the
+// match." Recommendations get scoped to these genres so a strong match
+// built entirely on shared fantasy picks doesn't surface an unrelated
+// thriller book just because the other person happened to rate it even
+// higher — a real gap the flat "their single highest-rated book" approach
+// had, raised directly by the user: someone could align great on fantasy
+// specifically but read mostly thriller overall, and the old logic had no
+// way to tell "this is the genre we actually agree on" from "this is their
+// favorite genre overall."
+export async function getAlignedGenres(
+  supabase: SupabaseServerClient,
+  scoresA: Map<string, number>,
+  scoresB: Map<string, number>,
+): Promise<Set<string>> {
+  const alignedBookIds: string[] = [];
+  for (const [bookId, scoreA] of scoresA) {
+    const scoreB = scoresB.get(bookId);
+    if (scoreB === undefined) continue;
+    if (Math.abs(scoreA - scoreB) < DISAGREEMENT_THRESHOLD) {
+      alignedBookIds.push(bookId);
+    }
+  }
+  if (alignedBookIds.length === 0) return new Set();
+
+  const { data } = await supabase
+    .from("books")
+    .select("categories")
+    .in("id", alignedBookIds)
+    .returns<{ categories: string[] | null }[]>();
+
+  const genres = new Set<string>();
+  for (const row of data ?? []) {
+    for (const category of row.categories ?? []) {
+      genres.add(category);
+    }
+  }
+  return genres;
+}
 
 // Backs getMatchRecommendations: the other user's books, ranked by their own
 // score, excluding anything the viewer already has in their library or has
@@ -311,16 +355,30 @@ async function getRankedRecommendationCandidates(
     (viewerBookRows ?? []).map((book) => book.title.trim().toLowerCase()),
   );
 
-  const { data: candidateBooks } = await supabase
-    .from("books")
-    .select("id, title, authors, thumbnail_url")
-    .in("id", candidateIds)
-    .returns<RecommendationBookRow[]>();
+  const [{ data: candidateBooks }, alignedGenres] = await Promise.all([
+    supabase
+      .from("books")
+      .select(
+        "id, title, authors, thumbnail_url, categories, description, average_rating",
+      )
+      .in("id", candidateIds)
+      .returns<RecommendationBookRow[]>(),
+    getAlignedGenres(supabase, viewerScores, otherScores),
+  ]);
 
-  return (candidateBooks ?? [])
+  const sorted = (candidateBooks ?? [])
     .filter((book) => !viewerTitles.has(book.title.trim().toLowerCase()))
     .map((book) => ({ book, score: otherScores.get(book.id)! }))
     .sort((a, b) => b.score - a.score);
+
+  // Scope to genres you two actually agree on — but never let that filter
+  // empty the list outright (e.g. sparse/missing category data shouldn't
+  // silently zero out recommendations that would otherwise be fine).
+  if (alignedGenres.size === 0) return sorted;
+  const genreMatched = sorted.filter(({ book }) =>
+    (book.categories ?? []).some((category) => alignedGenres.has(category)),
+  );
+  return genreMatched.length > 0 ? genreMatched : sorted;
 }
 
 export type MatchRecommendation = {
@@ -329,6 +387,8 @@ export type MatchRecommendation = {
   authors: string[] | null;
   thumbnail: string | null;
   matchPercentage: number;
+  description: string | null;
+  averageRating: number | null;
 };
 
 // Only recommend books the other person rated highly enough to mean "they
@@ -392,5 +452,7 @@ export async function getMatchRecommendations(
       authors: book.authors,
       thumbnail: book.thumbnail_url,
       matchPercentage,
+      description: book.description,
+      averageRating: book.average_rating,
     }));
 }

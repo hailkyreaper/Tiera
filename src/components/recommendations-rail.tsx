@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getRecommendations } from "@/lib/db/recommendations";
+import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
 import { RecommendationRow } from "@/components/recommendation-row";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,10 +22,24 @@ export async function RecommendationsRail() {
 
   if (!user) return null;
 
-  const { recommendations } = await getRecommendations(
+  const { recommendations, viewerBooksRanked } = await getRecommendations(
     supabase,
     user.id,
     RAIL_LIMIT,
+  );
+
+  await recordRecommendationImpressions(
+    supabase,
+    recommendations.map((recommendation) => ({
+      viewerUserId: user.id,
+      sourceUserId: recommendation.sourceUserId,
+      bookId: recommendation.bookId,
+      source: "profile_rail",
+      matchPercentage: recommendation.matchPercentage,
+      sharedBookCount: recommendation.sharedBookCount,
+      viewerBooksRanked,
+      sourceBooksRanked: recommendation.sourceBooksRanked,
+    })),
   );
 
   return (
@@ -49,6 +64,7 @@ export async function RecommendationsRail() {
               key={recommendation.bookId}
               recommendation={recommendation}
               path="/profile"
+              source="profile_rail"
             />
           ))}
         </div>

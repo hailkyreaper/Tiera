@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  getBookScores,
   getComparisonSummary,
   getMatchRecommendations,
   MIN_PANEL_BOOKS,
   MIN_RECOMMENDATION_SHARED_BOOKS,
   MIN_RECOMMENDATION_MATCH_PERCENTAGE,
 } from "@/lib/db/taste-match";
+import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
 import { MatchedBookRow } from "@/components/matched-book-row";
 import { CompareStatsRow } from "@/components/compare-stats-row";
 import { DisagreementsRail } from "@/components/disagreements-rail";
@@ -86,6 +88,35 @@ export default async function CompareWithUserPage({
     match.sharedBookCount >= MIN_RECOMMENDATION_SHARED_BOOKS
       ? await getMatchRecommendations(supabase, me.id, them.id, match.percentage)
       : [];
+
+  if (matchRecommendations.length > 0) {
+    // getComparisonSummary already computes both people's book scores
+    // internally to build `match` — these two calls are a small redundant
+    // read (getBookScores itself, not the rest of the summary), traded for
+    // not having to plumb ranked-counts out of getComparisonSummary's
+    // return shape just for this analytics log.
+    const [myScores, theirScores] = await Promise.all([
+      getBookScores(supabase, me.id),
+      getBookScores(supabase, them.id),
+    ]);
+
+    await recordRecommendationImpressions(
+      supabase,
+      matchRecommendations.map((recommendation) => ({
+        viewerUserId: me.id,
+        sourceUserId: them.id,
+        bookId: recommendation.bookId,
+        source: "compare_detail",
+        matchPercentage: match.percentage!,
+        sharedBookCount: match.sharedBookCount,
+        viewerBooksRanked: myScores.size,
+        sourceBooksRanked: theirScores.size,
+        sharedFavoritesCount: bothLove.length,
+        sharedDislikesCount: sharedDislikes.length,
+        disagreementsCount: disagreeOn.length,
+      })),
+    );
+  }
 
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">

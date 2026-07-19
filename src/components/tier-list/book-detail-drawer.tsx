@@ -16,12 +16,19 @@ export type DrawerBook = {
 export function BookDetailDrawer({
   book,
   children,
+  onOpen,
 }: {
   book: DrawerBook;
   children: React.ReactNode;
+  // Analytics-agnostic on purpose — this component has no idea what
+  // recommendation_outcomes is. Callers that care (RecommendationRow) pass
+  // a bound server action; every other caller just omits this.
+  onOpen?: () => void;
 }) {
   return (
-    <Drawer.Root>
+    <Drawer.Root
+      onOpenChange={onOpen ? (open) => open && onOpen() : undefined}
+    >
       <Drawer.Trigger
         className="block h-full w-full cursor-pointer"
         aria-label={`View details for ${book.title}`}

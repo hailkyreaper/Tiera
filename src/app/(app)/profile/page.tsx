@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { ProfileTabs } from "@/components/profile-tabs";
-import { LibrarySection } from "@/components/library-section";
+import { LibraryTab } from "@/components/library-tab";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { Avatar } from "@/components/avatar";
 import { RecommendationsRail } from "@/components/recommendations-rail";
@@ -181,7 +181,10 @@ export default async function ProfilePage({
   const libraryBooksRaw =
     tab === "library" ? await getLibraryBooks(supabase, user.id) : [];
   const sort: LibrarySort =
-    rawSort === "title" || rawSort === "author" || rawSort === "rating"
+    rawSort === "title" ||
+    rawSort === "author" ||
+    rawSort === "rating" ||
+    rawSort === "custom"
       ? rawSort
       : "recent";
   const libraryBooks = sortLibraryBooks(libraryBooksRaw, sort);
@@ -393,7 +396,7 @@ export default async function ProfilePage({
                   </div>
                 </div>
               ) : (
-                <LibrarySection books={libraryBooks} currentSort={sort} />
+                <LibraryTab books={libraryBooks} currentSort={sort} />
               )}
             </>
           )}

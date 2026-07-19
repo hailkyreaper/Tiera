@@ -31,6 +31,7 @@ export function MatchRecommendationsRail({
             key={recommendation.bookId}
             recommendation={recommendation}
             path={path}
+            source="compare_detail"
           />
         ))}
       </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getRecommendations } from "@/lib/db/recommendations";
+import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
 import { RecommendationRow } from "@/components/recommendation-row";
 
 const DEFAULT_LIMIT = 5;
@@ -29,10 +30,21 @@ export default async function RecommendationsPage({
     redirect("/login");
   }
 
-  const { recommendations, usedThreshold } = await getRecommendations(
+  const { recommendations, usedThreshold, viewerBooksRanked } =
+    await getRecommendations(supabase, user.id, limit);
+
+  await recordRecommendationImpressions(
     supabase,
-    user.id,
-    limit,
+    recommendations.map((recommendation) => ({
+      viewerUserId: user.id,
+      sourceUserId: recommendation.sourceUserId,
+      bookId: recommendation.bookId,
+      source: "standalone",
+      matchPercentage: recommendation.matchPercentage,
+      sharedBookCount: recommendation.sharedBookCount,
+      viewerBooksRanked,
+      sourceBooksRanked: recommendation.sourceBooksRanked,
+    })),
   );
 
   return (
@@ -61,6 +73,7 @@ export default async function RecommendationsPage({
                 key={recommendation.bookId}
                 recommendation={recommendation}
                 path={`/recommendations?limit=${limit}`}
+                source="standalone"
               />
             ))}
           </div>

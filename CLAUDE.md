@@ -10,7 +10,11 @@ Top Matches work; Sprint 7 finished 2026-07-11 — CSV import was the real remai
 work, search polish had already landed incidentally in the Post-Sprint-6 round 3 
 bug-fix pass). Sprint 8 is CURRENT (started 2026-07-11, see Sprint Rule) — 
 Capacitor is explicitly out of scope this round (user's call), so it's PWA setup 
-+ responsive polish only.
++ responsive polish only. In practice, real feature work beyond that stated 
+scope also landed alongside it (in-app notifications, desktop discovery panels, 
+recommendation feedback tracking, a To Be Read shelf, Library custom ordering — 
+see the "Current sprint" section's undocumented-work catch-up for the full 
+list) rather than being deferred to a later sprint.
 
 ## Vision
 
@@ -1176,6 +1180,306 @@ needed to bypass RLS this way).
   minutes per list, so scripting repeated edits can't keep a list pinned at 
   the top of Recent. Real rate-limiting/bot-detection on the mutation 
   actions themselves is a deeper fix, not done — logged to Ideas Backlog.
+
+**This whole block below was previously undocumented** — built across a 
+session that ended before CLAUDE.md could be updated (same interrupted-
+session pattern as the AI photo import catch-up above); this is that 
+catch-up, in commit order.
+
+**Desktop discovery panels + in-app notifications + Compare match rework** 
+✅ done (design2/ mockups: `01_Explore_Desktop.png`, `02_Search_Desktop.png`, 
+`03_Top_Matches_Desktop.png`, `04_Compare_Detail_Desktop.png`):
+- Desktop-only discovery rails added to Explore/Search/Compare: 
+  `TrendingThisWeekRail`, `TrendingSearchesRail`, `PopularGenresRail` (all 
+  new, backed by new `src/lib/db/discovery.ts` and `src/lib/db/search-
+  queries.ts`), a `SearchFiltersPanel` (Genre/Rating/Published filters on 
+  desktop Search), `CompareSortSelect`, and on Compare's detail page a 
+  right-rail `DisagreementsRail` + `MatchRecommendationsRail` (both new, 
+  replacing the inline `DisagreementsTable`, now deleted). `top-bar.tsx` 
+  reworked to host a new `NotificationsBell`/`NotificationsPopover`.
+- New in-app notifications (follow/comment/like) — new `notifications` 
+  migration + `src/lib/db/notifications.ts`, `notifications/actions.ts`, 
+  backed by DB triggers on the existing `follows`/`list_likes`/
+  `list_comments` tables, surfaced via the bell dropdown on desktop and a 
+  new `MobileTopBar` component on mobile.
+- Real bugs found via live testing during this pass: Goodreads-imported 
+  books were missing `categories`/`published_date`, silently breaking 
+  Search's new filters (fixed in `lists/[id]/import/goodreads/actions.ts`); 
+  "Trending This Week" was reading a table its own RLS policy made 
+  invisible outside the viewer's own rows; abandoned draft lists (created 
+  the instant "Create List" is tapped, before Save) now get swept after 24h 
+  if never touched.
+- **Compare's match/recommendation logic reworked end to end** 
+  (`src/lib/db/taste-match.ts`):
+  - `getMatchRecommendations`'s badge used to be `score / TIER_SCORES.S` 
+    (how highly the *other person* personally rated one book) — now takes 
+    the real, already-computed pair `matchPercentage` instead, so every 
+    recommendation from a given person shows the actual match %, not an 
+    unrelated per-book number.
+  - Every summary panel and recommendation now requires an actual computed 
+    match (3+ shared books) rather than running on "some overlap" — 
+    previously a 1-shared-book pair could show a confident "Top Shared 
+    Genre" tile and a populated disagreements panel right next to a 
+    headline saying "not enough shared books yet."
+  - `computeMatch` now penalizes real disagreements (2+ tier gap) 
+    proportionally to how much of the shared evidence they represent, on 
+    top of the plain mean-agreement score — so "18 books agreed, 2 
+    disagreed" now scores meaningfully higher than "2 agreed, 2 
+    disagreed," which a flat average couldn't tell apart.
+  - Top Matches ranking now weighs shared-book volume, not just raw 
+    percentage.
+  - New `MIN_PANEL_BOOKS` (2) gates whether Both Love/Shared Dislikes 
+    render as populated vs. "Nothing here yet."
+
+**Create List tier board fixed: empty-row collapse, column count, desktop 
+text sizing** ✅ done:
+- The interactive board's empty-tier "Drop books here" placeholder used 
+  `col-span-full`, which CSS Grid's auto-placement couldn't fit alongside 
+  the tier badge already occupying column 1 — it got pushed to a second 
+  row, collapsing row 1 down to just the badge's own text height. Fixed in 
+  `tier-row.tsx`.
+- Column count brought back in line with the read-only preview 
+  (`TierRowBar`) it's supposed to match: 10 columns on desktop instead of 
+  6 (which made the editable board look noticeably more "zoomed in" than 
+  everywhere else a list is shown). Mobile stays at 6 via a new 
+  `useIsDesktop` hook (`tier-list/use-is-desktop.ts`) — needed because the 
+  grid's column count feeds a dynamically-computed inline style that can't 
+  itself respond to a Tailwind breakpoint.
+- Added `lg:` text-size bumps across the page (headers, labels, button 
+  text) so desktop doesn't render with the same small mobile-sized type in 
+  a much larger layout.
+
+**Fixed Search Books silently adding to the wrong place; batched 
+getTopMatches queries** ✅ done:
+- `TopBar`'s global search box was still showing on `/lists/[id]/*` pages, 
+  duplicating the list page's own "add to this list" search directly 
+  above it. Its Add button bound to `addBookToLibrary` (no `tierListId`), 
+  so tapping it looked identical to the list's own Add but silently added 
+  the book to the library instead of the list. Fixed by adding `/lists` to 
+  `NO_SEARCH_PREFIXES` in `top-bar.tsx`.
+- `getTopMatches` (`src/lib/db/top-matches.ts`) now batch-fetches every 
+  candidate's `tier_lists`/`tier_list_items` in 2 queries instead of up to 
+  6 sequential round-trips per candidate.
+
+**Fixed site-wide mobile horizontal overflow; Vercel build fix** ✅ done:
+- `AppLayout`'s content div (sibling of the desktop `Sidebar`) was missing 
+  `min-w-0` — its default `min-width: auto` refused to shrink below its 
+  deepest content's natural width once the sidebar was hidden on mobile, 
+  so every page rendered wider than the viewport and needed zooming out to 
+  reach anything off-screen. Fixed in `(app)/layout.tsx`.
+- Same class of bug, smaller scope: Compare's sort-select labels shortened 
+  and its header stacked on mobile (`compare-sort-select.tsx`, 
+  `compare/page.tsx`).
+- Removed the mobile notification bell bar added in the previous commit, 
+  per request (desktop's bell is untouched) — `mobile-top-bar.tsx`'s bell 
+  usage deleted.
+- Fixed the Vercel build failure from the previous push: `top-matches.ts`'s 
+  `topFavorites` was declared with `let` but never reassigned, tripping 
+  `prefer-const` as a lint error under Next's build-time ESLint pass.
+
+**Restored Top Favorites row to Compare's Top Matches cards on mobile** 
+✅ done — `top-match-card.tsx` had favorites hidden below `sm` (only shown 
+in the desktop horizontal layout), which left mobile cards clumped into 
+one tight row. Mobile now shows Top Favorites as its own full-width row 
+below the name/match line, matching `comupdate.png`'s reference layout; 
+desktop's existing side-by-side row is unchanged.
+
+**Test account data expanded** — new `scripts/seed-test-profile-
+details.mjs` (same convention as the existing `seed-test-profiles.mjs`/
+`pad-test-profiles.mjs`, kept as a readable record of seeded test data) 
+fills in display name/bio/avatar/location for all test accounts, so 
+Compare/Explore show realistic-looking data instead of bare `@usernames` 
+while reviewing the UI.
+
+**Compare: recommendations now show on mobile; match badge repositioned** 
+✅ done:
+- `DisagreementsRail`/`MatchRecommendationsRail` previously only rendered 
+  inside a desktop-only (`xl:flex`) right-rail aside, so mobile never saw 
+  them at all — both now also render in the main column on 
+  `compare/[username]/page.tsx`, hidden at `xl` where the rail takes over.
+- Top Matches list: match badge moved to its own line below `@username` 
+  (was inline next to the name), matching `comupdate.png` 
+  (`top-match-card.tsx`).
+- Compare detail page's You/percentage/them header row used 
+  `justify-center` on 3 unequal-width children, which only centers the 
+  group, not each item — same bug already fixed on Profile's 3-stat row. 
+  Switched to equal `flex-1` thirds so the percentage actually sits 
+  centered.
+
+**Recommendation feedback tracking, To Be Read shelf, and Library custom 
+ordering** ✅ done:
+- **Genre-scoped recommendations** (`taste-match.ts`, `recommendations.ts`): 
+  recommendations used to be the other person's single highest-rated book 
+  regardless of topic, which could surface an unrelated genre riding on a 
+  match built mostly on a different shared genre. New `getAlignedGenres` 
+  scopes candidates to genres both people actually agree on (based on 
+  similarly-scored shared books), falling back to unfiltered when category 
+  data is too sparse to filter on.
+- **Recommendation outcome tracking** (migrations `0028`–`0029`, 
+  `src/lib/db/recommendation-outcomes.ts`, new admin-only `/admin/
+  recommendation-outcomes` report): logs every recommendation impression 
+  (match %, shared-book count, ranked counts) across all 3 surfaces 
+  (Compare detail, standalone Recommendations, Profile rail), tracks 
+  clicked/opened-detail-page, and auto-fills the eventual outcome (final 
+  tier, when) via a DB trigger on `tier_list_items` whenever the viewer 
+  ranks a recommended book — works regardless of which app path did the 
+  ranking. The bucketed admin report shows match %/shared-book-count 
+  against real read-rate and S/A-rate outcomes, meant to ground future 
+  matching-algorithm changes in actual data instead of assumptions.
+- Book detail view tracking: `RecommendationRow` now opens 
+  `BookDetailDrawer` (reused from the tier-list detail view) instead of 
+  just an Add button, giving a real funnel stage between "shown" and 
+  "added."
+- **To Be Read shelf** (migration `0029`, new `library-tab.tsx`): clicking 
+  "Add" on a recommendation now sets `user_books.want_to_read` instead of 
+  adding straight to the read library, surfaced as a new TBR section on 
+  Profile's Library tab. Clicking a TBR cover (or dragging it into the 
+  Library grid) asks for confirmation before moving it to read.
+- **Library custom ordering** (migration `0030`, adds `user_books.
+  position`): new "Custom Order" sort option with real drag-to-reorder, 
+  same `position`-column pattern `tier_list_items` already used. TBR and 
+  Library are both real dnd-kit sortable containers sharing one 
+  `DndContext`, so dragging a TBR cover into Library live-shifts the other 
+  covers to preview the drop position (dnd-kit's "multiple containers" 
+  pattern), with a `DragOverlay` so the dragged cover renders above 
+  everything instead of behind it.
+- `LibrarySection` (`src/components/library-section.tsx`, documented 
+  earlier in this file under "Library View screen") was replaced outright 
+  by a new, larger `LibraryTab` (`src/components/library-tab.tsx`) to hold 
+  the TBR shelf, custom ordering, and all the sort/select logic together — 
+  any earlier reference in this file to `LibrarySection` now means 
+  `LibraryTab`.
+
+**Removed the desktop top bar search box entirely** ✅ done — it was still 
+showing on `/search` (never added to `NO_SEARCH_PREFIXES`), duplicating 
+that page's own dedicated search input. Removed the box outright 
+(`top-bar.tsx`) rather than extending the exclusion list further — 
+`/search` is already the one place for this, and the box's presence 
+anywhere else only risked the same add-to-wrong-place confusion already 
+fixed once on `/lists` (see above).
+
+**Backfill and new-book description fetch fixed for books with a known 
+Open Library work key** ✅ done — two related follow-ups to "Book 
+descriptions were all empty" above:
+- `runBackfill` (`/admin/backfill-categories/actions.ts`) always 
+  re-searched Open Library by title+author, even for books whose exact 
+  work id was already stored in `google_volume_id` (e.g. 
+  `ol:OL25870671W`). A fresh text search can fail to surface the right 
+  work for short/common titles — confirmed live: "It," "Circe," 
+  "Piranesi," and 7 others all had a known work key on file but never got 
+  a description via the search-based lookup, despite Open Library clearly 
+  having real description text once fetched directly by key. New 
+  `extractOpenLibraryWorkKey`/`fetchOpenLibraryDataByWorkKey` 
+  (`open-library.ts`) fetch that work directly (one exact request, no 
+  relevance ranking) when a work id is already known, falling back to the 
+  existing search-based path otherwise.
+- Same root cause on the create path: `findOrCreateBook` (`src/lib/db/
+  books.ts`) enriched every new book via an independent title+author 
+  search even though `fields.googleVolumeId` already IS the exact search 
+  result the user picked. Open Library carries multiple duplicate work 
+  records for many popular titles (confirmed live: several "Gone Girl" 
+  results, only the first richly populated) — the independent re-search 
+  had no way to know which one the user meant. Now uses the same 
+  fetch-by-known-key shortcut, which should stop new sparse-description 
+  duplicates from being created going forward.
+
+**Deduped search results by real description check; added book detail 
+view to Library tab** ✅ done:
+- Open Library carries multiple duplicate work records for many popular 
+  books (confirmed live: a "Gone Girl" search returning both a 
+  fully-populated record and a bare 2022 stub with no description — the 
+  stub still carried its own `ratings_average`, so a cheap ratings/cover- 
+  based proxy for "which one is real" was actively wrong here). New 
+  `dedupeByTitleAuthor` (`open-library.ts`) instead checks each 
+  duplicate's actual description directly, but only for genuine 
+  title+author collisions (rare) to keep the cost bounded. Applied at 
+  `searchBooks`' final merge (`books.ts`) so it catches local-vs-live 
+  duplicates too. Verified live: the "Gone Girl" search now shows one 
+  entry, with genuinely different editions (Japanese translation, an 
+  omnibus, a study guide) still shown separately as they should be.
+- Library tab covers (and TBR) previously had no way to view a book's 
+  synopsis — only Search, Recommendations, and other users' lists did. 
+  Wired in the same `BookDetailDrawer`, gated so it doesn't interfere with 
+  Select mode or Custom Order dragging (`library-tab.tsx`).
+
+**Duplicate book catalog rows — prevention added; round 2 and 3 cleanup** 
+✅ done and run — follow-ups to "Duplicate book catalog rows merged" 
+(migration `0020`) above:
+- **Round 2** (migration `0031_delete_orphaned_duplicate_books.sql`): 
+  confirmed 7 real orphaned duplicates live (Red Rising saga books added 
+  once via Google Books and again via this session's own test-account 
+  seeding scripts under a separate Open Library work id, plus a sparse 
+  "Gone Girl" duplicate from ad-hoc testing) — every one had zero real 
+  references, so none were splitting anyone's match/shared-book 
+  calculations, but they were dead catalog clutter. Migration deletes the 
+  7 confirmed-orphaned rows (verified zero references in both 
+  `user_books` and `tier_list_items` for each before writing it). 
+  `findOrCreateBook` (`src/lib/db/books.ts`) now also checks a normalized 
+  title+first-author match before creating a new row, closing the gap 
+  going forward — this also covers Goodreads/AI-photo import, which call 
+  `findOrCreateBook` directly and never went through the search-results 
+  dedup fix above.
+- **Round 3** (migration `0032_merge_duplicate_books_round2.sql`): found 
+  while auditing the catalog for anything similar — `0020`'s normalized- 
+  title+author query only caught exact string matches, missing pairs that 
+  differ by author-name spacing ("J.K. Rowling" vs "J. K. Rowling" — 
+  Half-Blood Prince, Sorcerer's Stone) or a title subtitle/series suffix 
+  (Mistborn's 3 variants, A Court of Mist and Fury, The Sword of Kaigen). 
+  Unlike round 1 (all orphaned), every row on both sides of these 5 pairs 
+  had real `user_books`/`tier_list_items` references from different 
+  accounts — these were actively splitting shared-book counts between 
+  people who'd ranked the "same" book under different catalog rows. 
+  Written as an explicit mapping (not a fuzzy query) since only 5 pairs, 
+  already verified by hand; migration repoints references to one 
+  canonical row per title (same description-then-thumbnail-then-oldest 
+  pick as `0020`) rather than deleting outright. Verified live: the one 
+  tier list that had two Mistborn variants placed in it now correctly has 
+  exactly one entry, no constraint violations.
+
+**Added book detail view to Compare's Both Love/Dislikes/Disagreements 
+rows** ✅ done — found while auditing for consistency after the Library 
+tab fix: `SharedBook` (backing all three of Compare's book-row panels, 
+`taste-match.ts`) didn't even fetch `description`/`average_rating`, so 
+the data wasn't available at all, on top of missing the tap-to-view 
+wiring. Extended `getComparisonSummary`'s query for both fields and wired 
+`BookDetailDrawer` into `MatchedBookRow` (Top Books You Both Love, Shared 
+Dislikes) and `DisagreementsRail` (Biggest Differences) — the last 
+remaining book-rendering spots inconsistent with Search, Recommendations, 
+and Library, which all already supported this.
+
+**Unified sort/filter dropdowns across Compare, Search, and Library** 
+✅ done — found while auditing for UI inconsistencies: the same "pick one 
+of these options" interaction used two different patterns depending on 
+the page — Compare's sort and Search's Genre/Rating/Published filters 
+were native `<select>` elements, while Library's Sort was a pill-button + 
+Base UI Menu with a checkmark on the active option. User's call: 
+standardize on Library's look everywhere. New shared `DropdownSelect` 
+(`dropdown-select.tsx`) extracts that pattern into one reusable component, 
+showing the current selection as the trigger label (unlike Library's 
+original, which always showed the fixed word "Sort") — a pure visual 
+upgrade, not a loss of information. Applied to `CompareSortSelect`, 
+`SearchFiltersPanel`'s three filters, and Library's own Sort control 
+(removing its now-duplicated inline Menu implementation).
+
+**Styled Library's delete confirmation as an in-app dialog** ✅ done — 
+replaced `window.confirm()` with a themed `AlertDialog`-based 
+`ConfirmDialog` (new `confirm-dialog.tsx`) matching the app's dropdown 
+styling, instead of a jarring native browser prompt. Applied in 
+`library-tab.tsx`.
+
+**Fixed empty-state text-size drift and awkward Explore copy** ✅ done — 
+Explore, Search (books/people), and Recommendations empty states were 
+missing `text-sm`, unlike every other empty state in the app. Also 
+reworded Explore's "be the first to make one public" line, which read 
+awkwardly.
+
+**Unified empty-state wording onto one "No X yet." template** ✅ done — 
+Library, Profile Lists, Profile Following, and Compare's Both Love/Shared 
+Dislikes panels each used different phrasing ("X is empty," "You don't 
+have any X yet," a generic "Nothing here yet." for two different panels). 
+Converged on one consistent, impersonal template, and made Compare's two 
+panels say what's actually missing instead of both showing the same 
+generic line.
 
 Do not implement features from future sprints until explicitly instructed.
 

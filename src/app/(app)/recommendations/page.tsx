@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getRecommendations } from "@/lib/db/recommendations";
 import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
 import { RecommendationRow } from "@/components/recommendation-row";
+import { buttonVariants } from "@/components/ui/button";
 
 const DEFAULT_LIMIT = 5;
 const PAGE_SIZE = 5;
@@ -81,7 +82,7 @@ export default async function RecommendationsPage({
           {recommendations.length === limit && (
             <Link
               href={`/recommendations?limit=${limit + PAGE_SIZE}`}
-              className="rounded-md bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground hover:bg-primary/80"
+              className={buttonVariants({ className: "w-full" })}
             >
               View More Recommendations
             </Link>

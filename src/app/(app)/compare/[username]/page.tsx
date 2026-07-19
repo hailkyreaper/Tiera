@@ -249,10 +249,11 @@ export default async function CompareWithUserPage({
              * already used elsewhere in the app. */}
             {(disagreeOn.length > 0 || matchRecommendations.length > 0) && (
               <div className="flex flex-col gap-4 xl:hidden">
-                <DisagreementsRail books={disagreeOn.slice(0, 5)} />
+                <DisagreementsRail books={disagreeOn.slice(0, 5)} bare />
                 <MatchRecommendationsRail
                   recommendations={matchRecommendations}
                   path={`/compare/${username}`}
+                  bare
                 />
               </div>
             )}

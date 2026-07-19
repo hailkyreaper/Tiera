@@ -2,6 +2,7 @@ import { BookCover } from "@/components/book-cover";
 import { BookDetailDrawer } from "@/components/tier-list/book-detail-drawer";
 import { scoreToTier, TIER_SCORES } from "@/lib/db/taste-match";
 import type { SharedBook } from "@/lib/db/taste-match";
+import { cn } from "@/lib/utils";
 
 // Same semantic (not tier-spectrum) coloring reasoning as DisagreementsTable
 // — the point is "who liked it, who didn't."
@@ -15,11 +16,30 @@ function sentimentClass(score: number): string {
 // reuses the same disagreeOn data/logic from getComparisonSummary, just a
 // narrower stacked layout ("You rated X" / "They rated Y" on their own
 // lines) instead of a two-column table, to fit a w-96 rail.
-export function DisagreementsRail({ books }: { books: SharedBook[] }) {
+//
+// `bare` drops the card box/padding — used for the mobile inline instance
+// on the Compare detail page, matching how Top Books You Both Love/Shared
+// Dislikes render there (plain heading + rows, no card). The desktop
+// right-rail instance keeps the card (default), matching every other
+// desktop rail panel (Explore's TrendingThisWeekRail/TopMatchesRail, this
+// component's own aside placement) — a floating column needs its own visual
+// boundary in a way a section already inside the page's main column doesn't.
+export function DisagreementsRail({
+  books,
+  bare = false,
+}: {
+  books: SharedBook[];
+  bare?: boolean;
+}) {
   if (books.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-sm bg-card p-6">
+    <div
+      className={cn(
+        "flex flex-col gap-4",
+        !bare && "rounded-sm bg-card p-6",
+      )}
+    >
       <h2 className="text-base font-semibold text-foreground">
         Biggest Differences
       </h2>

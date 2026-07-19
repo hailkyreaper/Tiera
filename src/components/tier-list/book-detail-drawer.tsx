@@ -30,7 +30,7 @@ export function BookDetailDrawer({
       onOpenChange={onOpen ? (open) => open && onOpen() : undefined}
     >
       <Drawer.Trigger
-        className="block h-full w-full cursor-pointer"
+        className="block h-full w-full min-w-0 cursor-pointer"
         aria-label={`View details for ${book.title}`}
       >
         {children}

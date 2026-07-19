@@ -32,7 +32,7 @@ export function CommentsSection({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase">
           {comments.length} Comments
         </h2>
         <LikeButton

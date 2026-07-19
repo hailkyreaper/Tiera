@@ -109,13 +109,13 @@ export function EditListDetailsForm({
             <button
               type="button"
               onClick={() => setStep("edit")}
-              className="text-sm text-muted-foreground"
+              className="text-sm text-muted-foreground lg:text-base"
             >
               Back
             </button>
           </div>
           <div className="flex flex-1 items-center justify-center">
-            <h1 className="text-base font-semibold text-foreground">
+            <h1 className="text-base font-semibold text-foreground lg:text-xl">
               Review &amp; Share
             </h1>
           </div>
@@ -123,7 +123,7 @@ export function EditListDetailsForm({
         </div>
 
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase lg:text-base">
             Final list preview
           </h2>
           {/* Captured for the share-image export below. */}
@@ -132,7 +132,7 @@ export function EditListDetailsForm({
             className="flex flex-col gap-3 rounded-sm bg-card p-4"
           >
             {includeTitleInExport && (
-              <h3 className="font-semibold text-foreground">{titleValue}</h3>
+              <h3 className="font-semibold text-foreground lg:text-lg">{titleValue}</h3>
             )}
             <div className="flex flex-col divide-y divide-white/10 overflow-hidden">
               {RANKED_TIERS.map((tier) => (
@@ -152,7 +152,7 @@ export function EditListDetailsForm({
         </div>
 
         <label className="flex items-center justify-between gap-3 rounded-sm bg-card p-4">
-          <span className="text-sm text-foreground">
+          <span className="text-sm text-foreground lg:text-base">
             Include title in exported image
           </span>
           <input
@@ -219,13 +219,13 @@ export function EditListDetailsForm({
               type="submit"
               formAction={cancelListEdit.bind(null, tierListId)}
               formNoValidate
-              className="text-sm text-muted-foreground"
+              className="text-sm text-muted-foreground lg:text-base"
             >
               Cancel
             </button>
           </div>
           <div className="flex flex-1 items-center justify-center">
-            <h1 className="text-base font-semibold text-foreground">
+            <h1 className="text-base font-semibold text-foreground lg:text-xl">
               {isNew ? "Create List" : "Edit List"}
             </h1>
           </div>
@@ -234,7 +234,7 @@ export function EditListDetailsForm({
               type="button"
               disabled={publishing}
               onClick={handlePublish}
-              className="text-sm font-semibold text-primary"
+              className="text-sm font-semibold text-primary lg:text-base"
             >
               {publishing ? "..." : "Publish"}
             </button>
@@ -250,7 +250,7 @@ export function EditListDetailsForm({
           </div>
 
           <div className="flex items-center justify-between border-t border-border pt-1">
-            <label htmlFor="isPublic" className="text-sm text-foreground">
+            <label htmlFor="isPublic" className="text-sm text-foreground lg:text-base">
               Visibility
             </label>
             <select
@@ -260,7 +260,7 @@ export function EditListDetailsForm({
               onChange={(event) =>
                 setIsPublicValue(event.target.value === "true")
               }
-              className=" border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none"
+              className=" border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none lg:text-base"
             >
               <option value="true">Public</option>
               <option value="false">Private</option>

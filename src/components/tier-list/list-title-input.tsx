@@ -19,10 +19,10 @@ export function ListTitleInput({
   return (
     <div className="flex flex-1 flex-col gap-1">
       <div className="flex items-center justify-between">
-        <label htmlFor="title" className="text-xs text-muted-foreground">
+        <label htmlFor="title" className="text-xs text-muted-foreground lg:text-sm">
           List Title
         </label>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground lg:text-sm">
           {value.length}/{MAX_LENGTH}
         </span>
       </div>
@@ -34,7 +34,7 @@ export function ListTitleInput({
         maxLength={MAX_LENGTH}
         required
         placeholder="Insert title"
-        className="border-none bg-transparent p-0 text-base font-semibold focus-visible:ring-0 dark:bg-transparent"
+        className="border-none bg-transparent p-0 text-base font-semibold focus-visible:ring-0 dark:bg-transparent lg:text-lg"
       />
     </div>
   );

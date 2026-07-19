@@ -4,13 +4,13 @@ import { saveAndGoToLibrary, saveAndGoToSearch } from "@/app/(app)/lists/actions
 import { ImportDrawer } from "./import-drawer";
 
 const BAR_ITEM_CLASS =
-  "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-foreground hover:bg-muted";
+  "flex flex-1 items-center justify-center gap-1.5 py-3 text-xs font-medium text-foreground hover:bg-muted lg:text-sm";
 
 // Left-aligned full-width row, meant to divide-y alongside Unranked Books
 // in the same sidebar container (design2's Create List sidebar) rather
 // than sit in its own separate horizontal bar.
 const LIST_ITEM_CLASS =
-  "flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted";
+  "flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted lg:text-base";
 
 export function ListActionsBar({
   tierListId,

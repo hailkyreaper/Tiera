@@ -207,7 +207,7 @@ export function TierBoard({
       </div>
 
       <div className="flex flex-col gap-2 overflow-hidden rounded-sm bg-card p-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase lg:text-base">
           Unranked Books ({columns.unranked.length})
         </h2>
         <TierRow tier="unranked" cards={columns.unranked} />

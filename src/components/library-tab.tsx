@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpDown, Check } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
 import { BookDetailDrawer } from "@/components/tier-list/book-detail-drawer";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DropdownSelect } from "@/components/dropdown-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,6 +161,7 @@ export function LibraryTab({
   const [isPending, startTransition] = useTransition();
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const allBooksById = new Map(books.map((book) => [book.bookId, book]));
   const bookIdsKey = books
@@ -231,7 +233,7 @@ export function LibraryTab({
     setSelectedIds(new Set());
   }
 
-  function handleDelete() {
+  function handleDeleteConfirmed() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     startTransition(async () => {
@@ -349,115 +351,126 @@ export function LibraryTab({
   const activeBook = activeId ? allBooksById.get(activeId) : undefined;
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetection}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      {(tbrBooks.length > 0 || dragStartTbr) && (
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        {(tbrBooks.length > 0 || dragStartTbr) && (
+          <div className="flex w-full flex-col gap-3">
+            <h2 className="text-xs font-semibold text-left text-muted-foreground uppercase">
+              To Be Read ({tbrBooks.length})
+            </h2>
+            <SortableContext items={tbrOrder} strategy={rectSortingStrategy}>
+              <DroppableZone
+                id={TBR_CONTAINER_ID}
+                className="grid min-h-[1px] grid-cols-5 gap-3 lg:grid-cols-10"
+              >
+                {tbrBooks.map((book) => (
+                  <SortableCover
+                    key={book.bookId}
+                    book={book}
+                    selectMode={false}
+                    isSelected={false}
+                    sortable
+                    onToggleSelected={() => {}}
+                  />
+                ))}
+              </DroppableZone>
+            </SortableContext>
+          </div>
+        )}
+
         <div className="flex w-full flex-col gap-3">
-          <h2 className="text-xs font-semibold text-left text-muted-foreground uppercase">
-            To Be Read ({tbrBooks.length})
-          </h2>
-          <SortableContext items={tbrOrder} strategy={rectSortingStrategy}>
-            <DroppableZone
-              id={TBR_CONTAINER_ID}
-              className="grid min-h-[1px] grid-cols-5 gap-3 lg:grid-cols-10"
-            >
-              {tbrBooks.map((book) => (
-                <SortableCover
-                  key={book.bookId}
-                  book={book}
-                  selectMode={false}
-                  isSelected={false}
-                  sortable
-                  onToggleSelected={() => {}}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase">
+              Library
+            </h2>
+
+            {selectMode ? (
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={exitSelectMode}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={selectedIds.size === 0 || isPending}
+                  onClick={() => setDeleteConfirmOpen(true)}
+                >
+                  Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <DropdownSelect
+                  value={currentSort}
+                  options={SORT_OPTIONS}
+                  onChange={(value) => navigateSort(value as LibrarySort)}
+                  icon={ArrowUpDown}
                 />
-              ))}
-            </DroppableZone>
-          </SortableContext>
-        </div>
-      )}
 
-      <div className="flex w-full flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase">
-            Library
-          </h2>
+                <button
+                  type="button"
+                  onClick={() => setSelectMode(true)}
+                  className={triggerClass}
+                >
+                  Select
+                </button>
+              </div>
+            )}
+          </div>
 
-          {selectMode ? (
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={exitSelectMode}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={selectedIds.size === 0 || isPending}
-                onClick={handleDelete}
-              >
-                Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
-              </Button>
-            </div>
+          {orderedLibraryBooks.length === 0 && !dragStartTbr ? (
+            <p className="text-sm text-muted-foreground">
+              Your library is empty.
+            </p>
           ) : (
-            <div className="flex items-center gap-2">
-              <DropdownSelect
-                value={currentSort}
-                options={SORT_OPTIONS}
-                onChange={(value) => navigateSort(value as LibrarySort)}
-                icon={ArrowUpDown}
-              />
-
-              <button
-                type="button"
-                onClick={() => setSelectMode(true)}
-                className={triggerClass}
+            <SortableContext items={libraryOrder} strategy={rectSortingStrategy}>
+              <DroppableZone
+                id={LIBRARY_CONTAINER_ID}
+                className="grid min-h-[1px] grid-cols-5 gap-2 lg:grid-cols-10"
               >
-                Select
-              </button>
-            </div>
+                {orderedLibraryBooks.map((book) => (
+                  <SortableCover
+                    key={book.bookId}
+                    book={book}
+                    selectMode={selectMode}
+                    isSelected={selectedIds.has(book.bookId)}
+                    sortable={isCustomSort && !selectMode}
+                    onToggleSelected={toggleSelected}
+                  />
+                ))}
+              </DroppableZone>
+            </SortableContext>
           )}
         </div>
 
-        {orderedLibraryBooks.length === 0 && !dragStartTbr ? (
-          <p className="text-sm text-muted-foreground">
-            Your library is empty.
-          </p>
-        ) : (
-          <SortableContext items={libraryOrder} strategy={rectSortingStrategy}>
-            <DroppableZone
-              id={LIBRARY_CONTAINER_ID}
-              className="grid min-h-[1px] grid-cols-5 gap-2 lg:grid-cols-10"
-            >
-              {orderedLibraryBooks.map((book) => (
-                <SortableCover
-                  key={book.bookId}
-                  book={book}
-                  selectMode={selectMode}
-                  isSelected={selectedIds.has(book.bookId)}
-                  sortable={isCustomSort && !selectMode}
-                  onToggleSelected={toggleSelected}
-                />
-              ))}
-            </DroppableZone>
-          </SortableContext>
-        )}
-      </div>
+        <DragOverlay>
+          {activeBook ? (
+            <div className="w-24 cursor-grabbing">
+              <BookCover
+                src={activeBook.thumbnail}
+                alt={activeBook.title}
+                size={100}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
-      <DragOverlay>
-        {activeBook ? (
-          <div className="w-24 cursor-grabbing">
-            <BookCover
-              src={activeBook.thumbnail}
-              alt={activeBook.title}
-              size={100}
-            />
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Remove from library?"
+        description={`Remove ${selectedIds.size > 1 ? "these books" : "this book"} from your library? This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={handleDeleteConfirmed}
+      />
+    </>
   );
 }

@@ -1,6 +1,11 @@
 import type { createClient } from "@/lib/supabase/server";
 import { byPopularity, normalizeCategory, type GoogleBookVolume } from "@/lib/google-books";
-import { getOpenLibraryData, searchOpenLibraryBooks } from "@/lib/open-library";
+import {
+  extractOpenLibraryWorkKey,
+  fetchOpenLibraryDataByWorkKey,
+  getOpenLibraryData,
+  searchOpenLibraryBooks,
+} from "@/lib/open-library";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -69,10 +74,22 @@ export async function findOrCreateBook(
     ? [...new Set(fields.categories.split("|").map(normalizeCategory))]
     : [];
 
+  // fields.googleVolumeId is the *exact* result the user picked from the
+  // search list — when it's an Open Library work id, fetch that specific
+  // work directly instead of an independent title+author search, which can
+  // resolve to a different (often sparser) record for the same real book.
+  // Open Library carries multiple duplicate work entries for many popular
+  // titles (confirmed live: several "Gone Girl" results, only the first
+  // richly populated) — a fresh search has no way to know which one the
+  // user actually meant, but the id they clicked on already tells us
+  // exactly.
   const firstAuthor = fields.authors ? fields.authors.split(", ")[0] : undefined;
-  const openLibrary = await getOpenLibraryData(fields.title, firstAuthor, {
-    includeDescription: !fields.description,
-  });
+  const workKey = extractOpenLibraryWorkKey(fields.googleVolumeId);
+  const openLibrary = workKey
+    ? await fetchOpenLibraryDataByWorkKey(workKey)
+    : await getOpenLibraryData(fields.title, firstAuthor, {
+        includeDescription: !fields.description,
+      });
   const categories =
     openLibrary.genres.length > 0 ? openLibrary.genres : googleCategories;
 

@@ -8,6 +8,7 @@ export type LibraryBook = {
   authors: string[];
   thumbnail: string | null;
   averageRating: number | null;
+  description: string | null;
   addedAt: string;
   wantToRead: boolean;
   position: number;
@@ -25,6 +26,7 @@ type UserBookRow = {
     authors: string[] | null;
     thumbnail_url: string | null;
     average_rating: number | null;
+    description: string | null;
   };
 };
 
@@ -35,7 +37,7 @@ export async function getLibraryBooks(
   const { data } = await supabase
     .from("user_books")
     .select(
-      "created_at, want_to_read, position, books(id, title, authors, thumbnail_url, average_rating)",
+      "created_at, want_to_read, position, books(id, title, authors, thumbnail_url, average_rating, description)",
     )
     .eq("user_id", userId)
     .returns<UserBookRow[]>();
@@ -46,6 +48,7 @@ export async function getLibraryBooks(
     authors: row.books.authors ?? [],
     thumbnail: row.books.thumbnail_url,
     averageRating: row.books.average_rating,
+    description: row.books.description,
     addedAt: row.created_at,
     wantToRead: row.want_to_read,
     position: row.position,

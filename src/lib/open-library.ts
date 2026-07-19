@@ -163,6 +163,83 @@ export async function searchOpenLibraryBooks(
   return (data.docs ?? []).map(openLibraryDocToVolume);
 }
 
+function dedupeKey(book: GoogleBookVolume): string {
+  return `${book.volumeInfo.title?.trim().toLowerCase() ?? ""}|${book.volumeInfo.authors?.[0]?.trim().toLowerCase() ?? ""}`;
+}
+
+// A cheap proxy (ratings/cover/page-count) turned out to be actively
+// unreliable here: confirmed live, Open Library's sparse "Gone Girl" stub
+// (created 2022, never touched since except a metadata bump, genuinely no
+// description field on the work record at all) still carries its own
+// ratings_average in the *search* doc, so it looked richer than the real,
+// fully-populated record by that heuristic alone. Only an actual
+// description check is trustworthy — but that means a real per-candidate
+// fetch, so this only runs it for genuine title+author collisions (rare),
+// never on every result.
+function isRicherFallback(a: GoogleBookVolume, b: GoogleBookVolume): boolean {
+  const aRatings = a.volumeInfo.ratingsCount ?? 0;
+  const bRatings = b.volumeInfo.ratingsCount ?? 0;
+  if (aRatings !== bRatings) return aRatings > bRatings;
+
+  const aCover = Boolean(a.volumeInfo.imageLinks?.thumbnail);
+  const bCover = Boolean(b.volumeInfo.imageLinks?.thumbnail);
+  if (aCover !== bCover) return aCover;
+
+  return (a.volumeInfo.pageCount ?? 0) > (b.volumeInfo.pageCount ?? 0);
+}
+
+// Open Library carries multiple duplicate "work" records for many popular
+// books — confirmed live: a "Gone Girl" search returns both the real,
+// fully-populated record and a bare stub with no description at all.
+// Deduping by normalized title+author before results ever reach the UI
+// means a user can't accidentally pick the thin duplicate in the first
+// place, rather than trying to detect/backfill it after the fact. Local
+// results already carry their real (possibly null) description directly —
+// no fetch needed to check those. A live Open Library result never carries
+// description in its lightweight search-doc form at all, so any live
+// candidate in a genuine duplicate group needs a real per-work fetch to
+// know whether IT has one — bounded to just that group, not every result.
+export async function dedupeByTitleAuthor(
+  books: GoogleBookVolume[],
+): Promise<GoogleBookVolume[]> {
+  const groups = new Map<string, GoogleBookVolume[]>();
+  for (const book of books) {
+    const key = dedupeKey(book);
+    const group = groups.get(key);
+    if (group) group.push(book);
+    else groups.set(key, [book]);
+  }
+
+  const deduped = await Promise.all(
+    [...groups.values()].map(async (group) => {
+      if (group.length === 1) return group[0];
+
+      const withRealDescription = await Promise.all(
+        group.map(async (book) => {
+          if (book.volumeInfo.description) return true;
+          const workKey = extractOpenLibraryWorkKey(book.id);
+          if (!workKey) return false;
+          const data = await fetchOpenLibraryDataByWorkKey(workKey);
+          return data.description !== null;
+        }),
+      );
+
+      const firstWithDescription = group.find(
+        (_, i) => withRealDescription[i],
+      );
+      if (firstWithDescription) return firstWithDescription;
+
+      // None of them have one — fall back to whichever looks most
+      // established, rather than an arbitrary pick.
+      return group.reduce((best, candidate) =>
+        isRicherFallback(candidate, best) ? candidate : best,
+      );
+    }),
+  );
+
+  return deduped;
+}
+
 // Untagged subjects ending in one of these words tend to be genuine
 // genre/subgenre labels (e.g. "Space Fleet Science Fiction", bare
 // "Fantasy"), as opposed to thematic/topical or classification subjects

@@ -1,6 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import { byPopularity, normalizeCategory, type GoogleBookVolume } from "@/lib/google-books";
 import {
+  dedupeByTitleAuthor,
   extractOpenLibraryWorkKey,
   fetchOpenLibraryDataByWorkKey,
   getOpenLibraryData,
@@ -218,5 +219,12 @@ export async function searchBooks(
     }
   }
 
-  return clusterBySeriesAuthor(merged).slice(0, limit);
+  // Catches title+author duplicates across local and live results too, not
+  // just within the live results alone — a book someone already added can
+  // itself be the thin duplicate (confirmed live: exactly this happened
+  // with a "Gone Girl" edition), so this has to run on the combined pool,
+  // not just liveResults on its own.
+  const deduped = await dedupeByTitleAuthor(merged);
+
+  return clusterBySeriesAuthor(deduped).slice(0, limit);
 }

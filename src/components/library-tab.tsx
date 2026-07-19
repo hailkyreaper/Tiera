@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Menu } from "@base-ui/react/menu";
 import { ArrowUpDown, Check } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
+import { BookDetailDrawer } from "@/components/tier-list/book-detail-drawer";
 import { Button } from "@/components/ui/button";
 import {
   clearWantToRead,
@@ -72,6 +73,12 @@ function SortableCover({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: book.bookId, disabled: !sortable });
 
+  const cover = (
+    <div className={cn(isSelected && "opacity-60")}>
+      <BookCover src={book.thumbnail} alt={book.title} size={100} />
+    </div>
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -87,9 +94,28 @@ function SortableCover({
         isDragging && "opacity-0",
       )}
     >
-      <div className={cn(isSelected && "opacity-60")}>
-        <BookCover src={book.thumbnail} alt={book.title} size={100} />
-      </div>
+      {/* Select mode's own click-to-toggle takes over the whole cover, so
+       * the detail drawer only applies outside it — a plain tap still
+       * opens it even while sortable/draggable is also active, since
+       * dnd-kit's activation distance means a real drag (movement past
+       * the threshold) suppresses the resulting click, same composition
+       * RecommendationRow already relies on. */}
+      {selectMode ? (
+        cover
+      ) : (
+        <BookDetailDrawer
+          book={{
+            id: book.bookId,
+            title: book.title,
+            thumbnail: book.thumbnail,
+            description: book.description,
+            authors: book.authors,
+            averageRating: book.averageRating,
+          }}
+        >
+          {cover}
+        </BookDetailDrawer>
+      )}
       {selectMode && (
         <span
           className={cn(

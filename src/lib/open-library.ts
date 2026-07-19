@@ -6,6 +6,8 @@ type OpenLibrarySearchResponse = {
 
 type OpenLibraryWorkResponse = {
   description?: string | { type?: string; value?: string };
+  subjects?: string[];
+  covers?: number[];
 };
 
 type OpenLibraryEditionResponse = {
@@ -256,8 +258,26 @@ export async function getOpenLibraryData(
   const doc =
     (author ? await fetchSearchDoc(`${title} ${author}`) : undefined) ??
     (await fetchSearchDoc(title));
-  const subjects = doc?.subject ?? [];
+  const genres = subjectsToGenres(doc?.subject ?? []);
 
+  const coverUrl = doc?.cover_i
+    ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
+    : null;
+
+  const description =
+    options?.includeDescription && doc?.key
+      ? await fetchOpenLibraryDescription(doc.key)
+      : null;
+
+  const publishedDate = doc?.first_publish_year?.toString() ?? null;
+
+  return { genres, coverUrl, description, publishedDate };
+}
+
+// Shared by getOpenLibraryData (search-result subjects) and
+// fetchOpenLibraryDataByWorkKey (a work record's own subjects — same
+// shape, just a different source doc).
+function subjectsToGenres(subjects: string[]): string[] {
   // genre:-tagged subjects are Open Library's own explicit genre
   // labeling — trusted as-is (aside from dropping a bare "Fiction").
   const taggedSegments = subjects
@@ -272,22 +292,55 @@ export async function getOpenLibraryData(
     .flatMap((subject) => splitPath(subject))
     .filter((segment) => looksLikeGenre(segment));
 
-  const genres = [
-    ...new Set(
-      [...taggedSegments, ...untaggedSegments].map(toTitleCase),
-    ),
-  ];
+  return [...new Set([...taggedSegments, ...untaggedSegments].map(toTitleCase))];
+}
 
-  const coverUrl = doc?.cover_i
-    ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
-    : null;
+// Extracts a bare Open Library work id ("OL123456W") out of whatever format
+// books.google_volume_id happens to store it in — "/works/OL123456W" (the
+// format a live search result's own key already comes in) or "ol:OL123456W"
+// (the format some direct-insert paths, e.g. test-data seeding, have used).
+// Returns null for anything else (a Google volume id, a synthetic
+// "isbn:"/"goodreads:" id) — those have no Open Library work to look up.
+export function extractOpenLibraryWorkKey(googleVolumeId: string): string | null {
+  const match = googleVolumeId.match(/OL\d+W\b/);
+  return match ? `/works/${match[0]}` : null;
+}
 
-  const description =
-    options?.includeDescription && doc?.key
-      ? await fetchOpenLibraryDescription(doc.key)
+// Looks a book up by its *already-known* Open Library work key instead of
+// re-searching by title+author — strictly more reliable (an exact record
+// lookup, no relevance ranking to get wrong) and the only way to recover
+// books whose title+author search doesn't reliably surface the right work
+// (confirmed live: short/common titles like "It", "Circe", and "Piranesi"
+// — all already-known via a stored work key from an earlier import — never
+// got a description from runBackfill's search-based lookup, despite Open
+// Library clearly having real description text for all three once fetched
+// directly by key). Single request covers genres + description + cover,
+// where the search-based path needed two (search, then a second fetch for
+// description only).
+export async function fetchOpenLibraryDataByWorkKey(
+  workKey: string,
+): Promise<OpenLibraryData> {
+  try {
+    const res = await fetch(`https://openlibrary.org${workKey}.json`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) {
+      return { genres: [], coverUrl: null, description: null, publishedDate: null };
+    }
+
+    const data: OpenLibraryWorkResponse = await res.json();
+    const genres = subjectsToGenres(data.subjects ?? []);
+    const coverUrl = data.covers?.[0]
+      ? `https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg`
       : null;
+    const description = !data.description
+      ? null
+      : typeof data.description === "string"
+        ? data.description
+        : (data.description.value ?? null);
 
-  const publishedDate = doc?.first_publish_year?.toString() ?? null;
-
-  return { genres, coverUrl, description, publishedDate };
+    return { genres, coverUrl, description, publishedDate: null };
+  } catch {
+    return { genres: [], coverUrl: null, description: null, publishedDate: null };
+  }
 }

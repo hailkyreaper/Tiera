@@ -4,7 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/admin";
 import { normalizeCategory } from "@/lib/google-books";
-import { getOpenLibraryData } from "@/lib/open-library";
+import {
+  extractOpenLibraryWorkKey,
+  fetchOpenLibraryDataByWorkKey,
+  getOpenLibraryData,
+} from "@/lib/open-library";
 
 type BookRow = {
   id: string;
@@ -50,9 +54,20 @@ export async function runBackfill() {
 
   for (const book of books ?? []) {
     try {
-      const openLibrary = await getOpenLibraryData(book.title, book.authors?.[0], {
-        includeDescription: !book.description,
-      });
+      // Prefer an exact lookup by the work id we already have on file over
+      // a fresh title+author text search — strictly more reliable (no
+      // relevance ranking to get wrong), and the only way to recover books
+      // whose search doesn't reliably surface the right work at all.
+      // Confirmed live: several already-known-by-key books (short/common
+      // titles like "It", "Circe", "Piranesi") never got a description
+      // from the search-based lookup despite Open Library clearly having
+      // real description text once fetched directly by key.
+      const workKey = extractOpenLibraryWorkKey(book.google_volume_id);
+      const openLibrary = workKey
+        ? await fetchOpenLibraryDataByWorkKey(workKey)
+        : await getOpenLibraryData(book.title, book.authors?.[0], {
+            includeDescription: !book.description,
+          });
 
       let categories = openLibrary.genres;
 

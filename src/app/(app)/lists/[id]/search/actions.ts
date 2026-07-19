@@ -38,19 +38,14 @@ export async function addToUnrankedAndStay(formData: FormData) {
     return;
   }
 
-  await supabase
-    .from("user_books")
-    .upsert(
-      { user_id: user.id, book_id: bookId },
-      { onConflict: "user_id,book_id", ignoreDuplicates: true },
-    );
-
-  await supabase
-    .from("tier_list_items")
-    .upsert(
-      { tier_list_id: tierListId, book_id: bookId, tier: "unranked" },
-      { onConflict: "tier_list_id,book_id" },
-    );
+  await supabase.from("user_books").upsert(
+    { user_id: user.id, book_id: bookId },
+    { onConflict: "user_id,book_id", ignoreDuplicates: true },
+  );
+  await supabase.from("tier_list_items").upsert(
+    { tier_list_id: tierListId, book_id: bookId, tier: "unranked" },
+    { onConflict: "tier_list_id,book_id" },
+  );
 
   revalidatePath(`/lists/${tierListId}/search?q=${encodeURIComponent(q)}`);
   // Bumps tier_lists.updated_at via the tier_list_items trigger (migration

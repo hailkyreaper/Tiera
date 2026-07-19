@@ -1,9 +1,10 @@
 import {
   computeMatch,
   getBookScores,
+  TIER_SCORES,
   type SupabaseServerClient,
 } from "@/lib/db/taste-match";
-import { getFavoriteBooks, type FavoriteBook } from "@/lib/db/favorites";
+import type { FavoriteBook } from "@/lib/db/favorites";
 
 export type TopMatchPerson = {
   userId: string;
@@ -29,7 +30,13 @@ type ProfileRow = {
   display_name: string | null;
   avatar_url: string | null;
 };
-type CategoryRow = { books: { categories: string[] | null } };
+type ListRow = { id: string; user_id: string };
+type ItemRow = {
+  tier_list_id: string;
+  tier: string;
+  book_id: string;
+  books: { id: string; title: string; thumbnail_url: string | null; categories: string[] | null };
+};
 
 const TOP_GENRES_LIMIT = 3;
 const TOP_FAVORITES_LIMIT = 3;
@@ -38,11 +45,20 @@ const TOP_FAVORITES_LIMIT = 3;
 // computable match) and "Friends" tab (same ranking, restricted to people
 // the viewer follows) — same "person you might vibe with" idea either way,
 // just a different candidate pool. Also powers the Explore sidebar rail
-// (`includeDetails: false, limit: N`) — that's a compact avatar/name/match%
-// preview with no genres/favorites shown, so it skips those two extra
-// per-candidate queries entirely rather than fetching data nothing renders.
-// `limit` only slices the final sorted list — every candidate still has to
-// be matched first to know who ranks in the top N.
+// (`includeDetails: false, limit: N`).
+//
+// Used to call getBookScores/getTopGenres/getFavoriteBooks per candidate,
+// inside a sequential for-loop — each of those three re-fetched the same
+// user's tier_lists and tier_list_items independently, so a Top Matches
+// list with N candidates issued up to 6N sequential DB round-trips (100+
+// for even a modest user base) before any sorting could happen. This now
+// batch-fetches every candidate's tier_lists and tier_list_items in 2
+// queries total, then computes matches/genres/favorites entirely in
+// memory — a fixed ~4 queries regardless of candidate count or
+// `includeDetails`. getBookScores/getTopGenres/getFavoriteBooks themselves
+// are untouched — they're still used elsewhere as single-user lookups
+// (Profile, favorites pages, list detail) where a per-call round-trip is
+// fine.
 export async function getTopMatches(
   supabase: SupabaseServerClient,
   viewerId: string,
@@ -82,19 +98,95 @@ export async function getTopMatches(
     .in("id", candidateIds)
     .returns<ProfileRow[]>();
 
+  if (!profileRows || profileRows.length === 0) return [];
+
+  const { data: listRows } = await supabase
+    .from("tier_lists")
+    .select("id, user_id")
+    .in(
+      "user_id",
+      profileRows.map((p) => p.id),
+    )
+    .returns<ListRow[]>();
+
+  const listIdToUserId = new Map((listRows ?? []).map((l) => [l.id, l.user_id]));
+  const allListIds = [...listIdToUserId.keys()];
+
+  const itemsByUser = new Map<string, ItemRow[]>();
+  if (allListIds.length > 0) {
+    const { data: itemRows } = await supabase
+      .from("tier_list_items")
+      .select("tier_list_id, tier, book_id, books(id, title, thumbnail_url, categories)")
+      .in("tier_list_id", allListIds)
+      .order("created_at", { ascending: false })
+      .returns<ItemRow[]>();
+
+    for (const item of itemRows ?? []) {
+      const userId = listIdToUserId.get(item.tier_list_id);
+      if (!userId) continue;
+      const list = itemsByUser.get(userId);
+      if (list) list.push(item);
+      else itemsByUser.set(userId, [item]);
+    }
+  }
+
   const results: TopMatchPerson[] = [];
 
-  for (const profile of profileRows ?? []) {
-    const theirScores = await getBookScores(supabase, profile.id);
+  for (const profile of profileRows) {
+    const items = itemsByUser.get(profile.id) ?? [];
+    const rankedItems = items.filter((item) => item.tier !== "unranked");
+
+    // Same per-book averaging getBookScores does, just off the
+    // already-fetched batch instead of its own query.
+    const scoreSums = new Map<string, { sum: number; count: number }>();
+    for (const item of rankedItems) {
+      const score = TIER_SCORES[item.tier];
+      if (!score) continue;
+      const entry = scoreSums.get(item.book_id) ?? { sum: 0, count: 0 };
+      entry.sum += score;
+      entry.count += 1;
+      scoreSums.set(item.book_id, entry);
+    }
+    const theirScores = new Map<string, number>();
+    for (const [bookId, { sum, count }] of scoreSums) {
+      theirScores.set(bookId, sum / count);
+    }
+
     const match = computeMatch(viewerScores, theirScores);
     if (match.percentage === null) continue;
 
-    const [topGenres, topFavorites] = includeDetails
-      ? await Promise.all([
-          getTopGenres(supabase, profile.id),
-          getFavoriteBooks(supabase, profile.id, TOP_FAVORITES_LIMIT),
-        ])
-      : [[], []];
+    let topGenres: string[] = [];
+    let topFavorites: FavoriteBook[] = [];
+
+    if (includeDetails) {
+      // Same tally getTopGenres does.
+      const tally = new Map<string, number>();
+      for (const item of rankedItems) {
+        for (const category of item.books.categories ?? []) {
+          tally.set(category, (tally.get(category) ?? 0) + 1);
+        }
+      }
+      topGenres = [...tally.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP_GENRES_LIMIT)
+        .map(([category]) => category);
+
+      // Same S-then-A fill/dedup getFavoriteBooks does — items is already
+      // ordered by created_at desc from the batch query above.
+      const seen = new Set<string>();
+      outer: for (const tier of ["S", "A"] as const) {
+        for (const item of items) {
+          if (topFavorites.length >= TOP_FAVORITES_LIMIT) break outer;
+          if (item.tier !== tier || seen.has(item.books.id)) continue;
+          seen.add(item.books.id);
+          topFavorites.push({
+            bookId: item.books.id,
+            title: item.books.title,
+            thumbnail: item.books.thumbnail_url,
+          });
+        }
+      }
+    }
 
     results.push({
       userId: profile.id,
@@ -186,36 +278,4 @@ export async function getOtherUserCount(
     .select("id", { count: "exact", head: true })
     .neq("id", viewerId);
   return count ?? 0;
-}
-
-export async function getTopGenres(
-  supabase: SupabaseServerClient,
-  userId: string,
-): Promise<string[]> {
-  const { data: myLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", userId);
-
-  const listIds = (myLists ?? []).map((list) => list.id);
-  if (listIds.length === 0) return [];
-
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select("books(categories)")
-    .in("tier_list_id", listIds)
-    .neq("tier", "unranked")
-    .returns<CategoryRow[]>();
-
-  const tally = new Map<string, number>();
-  for (const item of items ?? []) {
-    for (const category of item.books.categories ?? []) {
-      tally.set(category, (tally.get(category) ?? 0) + 1);
-    }
-  }
-
-  return [...tally.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_GENRES_LIMIT)
-    .map(([category]) => category);
 }

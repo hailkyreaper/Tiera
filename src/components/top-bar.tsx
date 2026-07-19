@@ -15,7 +15,16 @@ import { cn } from "@/lib/utils";
 // Routes (and their sub-pages) that don't need the top search box — Search
 // itself already covers book search, so it's redundant on Explore, and not
 // relevant at all on Compare/Profile (user's call, one section at a time).
-const NO_SEARCH_PREFIXES = ["/explore", "/compare", "/profile"];
+// /lists is excluded too: every /lists/[id] sub-page (search, library, the
+// edit form) already has its own purpose-built "add to this list" search UI
+// lower on the page. Leaving this global box visible there let its "Add"
+// button (bound to addBookToLibrary, no tierListId) sit right above the
+// page's own Add button (bound to addToUnrankedAndStay) — both render an
+// identical-looking dropdown, so clicking the wrong one silently added the
+// book to the library instead of the list. Confirmed live: this, not a DB
+// write failure, is what a QA pass reported as "Add shows success but
+// doesn't save" — the write always succeeded, just to the wrong table.
+const NO_SEARCH_PREFIXES = ["/explore", "/compare", "/profile", "/lists"];
 
 export function TopBar({ notificationsSlot }: { notificationsSlot: ReactNode }) {
   const pathname = usePathname();

@@ -225,8 +225,8 @@ export default async function ExplorePage({
         </div>
 
         {lists.length === 0 ? (
-          <p className="text-muted-foreground">
-            No public tier lists yet — be the first to make one public!
+          <p className="text-sm text-muted-foreground">
+            No public tier lists yet — check back soon.
           </p>
         ) : (
           <div className="flex flex-col gap-4">

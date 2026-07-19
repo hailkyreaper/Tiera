@@ -61,7 +61,7 @@ export default async function RecommendationsPage({
       </div>
 
       {recommendations.length === 0 ? (
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           No recommendations yet — once you and others have ranked some of
           the same books, matches will show up here.
         </p>

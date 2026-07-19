@@ -140,7 +140,7 @@ async function BookSearch({
       />
 
       {q && books.length === 0 && (
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {filteredToZero
             ? `No results for "${q}" match your current filters — try loosening or resetting them.`
             : `No results for "${q}".`}
@@ -183,7 +183,7 @@ async function PeopleSearch({ q }: { q?: string }) {
       </form>
 
       {q && people.length === 0 && (
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           No users found for &quot;{q}&quot;.
         </p>
       )}

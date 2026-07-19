@@ -130,6 +130,8 @@ export type SharedBook = {
   authors: string[] | null;
   thumbnail: string | null;
   categories: string[] | null;
+  description: string | null;
+  averageRating: number | null;
   scoreA: number;
   scoreB: number;
 };
@@ -158,6 +160,8 @@ type BookRow = {
   authors: string[] | null;
   thumbnail_url: string | null;
   categories: string[] | null;
+  description: string | null;
+  average_rating: number | null;
 };
 
 function tallyTopGenre(books: SharedBook[]): string | null {
@@ -215,7 +219,7 @@ export async function getComparisonSummary(
 
   const { data: books } = await supabase
     .from("books")
-    .select("id, title, authors, thumbnail_url, categories")
+    .select("id, title, authors, thumbnail_url, categories, description, average_rating")
     .in("id", sharedIds)
     .returns<BookRow[]>();
 
@@ -225,6 +229,8 @@ export async function getComparisonSummary(
     authors: book.authors,
     thumbnail: book.thumbnail_url,
     categories: book.categories,
+    description: book.description,
+    averageRating: book.average_rating,
     scoreA: rawShared.get(book.id)!.scoreA,
     scoreB: rawShared.get(book.id)!.scoreB,
   }));

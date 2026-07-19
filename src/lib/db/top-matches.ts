@@ -156,7 +156,7 @@ export async function getTopMatches(
     if (match.percentage === null) continue;
 
     let topGenres: string[] = [];
-    let topFavorites: FavoriteBook[] = [];
+    const topFavorites: FavoriteBook[] = [];
 
     if (includeDetails) {
       // Same tally getTopGenres does.

@@ -7,10 +7,10 @@ import { NotificationsPopover } from "@/components/notifications-popover";
 
 // Server-fetches initial data, hands it to the client popover — same
 // Server-Component-fetches/Client-Component-handles-interaction split used
-// by Sidebar/SidebarNav. Rendered twice (desktop TopBar, mobile
-// MobileTopBar), each hidden at the other's breakpoint via CSS — same
-// "duplicate but only one ever visible" approach already used for Explore's
-// two tab bars, rather than a shared client-side data-fetching boundary.
+// by Sidebar/SidebarNav. Desktop-only for now (rendered inside TopBar,
+// which is `lg:flex`) — the mobile counterpart (MobileTopBar) was removed
+// after it was suspected of causing a mobile layout/click issue; mobile
+// notifications need a new home before this comes back on small screens.
 export async function NotificationsBell() {
   const supabase = await createClient();
   const {

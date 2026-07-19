@@ -18,10 +18,10 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Menu } from "@base-ui/react/menu";
 import { ArrowUpDown, Check } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
 import { BookDetailDrawer } from "@/components/tier-list/book-detail-drawer";
+import { DropdownSelect } from "@/components/dropdown-select";
 import { Button } from "@/components/ui/button";
 import {
   clearWantToRead,
@@ -47,10 +47,6 @@ const LIBRARY_CONTAINER_ID = "library-container";
 
 const triggerClass =
   "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted";
-const popupClass =
-  "max-h-64 min-w-40 overflow-y-auto rounded-xl bg-popover p-1 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10";
-const itemClass =
-  "flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 data-[highlighted]:bg-muted";
 
 // One shared cover component for both TBR and Library — both are sortable
 // (even TBR, which has no internal order of its own) so dnd-kit's
@@ -408,30 +404,12 @@ export function LibraryTab({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Menu.Root>
-                <Menu.Trigger className={triggerClass}>
-                  <ArrowUpDown className="size-3.5" />
-                  Sort
-                </Menu.Trigger>
-                <Menu.Portal>
-                  <Menu.Positioner sideOffset={6} align="end">
-                    <Menu.Popup className={popupClass}>
-                      {SORT_OPTIONS.map((option) => (
-                        <Menu.Item
-                          key={option.value}
-                          onClick={() => navigateSort(option.value)}
-                          className={itemClass}
-                        >
-                          {option.label}
-                          {currentSort === option.value && (
-                            <Check className="size-3.5" />
-                          )}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Popup>
-                  </Menu.Positioner>
-                </Menu.Portal>
-              </Menu.Root>
+              <DropdownSelect
+                value={currentSort}
+                options={SORT_OPTIONS}
+                onChange={(value) => navigateSort(value as LibrarySort)}
+                icon={ArrowUpDown}
+              />
 
               <button
                 type="button"

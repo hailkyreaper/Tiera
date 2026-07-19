@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { DropdownSelect } from "@/components/dropdown-select";
 
 const RATING_OPTIONS = [
   { value: "", label: "All Ratings" },
@@ -16,9 +17,6 @@ const PUBLISHED_OPTIONS = [
   { value: "10", label: "Last 10 Years" },
 ];
 
-const SELECT_CLASS =
-  "h-9 rounded-sm border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-ring";
-
 // Genre/Rating/Published only — design2/02 also shows a Format filter
 // (Paperback/Hardcover/eBook/Audiobook), but books has no format column at
 // all, so there's nothing real to filter on; dropped rather than shipping
@@ -33,6 +31,11 @@ export function SearchFiltersPanel({ genres }: { genres: string[] }) {
   const minRating = searchParams.get("minRating") ?? "";
   const years = searchParams.get("years") ?? "";
   const hasFilters = Boolean(genre || minRating || years);
+
+  const genreOptions = [
+    { value: "", label: "All Genres" },
+    ...genres.map((g) => ({ value: g, label: g })),
+  ];
 
   // Reads window.location.search at call time rather than closing over the
   // `searchParams` hook value — changing two filters back to back can fire
@@ -69,57 +72,41 @@ export function SearchFiltersPanel({ genres }: { genres: string[] }) {
         )}
       </div>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-muted-foreground uppercase">
           Genre
         </span>
-        <select
+        <DropdownSelect
           value={genre}
-          onChange={(event) => updateParam("genre", event.target.value)}
-          className={SELECT_CLASS}
-        >
-          <option value="">All Genres</option>
-          {genres.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </label>
+          options={genreOptions}
+          onChange={(value) => updateParam("genre", value)}
+          triggerClassName="w-fit"
+        />
+      </div>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-muted-foreground uppercase">
           Rating
         </span>
-        <select
+        <DropdownSelect
           value={minRating}
-          onChange={(event) => updateParam("minRating", event.target.value)}
-          className={SELECT_CLASS}
-        >
-          {RATING_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+          options={RATING_OPTIONS}
+          onChange={(value) => updateParam("minRating", value)}
+          triggerClassName="w-fit"
+        />
+      </div>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-muted-foreground uppercase">
           Published
         </span>
-        <select
+        <DropdownSelect
           value={years}
-          onChange={(event) => updateParam("years", event.target.value)}
-          className={SELECT_CLASS}
-        >
-          {PUBLISHED_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+          options={PUBLISHED_OPTIONS}
+          onChange={(value) => updateParam("years", value)}
+          triggerClassName="w-fit"
+        />
+      </div>
     </div>
   );
 }

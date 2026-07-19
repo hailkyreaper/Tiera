@@ -1,12 +1,9 @@
 "use client";
 
+import { ArrowUpDown } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { DropdownSelect } from "@/components/dropdown-select";
 
-// Short labels on purpose — this is a native <select>, so its closed-state
-// width is driven by whichever option's text is longest and can't wrap or
-// shrink below that. A longer "Sort by: ..." prefix here previously forced
-// the select wider than a small mobile viewport, pushing the whole page
-// into horizontal overflow (had to zoom out to reach anything off-screen).
 const SORT_OPTIONS = [
   { value: "match", label: "Best Match" },
   { value: "ranked", label: "Most Ranked" },
@@ -26,16 +23,11 @@ export function CompareSortSelect() {
   }
 
   return (
-    <select
+    <DropdownSelect
       value={sort}
-      onChange={(event) => handleChange(event.target.value)}
-      className="h-9 w-full min-w-0 max-w-full rounded-sm border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-ring sm:w-auto"
-    >
-      {SORT_OPTIONS.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      options={SORT_OPTIONS}
+      onChange={handleChange}
+      icon={ArrowUpDown}
+    />
   );
 }

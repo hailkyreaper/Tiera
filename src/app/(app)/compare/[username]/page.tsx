@@ -119,7 +119,7 @@ export default async function CompareWithUserPage({
 
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 xl:max-w-4xl">
         <TopNav title="Compare" center />
 
         {/* No card fill or border (user's call) — just an equal-thirds

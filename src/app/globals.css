@@ -129,11 +129,18 @@
 
   /* Card elevation — light mode's --background/--card are close enough in
      lightness that cards don't read as elevated surfaces without some help
-     (same root cause dark mode hit before, see CLAUDE.md). A foreground-
-     tinted shadow instead of flat black keeps it theme-consistent. */
+     (same root cause dark mode hit before, see CLAUDE.md). User-supplied
+     values (2026-07-19), replacing the earlier color-mix version — flatter
+     and less "blinding" than the stock near-white/white default read on
+     its own. */
   --shadow-card:
-    0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent),
-    0 2px 6px color-mix(in oklch, var(--foreground) 8%, transparent);
+    0 1px 2px rgb(24 24 27 / 0.03),
+    0 8px 24px rgb(24 24 27 / 0.05);
+
+  /* Same reasoning, for popovers/menus/dialogs (bg-popover) — a stronger,
+     single-layer shadow since these float above page content rather than
+     sitting flush in the page flow like a card. */
+  --shadow-popover: 0 12px 40px rgb(24 24 27 / 0.08);
 }
 
 .dark {
@@ -172,10 +179,15 @@
   /* Dark mode's --background/--card already have enough of a lightness gap
      to read as elevated on their own (see CLAUDE.md) — no shadow needed. */
   --shadow-card: none;
+  --shadow-popover: none;
 }
 
 .bg-card {
   box-shadow: var(--shadow-card);
+}
+
+.bg-popover {
+  box-shadow: var(--shadow-popover);
 }
 
 @layer base {

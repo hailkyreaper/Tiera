@@ -1481,6 +1481,113 @@ Converged on one consistent, impersonal template, and made Compare's two
 panels say what's actually missing instead of both showing the same 
 generic line.
 
+**Comment count label fixed to text-xs** ✅ done — `comments-section.tsx`'s 
+"N Comments" header was the one outlier still at `text-sm`; every other 
+uppercase small-caps label (Library tab, Add from Library, Top Match card) 
+already uses `text-xs`.
+
+**UI consistency pass (mobile/desktop)** ✅ done (2026-07-19) — user asked 
+to check for UI inconsistencies across mobile and desktop, after spotting a 
+button rendering outside its card on Compare's list.
+- **Root cause of the reported bug**: `BookDetailDrawer`'s `Drawer.Trigger` 
+  (`book-detail-drawer.tsx`) had no `min-w-0`. As a flex sibling next to 
+  Compare's recommendation "Add" button or a tier badge, its default 
+  `min-width: auto` refused to shrink below a long book title's untruncated 
+  width, pushing the sibling past the card's edge on narrow screens 
+  (confirmed live at 320px against a real long title, "The Name of the 
+  Wind"). One-line fix — since `BookDetailDrawer` is shared, this also 
+  silently protects every other place it's used next to a sibling (Library, 
+  Search, tier rows).
+- **Card treatment on Compare's mobile-inline Biggest Differences/
+  Recommendations panels** — these had a `bg-card p-6` box while "Top Books 
+  You Both Love"/"Shared Dislikes" right above them never did. 
+  `DisagreementsRail`/`MatchRecommendationsRail` gained a `bare` prop; 
+  Compare's mobile-inline instance uses it (flush with the page now, 
+  matching the two sections above it), the desktop right-rail `<aside>` 
+  keeps its card (consistent with every other desktop rail panel — 
+  Explore's `TrendingThisWeekRail`/`TopMatchesRail`).
+- **Systematic audit**: screenshotted Explore, Search, Compare (landing + 2 
+  detail pages), Profile (+ Library tab, + Following), Recommendations, and 
+  list-detail pages at 320/412/1440px. Found and fixed one more real drift: 
+  `/recommendations`'s "View More Recommendations" button was a raw `Link` 
+  with hardcoded `rounded-md bg-primary` instead of going through 
+  `buttonVariants` like every other primary action — wrong radius. 
+  Everything else checked out clean.
+- **`CompareStatsRow` contradicting its own panels** — `sharedDislikesCount`/
+  `sharedFavoritesCount` are raw counts, but "Top Books You Both Love"/
+  "Shared Dislikes" required 2+ shared books (`MIN_PANEL_BOOKS`) before 
+  rendering anything, so a pair with exactly 1 shared dislike saw "1" in the 
+  stat tile and "No shared dislikes yet" right below it — found by the user 
+  testing a real pairing (`test_reader_sixteen`). Fixed: those two panels 
+  now render at 1+ (matching the stat); `MIN_PANEL_BOOKS` still gates 
+  `topSharedGenre` only, since a genre tag off one book is a misleading 
+  inference in a way a literal 1-book list isn't.
+- **Compare detail header restructured** — the You/percentage/Them row 
+  (avatars + taste-match %) went from three bare `flex-1` columns to an 
+  explicit 3-column grid, through a few rounds of visual iteration per 
+  direct feedback: card with `bg-card` + ring first, then border-only 
+  (background dropped), then bare (border dropped too, spacing-only via the 
+  grid). Along the way, fixed a second overflow bug the restructure 
+  exposed: the name/username text sat inside nested `flex-col items-center` 
+  wrappers with no `w-full`, so `truncate` had no constrained box to clip 
+  against, and a long username (`@test_reader_twelve`) overflowed 
+  symmetrically past both edges of its column — same underlying issue as 
+  the `BookDetailDrawer` fix, one layer deeper, fixed by adding `w-full` to 
+  the text elements themselves (`items-center` doesn't stretch children the 
+  way default `flex-col` alignment does).
+- **Grep-based follow-up sweep**: after the fixes above, searched the 
+  codebase directly for the same two bug shapes (a flex item wrapping 
+  truncated text missing `min-w-0`; a `flex-col items-center` wrapper 
+  breaking the default stretch that `truncate` depends on) across every 
+  other file using `truncate` or `flex-col items-center`. Nothing else was 
+  broken — the two bug classes found on Compare didn't recur elsewhere.
+
+**Responsive polish remaining checklist** (drafted 2026-07-19):
+- [x] **Tablet/mid-width range (~768–1023px)** ✅ checked, no bugs found — 
+  screenshotted Explore, Search, Compare (landing + detail), Profile at 
+  768/834/1023px. The app gracefully keeps the same capped-width 
+  (`max-w-md`, expanding to `max-w-3xl`/`max-w-4xl` only at `lg:`/1024px+) 
+  mobile-style single-column layout with the bottom nav retained the whole 
+  way up to the sidebar breakpoint — confirmed via direct bounding-box 
+  measurement (not just eyeballing, which initially misread the Compare 
+  header's actual width at 1023px). No overflow, no dead-space bugs, no 
+  awkward squeeze anywhere checked.
+- [x] **Light mode** — first real look at it (user's own note: "I have 
+  never looked at light mode"). Confirmed working via `localStorage` 
+  toggle across Explore/Search/Compare/Profile/Recommendations at mobile 
+  and desktop widths — no layout bugs. But user's reaction to seeing it 
+  live: "too much, blinding" — light mode was still the stock 
+  near-white-`#fafaf9`-background/white-`#ffffff`-card shadcn defaults, 
+  never actually tuned (only dark mode ever got real color work, see 
+  "UI is extremely inconsistent" below). Fixed the specific complaint with 
+  user-supplied shadow values rather than repicking background/card colors 
+  themselves: `--shadow-card` (`globals.css`) replaced (was a `color-mix`-
+  based two-layer shadow, now flatter user-given values), plus a new 
+  `--shadow-popover` (didn't exist before — `bg-popover` had no shadow 
+  rule at all) wired the same way (`--shadow-popover: none` in `.dark`, 
+  matching `--shadow-card`'s existing dark-mode no-op). Verified live: 
+  Explore's cards and Compare's notifications popover both show a visible, 
+  soft shadow now instead of reading as flat stark white. Background/card 
+  base colors themselves not touched — only the shadow, per what was 
+  actually asked for.
+- [ ] Very wide desktop (1920px+) — whether the capped-width containers 
+  (`max-w-3xl`/`max-w-4xl`/`max-w-6xl`) read as intentional or just leave a 
+  lot of dead space.
+- [ ] Mobile landscape (e.g. 812×375) — covered once in the original mobile 
+  audit, not re-checked since.
+- [ ] Drawers/dialogs (`BookDetailDrawer` etc.) on a short viewport — an 
+  `h-[80vh]` sheet could clip content if the viewport itself is short 
+  (landscape phone, short laptop window).
+- [ ] Touch target sizes on mobile (icon-only buttons, `size-8`/`size-7` 
+  chevrons and menu triggers) — never measured against a minimum 
+  tap-target guideline.
+- [ ] iOS input zoom — any input with font-size under 16px triggers 
+  Safari's auto-zoom-on-focus; not checked.
+- [ ] The parked Chrome-desktop-mobile-emulation-only tier-row overflow 
+  from the Post-Sprint-6 round-3 bug-fix pass (never reproduced outside 
+  that one emulation mode) — revisit now that other overflow bugs this 
+  session turned out to be real, or leave parked.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

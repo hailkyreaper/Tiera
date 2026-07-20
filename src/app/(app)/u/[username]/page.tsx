@@ -1,13 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import { MapPin, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { BackButton } from "@/components/back-button";
 import { FollowButton } from "@/components/follow-button";
 import { Avatar } from "@/components/avatar";
+import { ProfileBio } from "@/components/profile-bio";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { getUserListCards } from "@/lib/db/list-cards";
+import { cn } from "@/lib/utils";
 
 type ProfileRow = {
   id: string;
@@ -88,55 +89,58 @@ export default async function PublicUserPage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      <div className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950 px-4 pt-5 pb-6">
-        <div className="absolute -top-16 -left-10 size-56 rounded-full bg-fuchsia-500/30 blur-3xl" />
-        <div className="absolute top-0 -right-12 size-48 rounded-full bg-primary/40 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))]" />
-
-        <div className="absolute top-4 left-4 z-10">
+      <div className="flex flex-col gap-3 px-4 pt-4">
+        <div className="flex items-center justify-between">
           <BackButton />
-        </div>
-
-        {user && (
-          <div className="absolute top-4 right-4 z-10">
+          {user && (
             <FollowButton
               targetUserId={profile.id}
               username={profile.username}
               isFollowing={isFollowing}
             />
-          </div>
-        )}
-
-        <div className="z-10 rounded-full p-1">
-          <Avatar
-            src={profile.avatar_url}
-            name={profile.username}
-            imageSize={96}
-            sizeClassName="size-24"
-            textClassName="text-2xl"
-          />
-        </div>
-
-        <div className="z-10 text-center">
-          {profile.display_name && (
-            <p className="text-lg font-semibold text-foreground">
-              {profile.display_name}
-            </p>
           )}
-          <p
-            className={
-              profile.display_name
-                ? "text-sm text-muted-foreground"
-                : "text-lg font-semibold text-foreground"
-            }
-          >
-            @{profile.username}
-          </p>
         </div>
-      </div>
 
-      <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-4 pb-4 text-center">
-        <div className="flex w-full">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full p-1">
+            <Avatar
+              src={profile.avatar_url}
+              name={profile.username}
+              imageSize={144}
+              sizeClassName="size-16"
+              textClassName="text-2xl"
+              className="ring-2 ring-primary"
+            />
+          </div>
+
+          <div className="flex min-w-0 flex-col items-start">
+            {profile.display_name && (
+              <p className="truncate text-lg font-semibold text-foreground">
+                {profile.display_name}
+              </p>
+            )}
+            <p
+              className={cn(
+                "truncate",
+                profile.display_name
+                  ? "text-sm text-muted-foreground"
+                  : "text-lg font-semibold text-foreground",
+              )}
+            >
+              @{profile.username}
+            </p>
+          </div>
+        </div>
+
+        <ProfileBio
+          bio={profile.bio}
+          location={profile.location}
+          joinedDate={joinedDate}
+          metaInline
+          className="flex flex-col items-start gap-1 text-left"
+        />
+
+        <div className="flex w-full divide-x divide-border/60 border-y border-border/60 py-3">
           <div className="flex flex-1 flex-col items-center">
             <span className="text-xl font-semibold text-foreground">
               {listsCount}
@@ -162,23 +166,9 @@ export default async function PublicUserPage({
             </span>
           </div>
         </div>
+      </div>
 
-        <div className="flex w-full flex-col items-start gap-1 text-left">
-          {profile.bio && (
-            <p className="text-sm text-foreground">{profile.bio}</p>
-          )}
-          {profile.location && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="size-3.5" />
-              {profile.location}
-            </span>
-          )}
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <CalendarDays className="size-3.5" />
-            Joined {joinedDate}
-          </span>
-        </div>
-
+      <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-4 pb-4 text-center">
         <FavoritesRow
           books={favoriteBooks}
           viewMoreHref={`/u/${profile.username}/favorites`}

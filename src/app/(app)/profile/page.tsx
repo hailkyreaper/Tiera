@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MapPin, CalendarDays, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { updateProfile } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { ProfileTabs } from "@/components/profile-tabs";
 import { LibraryTab } from "@/components/library-tab";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { Avatar } from "@/components/avatar";
+import { ProfileBio } from "@/components/profile-bio";
 import { RecommendationsRail } from "@/components/recommendations-rail";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteBooks } from "@/lib/db/favorites";
@@ -64,39 +65,6 @@ function ProfileStats({
           Following
         </span>
       </Link>
-    </div>
-  );
-}
-
-function ProfileBio({
-  bio,
-  location,
-  joinedDate,
-  metaInline = false,
-  className,
-}: {
-  bio?: string | null;
-  location?: string | null;
-  joinedDate: string;
-  /** Put location and "Joined X" on the same line instead of stacked. */
-  metaInline?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      {bio && <p className="text-sm text-foreground">{bio}</p>}
-      <div className={metaInline ? "flex flex-wrap items-center gap-3" : "contents"}>
-        {location && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="size-3.5" />
-            {location}
-          </span>
-        )}
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <CalendarDays className="size-3.5" />
-          Joined {joinedDate}
-        </span>
-      </div>
     </div>
   );
 }

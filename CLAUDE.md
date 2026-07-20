@@ -4,17 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Actively in development. Sprints 1-7 are complete (Sprint 6 finished incidentally — 
+Actively in development. Sprints 1-8 are complete (Sprint 6 finished incidentally — 
 its items were either already done in 5.5, or merged into the Sprint 5 addendum's 
 Top Matches work; Sprint 7 finished 2026-07-11 — CSV import was the real remaining 
 work, search polish had already landed incidentally in the Post-Sprint-6 round 3 
-bug-fix pass). Sprint 8 is CURRENT (started 2026-07-11, see Sprint Rule) — 
-Capacitor is explicitly out of scope this round (user's call), so it's PWA setup 
-+ responsive polish only. In practice, real feature work beyond that stated 
-scope also landed alongside it (in-app notifications, desktop discovery panels, 
-recommendation feedback tracking, a To Be Read shelf, Library custom ordering — 
-see the "Current sprint" section's undocumented-work catch-up for the full 
-list) rather than being deferred to a later sprint.
+bug-fix pass; Sprint 8 finished 2026-07-20 — PWA setup + responsive polish, both 
+done; Capacitor stayed explicitly out of scope the whole sprint, user's call). In 
+practice, real feature work beyond Sprint 8's stated scope also landed alongside 
+it (in-app notifications, desktop discovery panels, recommendation feedback 
+tracking, a To Be Read shelf, Library custom ordering — see the "Current sprint" 
+section's undocumented-work catch-up for the full list) rather than being 
+deferred to a later sprint. No sprint is currently marked CURRENT — per the 
+Sprint Rule, wait for Sprint 9 to be explicitly started before beginning it.
 
 ## Vision
 
@@ -465,9 +466,10 @@ the list entirely); the explicit way to keep a draft is Publish → Save Draft.
   visible on `/profile` tagged "DRAFT"). Test drafts created during 
   verification were cleaned up afterward via Cancel.
 
-**Sprint 8 — Mobile Packaging & Polish is now CURRENT** (started 2026-07-11, 
-see Sprint Rule). Capacitor is explicitly out of scope this round (user's 
-call, asked directly) — scope is PWA setup + responsive polish only.
+**Sprint 8 — Mobile Packaging & Polish** ✅ COMPLETE (started 2026-07-11, 
+finished 2026-07-20 — see Sprint Rule). Capacitor was explicitly out of scope 
+the whole round (user's call, asked directly) — scope was PWA setup + 
+responsive polish only, both done.
 
 **PWA setup** ✅ done:
 - App icons regenerated from `design/Tiera Logov2.png` (the user's updated 
@@ -515,7 +517,8 @@ call, asked directly) — scope is PWA setup + responsive polish only.
   confirmed present in the rendered HTML.
 - Responsive polish (the other half of Sprint 8's scope) — see below.
 
-**Responsive polish** — in progress:
+**Responsive polish** ✅ done — every item checked off below, only the 
+parked/optional tier-row overflow item left unresolved (see the checklist):
 - **Mobile edge-case audit** ✅ done, no bugs found. Checked real small/short 
   viewports (iPhone SE 375px, small Android 360px, a landscape-short 812×375) 
   across Explore/Search/Profile/Compare/Create List — fixed-width book covers 
@@ -2081,11 +2084,11 @@ pass, and unifying the two book-search implementations into one.
 - Search filters/history ✅ done — landed incidentally in "Post-Sprint-6 bug fixes, 
   round 3" (Open Library switch, local-cache search, rating/series ranking)
 
-### Sprint 8 — Mobile Packaging & Polish (CURRENT)
+### Sprint 8 — Mobile Packaging & Polish ✅ COMPLETE
 - PWA setup ✅ done (see "Current sprint" section above for full spec)
 - Capacitor app wrap (optional) — explicitly skipped for this sprint, user's 
   call when asked directly
-- Responsive polish — in progress (see "Current sprint" section above)
+- Responsive polish ✅ done (see "Current sprint" section above)
 
 ### Sprint 9 — Launch Prep
 - Performance, error/empty states

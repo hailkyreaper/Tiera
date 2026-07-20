@@ -14,8 +14,9 @@ practice, real feature work beyond Sprint 8's stated scope also landed alongside
 it (in-app notifications, desktop discovery panels, recommendation feedback 
 tracking, a To Be Read shelf, Library custom ordering — see the "Current sprint" 
 section's undocumented-work catch-up for the full list) rather than being 
-deferred to a later sprint. No sprint is currently marked CURRENT — per the 
-Sprint Rule, wait for Sprint 9 to be explicitly started before beginning it.
+deferred to a later sprint. Sprint 9 — Launch Prep is now CURRENT (started 
+2026-07-20, see Sprint Rule) — scope is performance, error/empty states, and 
+final QA.
 
 ## Vision
 
@@ -1791,6 +1792,10 @@ on Explore itself.
   read as elevated white panels against the new neutral background, 
   serif headings/warm ink/borders all intact.
 
+**Sprint 9 — Launch Prep is now CURRENT** (started 2026-07-20, see Sprint 
+Rule). Scope per the Roadmap: performance, error/empty states, and final QA. 
+Nothing built yet this sprint.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -2090,7 +2095,7 @@ pass, and unifying the two book-search implementations into one.
   call when asked directly
 - Responsive polish ✅ done (see "Current sprint" section above)
 
-### Sprint 9 — Launch Prep
+### Sprint 9 — Launch Prep (CURRENT)
 - Performance, error/empty states
 - Final QA
 

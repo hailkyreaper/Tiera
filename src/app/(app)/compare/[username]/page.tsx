@@ -122,15 +122,15 @@ export default async function CompareWithUserPage({
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
         <TopNav title="Compare" center />
 
-        {/* Each column is an equal flex-1 third with its own items-center,
-         * not justify-center on the row — with 3 children of different
-         * natural widths (the middle percentage text is narrower than
-         * either avatar+name block), justify-center on the row only
-         * centers the *group*, so the middle item's visual center drifts
-         * off the row's true center. Same fix already applied to Profile's
-         * 3-stat row for the same reason. */}
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="flex flex-1 flex-col items-center gap-2">
+        {/* No card fill or border (user's call) — just an equal-thirds
+         * grid so every column is exactly the same width regardless of its
+         * content's natural size, with each grid item centering its own
+         * content. Equal flex-1 widths alone (the original approach)
+         * got the math right but uneven column heights (e.g. a wrapping
+         * display name) still read as misaligned with nothing to visually
+         * anchor each section. */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
             <Avatar
               src={me.avatar_url}
               name={me.username}
@@ -139,17 +139,23 @@ export default async function CompareWithUserPage({
               textClassName="text-lg"
               className="ring-4 ring-primary"
             />
-            <div className="flex flex-col items-center">
+            {/* w-full on the text itself (not just the wrapper) is
+             * load-bearing: this wrapper's items-center sizes each child
+             * to its own content width by default (no stretch), so
+             * truncate has nothing smaller than the text to clip against
+             * without it — same underlying issue as BookDetailDrawer's
+             * missing min-w-0 earlier, one layer further in. */}
+            <div className="flex w-full min-w-0 flex-col items-center">
               <span className="text-sm font-semibold text-foreground">You</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="w-full truncate text-xs text-muted-foreground">
                 @{me.username}
               </span>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col items-center gap-1">
+          <div className="flex flex-col items-center justify-center gap-1 p-1.5 text-center">
             {match.percentage === null ? (
-              <p className="max-w-[12rem] text-center text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Not enough shared books yet ({match.sharedBookCount}/3)
               </p>
             ) : (
@@ -167,7 +173,7 @@ export default async function CompareWithUserPage({
             )}
           </div>
 
-          <div className="flex flex-1 flex-col items-center gap-2">
+          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
             <Avatar
               src={them.avatar_url}
               name={them.username}
@@ -176,9 +182,9 @@ export default async function CompareWithUserPage({
               textClassName="text-lg"
               className="ring-4 ring-primary"
             />
-            <div className="flex flex-col items-center">
+            <div className="flex w-full min-w-0 flex-col items-center">
               {them.display_name && (
-                <span className="truncate text-sm font-semibold text-foreground">
+                <span className="w-full truncate text-sm font-semibold text-foreground">
                   {them.display_name}
                 </span>
               )}
@@ -186,8 +192,8 @@ export default async function CompareWithUserPage({
                 href={`/u/${them.username}`}
                 className={
                   them.display_name
-                    ? "text-xs text-muted-foreground hover:underline"
-                    : "text-sm font-semibold text-foreground hover:underline"
+                    ? "w-full truncate text-xs text-muted-foreground hover:underline"
+                    : "w-full truncate text-sm font-semibold text-foreground hover:underline"
                 }
               >
                 @{them.username}

@@ -1617,8 +1617,68 @@ button rendering outside its card on Compare's list.
   now, and confirmed the visual size next to its "Visibility" label still 
   reads fine (2px difference, not visually jarring).
 - [ ] The parked Chrome-desktop-mobile-emulation-only tier-row overflow 
-  from the Post-Sprint-6 round-3 bug-fix pass (never reproduced outside 
-  that one emulation mode) — still parked, not investigated this pass.
+  from the Post-Sprint-6 round-3 bug-fix pass — attempted again 
+  (2026-07-20) via real Chrome (the `claude-in-chrome` extension, not 
+  just Playwright), specifically because the original report was from 
+  Chrome DevTools' own device-emulation mode, which Playwright's plain 
+  viewport resize doesn't perfectly replicate. Blocked by tooling, not 
+  by the app: the extension's window-resize call reported success but 
+  never actually changed `window.innerWidth` (checked directly, 3 
+  attempts at different sizes, no change) — window was maximized and the 
+  resize didn't take. No new evidence either way; still parked.
+
+**Profile/Compare stuck narrow on landscape phones and portrait tablets** 
+✅ done (2026-07-20) — user's own report: rotating a phone to landscape, 
+Profile and Compare "don't expand like how it would in say iPad width." 
+Root cause: both pages capped their outer container at `max-w-md` 
+(448px) all the way up to the `lg` (1024px) breakpoint, while Explore 
+(`max-w-2xl`/672px) and Search (`max-w-3xl`/768px) already scaled wider 
+in that same range — so on any landscape phone or portrait tablet 
+(roughly 667–1023px), those two pages visibly stayed pinned at 448px 
+while the rest of the app used the available width.
+- First pass misdiagnosed this as a broken Tailwind rule — a quick 
+  `document.styleSheets` text search for `.max-w-md` found nothing 
+  anywhere and `getComputedStyle` briefly reported `maxWidth: "none"` 
+  on the live element, looking like the utility wasn't generating CSS 
+  at all. Both were artifacts of a sloppy first script (the stylesheet 
+  search didn't recurse into `@layer`/`@media`-nested rules, and the 
+  computed-style check grabbed the wrong element via a hardcoded array 
+  index). Re-verified properly with `getComputedStyle` across four 
+  widths (412/812/1024/1440px) using an element found by matching its 
+  actual className rather than by index — confirmed `max-w-md` was 
+  applying exactly as written the whole time. The real cause was 
+  purely the mismatched breakpoint value, not a build/CSS bug.
+- Measured all four pages directly (667/812/932/1023px) before fixing: 
+  Profile and Compare flat at 448px across the whole range; Explore 
+  635–672px; Search 635–768px. Confirmed the fix target with the user 
+  (matching Search's `max-w-3xl` ceiling) rather than picking a value 
+  unilaterally.
+- `profile/page.tsx` and `compare/page.tsx`: outer container 
+  `max-w-md ... lg:max-w-3xl xl:max-w-4xl` → `max-w-3xl ... xl:max-w-4xl` 
+  (the old `lg:max-w-3xl` became redundant once the base value already 
+  equals it). First pass scoped to exactly these two pages, not 
+  `/compare/[username]` or `/u/[username]` — not asked for at the time.
+- Verified live: landscape screenshots at 812×375 for both pages now 
+  fill the available width properly; mobile portrait (412px) and 
+  desktop (1440px) screenshots confirmed unchanged, since the new cap 
+  only binds in the previously-broken 448–768px range.
+- **Follow-up same day**: user asked to check `/compare/[username]` and 
+  `/u/[username]` too — same measurement approach found the identical 
+  448px-flat gap on both (667–1023px). `/compare/[username]` at least 
+  widened at 1440px desktop (`xl:max-w-4xl` already existed there); 
+  `/u/[username]` didn't widen at *any* width, including full desktop, 
+  since it has no `lg:`/`xl:` treatment at all (consistent with it never 
+  having gotten a real desktop redesign, noted earlier in this file). 
+  Same fix applied to both — `max-w-md` → `max-w-3xl` (kept 
+  `/compare/[username]`'s existing `xl:max-w-4xl`; `/u/[username]` gets a 
+  flat `max-w-3xl` with no `xl:` bump, since adding one would mean 
+  designing real desktop behavior for a page that's never had any, which 
+  wasn't asked for here — just closing the same landscape/tablet gap). 
+  `/u/[username]`'s desktop rendering incidentally improved too (768px 
+  column instead of a permanent 448px one), still just the plain 
+  single-column mobile layout, not a real desktop redesign. Verified 
+  live the same way: landscape fills correctly on both, mobile portrait 
+  and desktop unchanged (or incidentally improved) with no regressions.
 
 **Mobile profile header redesign** ✅ done (2026-07-20) — user's own 
 complaint: "I don't like the banner. I like the desktop profile card 

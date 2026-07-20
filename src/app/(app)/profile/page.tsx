@@ -24,13 +24,6 @@ import {
   type LibrarySort,
 } from "@/lib/db/library";
 
-// Rendered twice: once in its original mobile position (`lg:hidden`,
-// unchanged markup/classes so mobile stays pixel-identical) and once inside
-// the desktop header row (`hidden lg:flex`), matching design/Desktop.png's
-// horizontal avatar+stats layout — CSS alone can't relocate an element
-// across a different parent's painted background depending on breakpoint,
-// so this renders the same three stats twice rather than one repositioned
-// via responsive classes (same pattern already used for NavBar/Sidebar).
 function ProfileStats({
   listsCount,
   booksRankedCount,
@@ -75,35 +68,35 @@ function ProfileStats({
   );
 }
 
-// Same rendered-twice reasoning as ProfileStats above — design/Desktop.png
-// shows bio/location/joined inside the same header card as the avatar and
-// name (not below it, as mobile has always shown it), so the desktop
-// instance moves into that column while the mobile instance keeps its
-// original position/classes untouched via `lg:hidden`.
 function ProfileBio({
   bio,
   location,
   joinedDate,
+  metaInline = false,
   className,
 }: {
   bio?: string | null;
   location?: string | null;
   joinedDate: string;
+  /** Put location and "Joined X" on the same line instead of stacked. */
+  metaInline?: boolean;
   className?: string;
 }) {
   return (
     <div className={className}>
       {bio && <p className="text-sm text-foreground">{bio}</p>}
-      {location && (
+      <div className={metaInline ? "flex flex-wrap items-center gap-3" : "contents"}>
+        {location && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-3.5" />
+            {location}
+          </span>
+        )}
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="size-3.5" />
-          {location}
+          <CalendarDays className="size-3.5" />
+          Joined {joinedDate}
         </span>
-      )}
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <CalendarDays className="size-3.5" />
-        Joined {joinedDate}
-      </span>
+      </div>
     </div>
   );
 }
@@ -192,10 +185,10 @@ export default async function ProfilePage({
   return (
     <div className="flex w-full flex-1 lg:gap-6 lg:p-4">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col lg:max-w-3xl xl:max-w-4xl">
-        <div className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950 px-4 pt-5 pb-6 lg:flex-row lg:items-start lg:justify-between lg:gap-6 lg:rounded-[20px] lg:px-8 lg:py-8">
-          <div className="absolute -top-16 -left-10 size-56 rounded-full bg-fuchsia-500/30 blur-3xl" />
-          <div className="absolute top-0 -right-12 size-48 rounded-full bg-primary/40 blur-3xl" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))]" />
+        <div className="relative flex flex-col gap-3 px-4 pt-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6 lg:overflow-hidden lg:rounded-[20px] lg:bg-gradient-to-br lg:from-primary/60 lg:via-indigo-950 lg:to-purple-950 lg:p-8">
+          <div className="absolute -top-16 -left-10 hidden size-56 rounded-full bg-fuchsia-500/30 blur-3xl lg:block" />
+          <div className="absolute top-0 -right-12 hidden size-48 rounded-full bg-primary/40 blur-3xl lg:block" />
+          <div className="absolute inset-0 hidden bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))] lg:block" />
 
           {edit !== "true" && (
             <Link
@@ -208,22 +201,68 @@ export default async function ProfilePage({
             </Link>
           )}
 
-          <div className="z-10 flex flex-col items-center gap-1 lg:flex-row lg:items-center lg:gap-4">
+          {/* Mobile: avatar + name row, then bio → location+joined stacked
+           * full-width below it (matches design/topmatches-style profile
+           * mockup). Desktop keeps its own untouched block right after. */}
+          <div className="z-10 flex flex-col gap-3 lg:hidden">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-1">
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={profile?.username ?? ""}
+                  imageSize={144}
+                  sizeClassName="size-16"
+                  textClassName="text-2xl"
+                  className="ring-2 ring-primary"
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col items-start">
+                {profile?.display_name && (
+                  <p className="truncate text-lg font-semibold text-foreground">
+                    {profile.display_name}
+                  </p>
+                )}
+                <p
+                  className={cn(
+                    "truncate",
+                    profile?.display_name
+                      ? "text-sm text-muted-foreground"
+                      : "text-lg font-semibold text-foreground",
+                  )}
+                >
+                  @{profile?.username}
+                </p>
+              </div>
+            </div>
+
+            {edit !== "true" && (
+              <ProfileBio
+                bio={profile?.bio}
+                location={profile?.location}
+                joinedDate={joinedDate}
+                metaInline
+                className="flex flex-col items-start gap-1 text-left"
+              />
+            )}
+          </div>
+
+          <div className="z-10 hidden lg:flex lg:flex-row lg:items-center lg:gap-4">
             <div className="rounded-full p-1">
               <Avatar
                 src={profile?.avatar_url}
                 name={profile?.username ?? ""}
                 imageSize={144}
-                sizeClassName="size-24 lg:size-36"
-                textClassName="text-2xl lg:text-4xl"
-                className="lg:ring-4 lg:ring-primary"
+                sizeClassName="size-36"
+                textClassName="text-4xl"
+                className="ring-4 ring-primary"
               />
             </div>
 
-            <div className="flex flex-col items-center lg:items-start">
-              <div className="text-center lg:text-left">
+            <div className="flex flex-col items-start">
+              <div className="text-left">
                 {profile?.display_name && (
-                  <p className="text-lg font-semibold text-foreground lg:text-xl">
+                  <p className="text-xl font-semibold text-foreground">
                     {profile.display_name}
                   </p>
                 )}
@@ -231,7 +270,7 @@ export default async function ProfilePage({
                   className={
                     profile?.display_name
                       ? "text-sm text-muted-foreground"
-                      : "text-lg font-semibold text-foreground lg:text-xl"
+                      : "text-xl font-semibold text-foreground"
                   }
                 >
                   @{profile?.username}
@@ -243,7 +282,7 @@ export default async function ProfilePage({
                   bio={profile?.bio}
                   location={profile?.location}
                   joinedDate={joinedDate}
-                  className="hidden lg:flex lg:flex-col lg:items-start lg:gap-1 lg:pt-2 lg:text-left"
+                  className="flex flex-col items-start gap-1 pt-2 text-left"
                 />
               )}
             </div>
@@ -253,18 +292,11 @@ export default async function ProfilePage({
             listsCount={listsCount}
             booksRankedCount={booksRankedCount ?? 0}
             followingCount={followingCount ?? 0}
-            className="z-10 hidden lg:flex lg:w-auto lg:gap-10 lg:pt-10"
+            className="z-10 flex w-full divide-x divide-border/60 border-y border-border/60 py-3 lg:w-auto lg:gap-10 lg:divide-x-0 lg:border-0 lg:pt-10 lg:pb-0"
           />
         </div>
 
         <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-4 pb-4 text-center">
-          <ProfileStats
-            listsCount={listsCount}
-            booksRankedCount={booksRankedCount ?? 0}
-            followingCount={followingCount ?? 0}
-            className="flex lg:hidden"
-          />
-
           {edit === "true" ? (
             <form
               action={updateProfile}
@@ -328,14 +360,7 @@ export default async function ProfilePage({
                 </Link>
               </div>
             </form>
-          ) : (
-            <ProfileBio
-              bio={profile?.bio}
-              location={profile?.location}
-              joinedDate={joinedDate}
-              className="flex w-full flex-col items-start gap-1 text-left lg:hidden"
-            />
-          )}
+          ) : null}
 
           {edit !== "true" && (
             <>

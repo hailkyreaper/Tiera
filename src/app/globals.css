@@ -51,9 +51,12 @@
 :root {
   /* Base — warm paper palette (2026-07-19 design exploration, originally
      scoped to Explore only via .explore-warm, promoted here to the whole
-     app 2026-07-20 since that was always the intent). */
+     app 2026-07-20 since that was always the intent). --background kept
+     at the original near-white value per user feedback (2026-07-20) —
+     the rest of the warm palette (foreground/border/shadow/font-display)
+     read right, just not the warm-tinted background itself. */
 
-  --background: #f5f3ed;
+  --background: #fafafa;
   --foreground: #211d17;
 
   /* Surfaces */

@@ -260,7 +260,13 @@ export function EditListDetailsForm({
               onChange={(event) =>
                 setIsPublicValue(event.target.value === "true")
               }
-              className=" border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none lg:text-base"
+              // text-base (not the page's usual text-sm lg:text-base scale)
+              // is deliberate here: iOS Safari zooms the whole page in on
+              // focus for any form control under 16px, and this is a real
+              // <select> a mobile user can actually tap into edit mode —
+              // unlike the plain text siblings around it (Cancel/Publish/
+              // heading), which have no such behavior to guard against.
+              className="border-input bg-transparent px-2.5 py-1 text-base text-foreground outline-none"
             >
               <option value="true">Public</option>
               <option value="false">Private</option>

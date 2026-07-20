@@ -9,7 +9,7 @@ export function InfoPopover({ children }: { children: React.ReactNode }) {
   return (
     <Popover.Root>
       <Popover.Trigger
-        className="flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+        className="-m-2 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
         aria-label="More info"
       >
         <Info className="size-4" />

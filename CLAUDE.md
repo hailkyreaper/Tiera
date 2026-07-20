@@ -1651,6 +1651,51 @@ screenshots after every step.
   consistent with the live-data-timestamp drift already established as 
   harmless elsewhere in this file) at every single step.
 
+**Explore's warm light-mode palette + serif headings taken site-wide** 
+✅ done (2026-07-20) — user's own note: "we did that last night and was 
+supposed to do it site wide," referring to the previous session's 
+`.explore-warm`-scoped work (warm paper background, serif display font 
+on the page heading, both light-mode only) which had only ever shipped 
+on Explore itself.
+- `globals.css`: moved the warm palette tokens (`--foreground`, 
+  `--muted-foreground`, `--border`, `--shadow-card`/`--shadow-popover`, 
+  `--font-display`) out of the `html:not(.dark) .explore-warm` scoped 
+  rule and into the base `:root` light theme, then deleted the 
+  now-redundant scoped block entirely. Explore's page wrapper no longer 
+  needs (or has) the `explore-warm` class.
+- Applied `font-display` to the other primary, app-authored page 
+  headings — Search ("Search"), Compare landing ("Top Matches"), 
+  Recommendations ("Recommendations") — following the exact rule already 
+  established when the serif treatment was tried on Explore's own list 
+  card titles and reverted: static, app-authored titles get serif; 
+  user-generated text (list titles, usernames, book titles) never does. 
+  `TopNav`'s small breadcrumb-style titles (e.g. "Compare" on the 
+  Compare detail page) were deliberately left plain too — different UI 
+  role (a compact nav bar paired with a back button, not a page hero), 
+  not one of the primary headings this pass targeted.
+- Dark mode is completely unaffected — `--font-display` is only ever 
+  defined in the light theme, `.dark` keeps its own separate token 
+  values untouched. Confirmed via a dark-mode Explore screenshot showing 
+  zero visual change.
+- Verified live across Explore, Search, Compare (landing, both All/
+  Friends tabs, and the `/compare/[username]` detail page), 
+  Recommendations, Profile, and `/u/[username]` — mobile and desktop, 
+  full-page scrolls included. Two non-issues ruled out along the way: a 
+  Compare-detail pairing correctly showing an empty right-rail when it 
+  has 0 disagreements/no recommendations (data-dependent, not a bug), 
+  and the same Chrome-autofill hydration console warning from the 
+  `/u/[username]` work above recurring on other pages with a 
+  `FollowButton` — confirmed non-deterministic (reproduces on some runs, 
+  not others, same page, same code) and unrelated to any of this work.
+- **Follow-up same session**: user liked the extended palette except the 
+  background itself — `--background` reverted from the warm `#f5f3ed` 
+  back to a near-white `#fafafa` (the original pre-warm-palette value 
+  was `#fafaf9`; user asked for `#fafafa` specifically). Every other 
+  warm-palette token (`--foreground`, `--border`, `--shadow-card`, 
+  `--font-display`) stays as shipped above. Verified live: cards still 
+  read as elevated white panels against the new neutral background, 
+  serif headings/warm ink/borders all intact.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

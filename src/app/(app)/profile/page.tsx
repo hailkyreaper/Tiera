@@ -39,7 +39,7 @@ function ProfileStats({
   return (
     <div className={cn("w-full", className)}>
       <div className="flex flex-1 flex-col items-center lg:flex-none">
-        <span className="text-xl font-semibold text-foreground">
+        <span className="text-lg font-semibold text-foreground lg:text-xl">
           {listsCount}
         </span>
         <span className="text-xs text-muted-foreground uppercase">
@@ -47,7 +47,7 @@ function ProfileStats({
         </span>
       </div>
       <div className="flex flex-1 flex-col items-center lg:flex-none">
-        <span className="text-xl font-semibold text-foreground">
+        <span className="text-lg font-semibold text-foreground lg:text-xl">
           {booksRankedCount}
         </span>
         <span className="text-xs text-muted-foreground uppercase">
@@ -58,7 +58,7 @@ function ProfileStats({
         href="/profile/following"
         className="flex flex-1 flex-col items-center lg:flex-none"
       >
-        <span className="text-xl font-semibold text-foreground">
+        <span className="text-lg font-semibold text-foreground lg:text-xl">
           {followingCount}
         </span>
         <span className="text-xs text-muted-foreground uppercase">

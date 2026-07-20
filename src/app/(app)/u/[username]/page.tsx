@@ -142,7 +142,7 @@ export default async function PublicUserPage({
 
         <div className="flex w-full divide-x divide-border/60 border-y border-border/60 py-3">
           <div className="flex flex-1 flex-col items-center">
-            <span className="text-xl font-semibold text-foreground">
+            <span className="text-lg font-semibold text-foreground">
               {listsCount}
             </span>
             <span className="text-xs text-muted-foreground uppercase">
@@ -150,7 +150,7 @@ export default async function PublicUserPage({
             </span>
           </div>
           <div className="flex flex-1 flex-col items-center">
-            <span className="text-xl font-semibold text-foreground">
+            <span className="text-lg font-semibold text-foreground">
               {booksRankedCount ?? 0}
             </span>
             <span className="text-xs text-muted-foreground uppercase">
@@ -158,7 +158,7 @@ export default async function PublicUserPage({
             </span>
           </div>
           <div className="flex flex-1 flex-col items-center">
-            <span className="text-xl font-semibold text-muted-foreground">
+            <span className="text-lg font-semibold text-muted-foreground">
               —
             </span>
             <span className="text-xs text-muted-foreground uppercase">

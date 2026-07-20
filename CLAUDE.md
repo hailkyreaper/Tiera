@@ -1588,6 +1588,69 @@ button rendering outside its card on Compare's list.
   that one emulation mode) — revisit now that other overflow bugs this 
   session turned out to be real, or leave parked.
 
+**Mobile profile header redesign** ✅ done (2026-07-20) — user's own 
+complaint: "I don't like the banner. I like the desktop profile card 
+rather than the mobile one." Scoped to mobile only throughout; desktop's 
+existing header (gradient banner, blur orbs, `hidden lg:flex` blocks) was 
+never touched — verified via byte-identical/near-identical desktop 
+screenshots after every step.
+- Used the newly-installed `frontend-design` plugin/skill properly this 
+  time: built an actual mockup (a published Artifact, three toggleable 
+  variants — Before / a plain contained "desktop-style" card / the same 
+  card plus a tier-color spine) before writing any real code, after an 
+  initial attempt to jump straight to code got corrected by the user 
+  ("what are you doing?? I want to use the plugin"). User picked the 
+  tier-spine variant from the mockup first, then iterated further live 
+  against the real app past what the mockup showed.
+- Final mobile header, in the order it was actually reached (each step 
+  was a direct user request against the live result, not planned upfront):
+  1. Contained `bg-card` panel + a left-edge spine of the six real 
+     S/A/B/C/D/F tier colors (`TIER_BADGE_COLORS` from `lib/tiers.ts`) — 
+     the mockup's recommended pick.
+  2. User then asked to remove both the card background and the spine 
+     entirely, "make it edge to edge like top favorites" — header now 
+     sits directly on the page background at the same `px-4` inset as 
+     every other section (no card, no border, no rounded corners, no 
+     spine), reading as one continuous page rather than a boxed unit.
+  3. Added a hairline `border-b` under the stats row specifically (the 
+     one divider kept) once the edge-to-edge version felt like it needed 
+     *something* separating stats from Top Favorites below.
+  4. Restructured bio/location/joined: originally nested next to the 
+     avatar in the name column; moved to sit full-width below the entire 
+     avatar+name row instead (bio on its own line, then location and 
+     "Joined X" sharing one line) — matches the original published 
+     mockup's layout, which the first live pass had drifted from.
+  5. Avatar bumped 56px → 64px (`size-14` → `size-16`), "just a bit 
+     bigger."
+  6. Stat numbers (Tier Lists/Books Ranked/Following) dropped `text-xl` 
+     → `text-lg` on mobile — read "massive" against their labels at the 
+     original size. Desktop kept `text-xl` via `lg:text-xl`.
+- Once bio/location needed to render identically in two places (own 
+  profile and `/u/[username]`), extracted the local `ProfileBio` function 
+  out of `profile/page.tsx` into a shared `src/components/profile-bio.tsx` 
+  — gained a `metaInline` prop (location + "Joined X" on one line vs. 
+  stacked) so `/u/[username]` can opt in without disturbing anything else 
+  using the component.
+- Same redesign then applied to `/u/[username]` on request ("update the 
+  /u/[username] page to match"). That page never had a desktop-specific 
+  layout (no `lg:` classes at all, before or after), so the change applies 
+  at every width there — confirmed live at 1440px: renders correctly 
+  (Back/Follow relocated from floating-over-the-banner to a plain top row, 
+  avoiding the collision a left-aligned avatar would've had with a 
+  floating top-left back button), just still in the same narrow `max-w-md` 
+  column desktop always rendered there, which is pre-existing and out of 
+  scope for this pass. Two things checked and confirmed *not* bugs while 
+  verifying that desktop render: Top Favorites correctly disappearing for 
+  a test account with zero favorites, and a Playwright-only hydration 
+  console warning traced to Chrome's autofill heuristics tagging a hidden 
+  `name="username"` input in `FollowButton` (a plain, deterministic server 
+  component untouched by this work) — not a real app bug.
+- Verified throughout via Playwright screenshots (mobile 412px + desktop 
+  1440px) after every step, plus `tsc --noEmit` clean each time. Desktop 
+  `/profile` confirmed byte-identical or near-identical (sub-0.3% diff, 
+  consistent with the live-data-timestamp drift already established as 
+  harmless elsewhere in this file) at every single step.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

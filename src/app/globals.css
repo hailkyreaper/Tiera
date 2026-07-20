@@ -49,18 +49,20 @@
 }
 
 :root {
-  /* Base */
+  /* Base — warm paper palette (2026-07-19 design exploration, originally
+     scoped to Explore only via .explore-warm, promoted here to the whole
+     app 2026-07-20 since that was always the intent). */
 
-  --background: #fafaf9;
-  --foreground: #171717;
+  --background: #f5f3ed;
+  --foreground: #211d17;
 
   /* Surfaces */
 
   --card: #ffffff;
-  --card-foreground: #171717;
+  --card-foreground: #211d17;
 
   --popover: #ffffff;
-  --popover-foreground: #171717;
+  --popover-foreground: #211d17;
 
   /* Brand */
 
@@ -75,7 +77,7 @@
   /* Muted */
 
   --muted: #f6f6f7;
-  --muted-foreground: #6b7280;
+  --muted-foreground: #8d8677;
 
   /* Accent */
 
@@ -88,7 +90,7 @@
 
   /* UI */
 
-  --border: #e5e7eb;
+  --border: #e4e0d5;
   --input: #e5e7eb;
 
   --ring: #7a5af8;
@@ -134,13 +136,23 @@
      and less "blinding" than the stock near-white/white default read on
      its own. */
   --shadow-card:
-    0 1px 2px rgb(24 24 27 / 0.03),
-    0 8px 24px rgb(24 24 27 / 0.05);
+    0 1px 2px rgb(33 29 23 / 0.03),
+    0 8px 24px rgb(33 29 23 / 0.05);
 
   /* Same reasoning, for popovers/menus/dialogs (bg-popover) — a stronger,
      single-layer shadow since these float above page content rather than
      sitting flush in the page flow like a card. */
-  --shadow-popover: 0 12px 40px rgb(24 24 27 / 0.08);
+  --shadow-popover: 0 12px 40px rgb(33 29 23 / 0.08);
+
+  /* Serif display face for primary, app-authored page headings (Explore,
+     Search, Compare, Recommendations) — never applied to user-generated
+     text (list titles, usernames, book titles), same rule established
+     when the serif treatment was tried on Explore's own list card titles
+     and reverted. Light-mode only, matching what was actually shipped for
+     Explore; falls back to `inherit` (the sans stack) in dark mode since
+     `--font-display` is never defined there. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    ui-serif, serif;
 }
 
 .dark {
@@ -188,28 +200,6 @@
 
 .bg-popover {
   box-shadow: var(--shadow-popover);
-}
-
-/* Explore-only light-mode direction (2026-07-19 design exploration,
-   scoped experiment — not the rest of the app's light theme). Overrides
-   the shared tokens within this one subtree only; every component under
-   it (Card, Button, Avatar, etc.) already reads these same variables, so
-   they pick up the warmer palette for free with no component changes.
-   Guarded by html:not(.dark) so dark mode is completely untouched — in
-   dark mode these variables are simply never defined, and --font-display
-   falls back to `inherit` wherever it's used. */
-html:not(.dark) .explore-warm {
-  --background: #f5f3ed;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --foreground: #211d17;
-  --muted-foreground: #8d8677;
-  --border: #e4e0d5;
-  --shadow-card:
-    0 1px 2px rgb(33 29 23 / 0.03),
-    0 8px 24px rgb(33 29 23 / 0.05);
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
-    ui-serif, serif;
 }
 
 .font-display {

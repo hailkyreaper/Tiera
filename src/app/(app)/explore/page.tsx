@@ -171,7 +171,7 @@ export default async function ExplorePage({
   }
 
   return (
-    <div className="explore-warm flex w-full flex-1 gap-6 bg-background p-4 lg:p-6">
+    <div className="flex w-full flex-1 gap-6 bg-background p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-semibold text-foreground lg:text-3xl">

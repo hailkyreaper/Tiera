@@ -38,7 +38,9 @@ export default async function SearchPage({
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
-        <h1 className="text-2xl font-semibold text-foreground">Search</h1>
+        <h1 className="font-display text-2xl font-semibold text-foreground">
+          Search
+        </h1>
 
         <SegmentedTabs
           basePath="/search"

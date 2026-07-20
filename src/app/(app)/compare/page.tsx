@@ -80,7 +80,7 @@ export default async function ComparePage({
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 lg:max-w-3xl xl:max-w-4xl">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="font-display text-2xl font-semibold text-foreground">
               Top Matches
             </h1>
             <p className="text-sm text-muted-foreground">

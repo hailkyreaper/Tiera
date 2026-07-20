@@ -1570,23 +1570,55 @@ button rendering outside its card on Compare's list.
   soft shadow now instead of reading as flat stark white. Background/card 
   base colors themselves not touched — only the shadow, per what was 
   actually asked for.
-- [ ] Very wide desktop (1920px+) — whether the capped-width containers 
-  (`max-w-3xl`/`max-w-4xl`/`max-w-6xl`) read as intentional or just leave a 
-  lot of dead space.
-- [ ] Mobile landscape (e.g. 812×375) — covered once in the original mobile 
-  audit, not re-checked since.
-- [ ] Drawers/dialogs (`BookDetailDrawer` etc.) on a short viewport — an 
-  `h-[80vh]` sheet could clip content if the viewport itself is short 
-  (landscape phone, short laptop window).
-- [ ] Touch target sizes on mobile (icon-only buttons, `size-8`/`size-7` 
-  chevrons and menu triggers) — never measured against a minimum 
-  tap-target guideline.
-- [ ] iOS input zoom — any input with font-size under 16px triggers 
-  Safari's auto-zoom-on-focus; not checked.
+- [x] **Very wide desktop (1920px+)** ✅ checked (2026-07-20) — measured 
+  directly at 1920px and 2560px. At 1920px the `max-w-[1650px]` app-shell 
+  cap (`(app)/layout.tsx`) leaves ~135px empty on each side, reads as 
+  normal centered-content margin. At 2560px that grows to ~455px per 
+  side, which does start to read as genuine dead space rather than 
+  intentional margin. User's call when shown both: leave the cap as-is 
+  (a deliberate reading-width limit, same as most content apps) rather 
+  than widen it for ultrawide monitors — no code change.
+- [x] **Mobile landscape (812×375)** ✅ checked (2026-07-20), no bugs 
+  found — re-audited Explore, Search, Compare (landing + detail), 
+  Profile (both Lists/Library tabs), `/u/[username]`. The fixed bottom 
+  nav overlapping content at the top of a short viewport is expected 
+  (that's what a fixed bar does); confirmed via scroll-to-bottom on 
+  Explore/Profile/Compare that the `pb-16` clearance correctly reveals 
+  every page's final content above the nav, nothing trapped behind it.
+- [x] **Drawers/dialogs on a short viewport** ✅ checked (2026-07-20), no 
+  bug — tested `BookDetailDrawer` at 812×375, 1280×600, and 1440×500. Its 
+  `overflow-y-auto` correctly makes the sheet internally scrollable; at 
+  the shortest height only the cover+title+author fit before needing to 
+  scroll, but scrolling to the end reliably reveals the full synopsis 
+  with nothing clipped or lost. No fix needed.
+- [x] **Touch target sizes on mobile** ✅ checked and one fixed 
+  (2026-07-20) — measured every icon-only tap target directly (not 
+  eyeballed). Bottom nav tabs, Create button, and Profile's Lists/Library 
+  tabs all comfortably clear 44px. `BackButton` (36×36) and the comment 
+  post button (32×32) are below the ideal 44px but above the 24px WCAG AA 
+  floor — left alone per user's call. The one real outlier: Compare's 
+  taste-score "ⓘ" info trigger (`InfoPopover`) was only **16×16px**, 
+  under any reasonable guideline. Fixed in `info-popover.tsx` — trigger 
+  box grown to `size-8` (32px) with a matching `-m-2` negative margin so 
+  the *visual* footprint and surrounding layout are unchanged (verified 
+  via screenshot diff), only the actual clickable/hoverable area grew.
+- [x] **iOS input zoom** ✅ checked and one fixed (2026-07-20) — audited 
+  every `<input>`/`<select>` in the app. The shared `Input` component and 
+  both custom search inputs (`book-search-input.tsx`, 
+  `username-autocomplete.tsx`) were already safe (`text-base` on mobile, 
+  only shrinking to `text-sm` at `md:`/desktop, where the zoom behavior 
+  doesn't apply). Found one real bug: the Visibility (`Public`/`Private`) 
+  native `<select>` in `edit-list-details-form.tsx` used the page's usual 
+  `text-sm lg:text-base` scale — inverted from the safe pattern, meaning 
+  14px on every actual phone. Fixed to a flat `text-base` (16px at all 
+  widths) — a deliberate, commented exception to that page's normal type 
+  scale, since this is the one control on the page a mobile user actually 
+  taps into edit mode. Confirmed via computed style: `16px` on mobile 
+  now, and confirmed the visual size next to its "Visibility" label still 
+  reads fine (2px difference, not visually jarring).
 - [ ] The parked Chrome-desktop-mobile-emulation-only tier-row overflow 
   from the Post-Sprint-6 round-3 bug-fix pass (never reproduced outside 
-  that one emulation mode) — revisit now that other overflow bugs this 
-  session turned out to be real, or leave parked.
+  that one emulation mode) — still parked, not investigated this pass.
 
 **Mobile profile header redesign** ✅ done (2026-07-20) — user's own 
 complaint: "I don't like the banner. I like the desktop profile card 

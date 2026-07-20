@@ -5,7 +5,6 @@ import {
   getBookScores,
   getComparisonSummary,
   getMatchRecommendations,
-  MIN_PANEL_BOOKS,
   MIN_RECOMMENDATION_SHARED_BOOKS,
   MIN_RECOMMENDATION_MATCH_PERCENTAGE,
 } from "@/lib/db/taste-match";
@@ -206,11 +205,19 @@ export default async function CompareWithUserPage({
               topSharedGenre={topSharedGenre}
             />
 
+            {/* MIN_PANEL_BOOKS gates topSharedGenre (an inference drawn
+             * from bothLove — see taste-match.ts) since a genre tag off a
+             * single book reads as a confident claim the data doesn't
+             * support. It deliberately does NOT gate these two lists: they
+             * just literally list whichever shared books qualify, so
+             * showing 1 is accurate, not misleading — and gating them here
+             * previously contradicted CompareStatsRow's raw count right
+             * above (stat said "1," panel said "No shared dislikes yet"). */}
             <div className="flex flex-col gap-3 text-left">
               <h2 className="text-lg font-semibold text-foreground">
                 Top Books You Both Love
               </h2>
-              {bothLove.length < MIN_PANEL_BOOKS ? (
+              {bothLove.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No shared favorites yet.
                 </p>
@@ -227,7 +234,7 @@ export default async function CompareWithUserPage({
               <h2 className="text-lg font-semibold text-foreground">
                 Shared Dislikes
               </h2>
-              {sharedDislikes.length < MIN_PANEL_BOOKS ? (
+              {sharedDislikes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No shared dislikes yet.
                 </p>

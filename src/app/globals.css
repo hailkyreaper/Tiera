@@ -190,6 +190,32 @@
   box-shadow: var(--shadow-popover);
 }
 
+/* Explore-only light-mode direction (2026-07-19 design exploration,
+   scoped experiment — not the rest of the app's light theme). Overrides
+   the shared tokens within this one subtree only; every component under
+   it (Card, Button, Avatar, etc.) already reads these same variables, so
+   they pick up the warmer palette for free with no component changes.
+   Guarded by html:not(.dark) so dark mode is completely untouched — in
+   dark mode these variables are simply never defined, and --font-display
+   falls back to `inherit` wherever it's used. */
+html:not(.dark) .explore-warm {
+  --background: #f5f3ed;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --foreground: #211d17;
+  --muted-foreground: #8d8677;
+  --border: #e4e0d5;
+  --shadow-card:
+    0 1px 2px rgb(33 29 23 / 0.03),
+    0 8px 24px rgb(33 29 23 / 0.05);
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    ui-serif, serif;
+}
+
+.font-display {
+  font-family: var(--font-display, inherit);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -97,7 +97,7 @@ export function ExploreListCard({
       </div>
 
       <div className="-mt-1 flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 font-semibold text-foreground lg:text-lg">
+        <h3 className="font-display flex items-center gap-1.5 font-semibold text-foreground lg:text-lg">
           {title}
           {isDraft ? (
             <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">

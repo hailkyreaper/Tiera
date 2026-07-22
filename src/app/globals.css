@@ -35,6 +35,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-link: var(--primary-link);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -71,6 +72,14 @@
 
   --primary: #7a5af8;
   --primary-foreground: #ffffff;
+  /* Standalone purple text/links on a plain background (not on a
+     bg-primary surface — see --primary-foreground for that) fell just
+     short of WCAG AA (4.33:1 measured, needs 4.5:1) — a UI-sharpening-pass
+     finding, computed precisely rather than eyeballed. This is --primary
+     darkened just enough to clear 4.5:1 against --background, same hue/
+     saturation, not a rebrand. Dark mode gets its own lighter variant
+     (brightness moves the opposite direction there) — see .dark below. */
+  --primary-link: #7756f8;
 
   /* Secondary */
 
@@ -167,6 +176,10 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: #6d5df6;
   --primary-foreground: oklch(0.985 0 0);
+  /* See --primary-link in :root for why this exists. Dark mode needs the
+     opposite adjustment direction (lighter, not darker) to clear 4.5:1
+     against --background — 4.19:1 measured before this. */
+  --primary-link: #7061f6;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);

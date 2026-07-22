@@ -16,7 +16,13 @@ export function MatchBadge({
   return (
     <span
       className={cn(
-        "w-fit shrink-0 rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary",
+        // text-foreground, not text-primary — purple-on-purple-tint measured
+        // well under WCAG AA (3.84:1 dark / 3.58:1 light, need 4.5:1); the
+        // neutral foreground color against this same tinted pill clears it
+        // by a wide margin (16.98:1 / 13.29:1) while the bg-primary/15 tint
+        // still carries the "this is a match stat" visual identity on its
+        // own.
+        "w-fit shrink-0 rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-foreground",
         className,
       )}
     >

@@ -24,7 +24,7 @@ export function SidebarNav() {
               className={cn(
                 "flex items-center gap-3 rounded-sm px-3 py-2.5 text-base font-medium",
                 active
-                  ? "bg-primary/15 text-primary"
+                  ? "bg-primary/15 text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

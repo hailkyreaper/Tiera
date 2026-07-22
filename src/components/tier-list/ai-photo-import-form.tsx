@@ -173,7 +173,7 @@ export function AiPhotoImportForm({ tierListId }: { tierListId: string }) {
                   <button
                     type="button"
                     onClick={selectAll}
-                    className="text-primary hover:underline"
+                    className="text-primary-link hover:underline"
                   >
                     Select all
                   </button>

@@ -65,7 +65,7 @@ export function SearchFiltersPanel({ genres }: { genres: string[] }) {
           <button
             type="button"
             onClick={reset}
-            className="text-sm font-medium text-primary"
+            className="text-sm font-medium text-primary-link"
           >
             Reset
           </button>

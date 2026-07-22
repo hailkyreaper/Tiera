@@ -19,7 +19,7 @@ export function FavoritesRow({
         <h2 className="text-sm font-semibold text-foreground">
           Top Favorites
         </h2>
-        <Link href={viewMoreHref} className="text-xs text-primary">
+        <Link href={viewMoreHref} className="text-xs text-primary-link">
           View all
         </Link>
       </div>

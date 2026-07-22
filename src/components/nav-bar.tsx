@@ -47,7 +47,7 @@ export function NavBar() {
             onClick={(event) => handleNavClick(event, item.href)}
             className={cn(
               "flex flex-col items-center gap-0.5 px-3 py-1 text-xs",
-              isActive(item.href) ? "text-primary" : "text-muted-foreground",
+              isActive(item.href) ? "text-primary-link" : "text-muted-foreground",
             )}
           >
             <Icon className="size-5" />

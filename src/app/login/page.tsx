@@ -46,7 +46,7 @@ export default async function LoginPage({
           Don&apos;t have an account?&nbsp;
           <Link
             href="/signup"
-            className="text-primary underline underline-offset-4"
+            className="text-primary-link underline underline-offset-4"
           >
             Sign up
           </Link>

@@ -48,7 +48,7 @@ export async function RecommendationsRail() {
         <h2 className="text-base font-semibold text-foreground">
           Recommended for You
         </h2>
-        <Link href="/recommendations" className="text-sm font-medium text-primary">
+        <Link href="/recommendations" className="text-sm font-medium text-primary-link">
           View all
         </Link>
       </div>

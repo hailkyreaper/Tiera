@@ -41,7 +41,7 @@ export async function TopMatchesRail() {
     <div className="flex flex-col gap-4 rounded-sm bg-card p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-foreground">Top Matches</h2>
-        <Link href="/compare" className="text-sm font-medium text-primary">
+        <Link href="/compare" className="text-sm font-medium text-primary-link">
           View all
         </Link>
       </div>

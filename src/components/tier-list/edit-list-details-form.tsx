@@ -234,7 +234,7 @@ export function EditListDetailsForm({
               type="button"
               disabled={publishing}
               onClick={handlePublish}
-              className="text-sm font-semibold text-primary lg:text-base"
+              className="text-sm font-semibold text-primary-link lg:text-base"
             >
               {publishing ? "..." : "Publish"}
             </button>

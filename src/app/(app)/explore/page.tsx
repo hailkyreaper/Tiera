@@ -196,7 +196,7 @@ export default async function ExplorePage({
           </h1>
           <Link
             href="/recommendations"
-            className="text-sm font-medium text-primary lg:text-base"
+            className="text-sm font-medium text-primary-link lg:text-base"
           >
             Recommendations
           </Link>

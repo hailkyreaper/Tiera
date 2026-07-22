@@ -2425,18 +2425,78 @@ items done so far, the rest still open:
   checkmark, and filename text, with the AI import page's "Identify Books" 
   button correctly enabling once a photo is selected; zero console errors 
   either place.
-- [ ] Light mode full pass — light mode only got real design attention 
-  recently (warm palette + shadows); dark mode has had dozens of 
-  iterations by comparison. Worth a dedicated side-by-side review now that 
-  it's actually reachable via the toggle.
-- [ ] Serif display font placement — flip-flopped already (rolled out 
-  site-wide, then reverted on Explore's list-card titles in the most 
-  recent commit before this pass started). Decide definitively where it 
-  lives vs. doesn't, rather than leaving it an ongoing back-and-forth.
-- [ ] Purple accent (`#6D5DF6`) contrast — flagged during the Sprint 9 
-  Lighthouse pass and deliberately left alone at the time ("don't 
-  proactively restyle colors beyond what's given"). A final-polish pass is 
-  the right moment to revisit that call on purpose.
+- [x] Light mode full pass — dropped by the user (2026-07-22) rather than 
+  pursued: the screenshot-review workflow itself hit friction (several 
+  full-page captures failed to upload, likely a size/dimension limit on 
+  very tall pages), and the user decided not to chase a broad audit right 
+  now. Not evaluated on its merits — just deprioritized.
+- [x] Serif display font placement ✅ resolved, no change needed 
+  (2026-07-22) — audited every `<h1>` in the codebase rather than guessing: 
+  the rule (static app-authored page titles get serif; user-generated 
+  content and `TopNav`'s small breadcrumb-style titles never do) is 
+  already applied consistently everywhere it matters — Explore/Search/
+  Compare-landing/Recommendations correctly have it, every list-title 
+  heading and Compare's `TopNav` breadcrumb correctly don't. The one real 
+  gap found — the logged-out landing page's "Tiera" heading 
+  (`src/app/page.tsx`) never got revisited after the serif rollout — 
+  wasn't resolved on its own merits: the user said the landing/sign-in 
+  pages need an actual design pass, not a one-off font tweak in isolation. 
+  See the new landing/sign-in page design item below.
+- [ ] **Landing + sign-in page design** — user's own addition (2026-07-22): 
+  the logged-out landing (`src/app/page.tsx`) and login/signup pages are 
+  currently bare/unstyled relative to the rest of the app (plain centered 
+  text + a button, or a stock shadcn `Card`) and need a real design pass, 
+  not a quick tweak. Not started — this is bigger scope than the rest of 
+  this checklist's audit-and-fix items, closer to actual visual design 
+  work. Whether the serif landing-heading question above gets resolved as 
+  part of this or separately is still open.
+- [x] **Purple accent contrast** ✅ done (2026-07-22) — flagged during the 
+  Sprint 9 Lighthouse pass and deliberately left alone at the time ("don't 
+  proactively restyle colors beyond what's given"); this final-polish pass 
+  was the deliberate moment to revisit that call, per the user's own ask. 
+  Computed exact WCAG contrast ratios rather than guessing (script in 
+  scratchpad, not committed): `--primary` as standalone text measured 
+  4.33:1 in both themes (need 4.5:1) — a near-miss, not way off. The 
+  `bg-primary/15` tinted pill badges (match-% badges, sidebar active-nav- 
+  item state) were worse — purple text on a purple-tinted background 
+  measured 3.84:1 dark / 3.58:1 light, and a same-hue lightness nudge 
+  alone couldn't close that gap (only reached ~4.0:1), so needed a 
+  different fix.
+  - New `--primary-link` token (`globals.css`, registered in `@theme 
+    inline` for a `text-primary-link` utility): `--primary` with a small, 
+    same-hue/saturation lightness nudge — `#7756f8` in light mode 
+    (darker), `#7061f6` in dark mode (lighter — the two themes need 
+    opposite-direction adjustments, since a near-black background needs a 
+    *brighter* accent for contrast while a near-white one needs a 
+    *darker* one). Both hit exactly 4.50:1. Applied to every standalone 
+    purple text/link found by auditing every real (non-icon, non-large- 
+    heading) `text-primary` usage app-wide: Explore's "Recommendations" 
+    link, login/signup's cross-links, `FavoritesRow`'s "View all", the 
+    bottom nav's active-tab label, `RecommendationsRail`/
+    `TopMatchesRail`'s "View" links, AI import's "Select all", 
+    `SearchFiltersPanel`'s "Reset", the Publish button in 
+    `EditListDetailsForm`, and the shared `Button` component's `link` 
+    variant (used by `BookSearchInput`). Deliberately left untouched: 
+    icon-only usages (`Star`, `Heart`, `Sparkles`, etc. — icons only need 
+    3:1 under WCAG, already comfortably met) and large heading text like 
+    Compare detail's `text-4xl`/`text-5xl` match percentage (already 
+    clears the lower 3:1 large-text threshold on its own).
+  - The tinted-pill cases (shared `MatchBadge` component, used everywhere 
+    a match % shows; `SidebarNav`'s active-item state) switched from 
+    `text-primary` to `text-foreground` instead of a same-hue nudge, since 
+    that's what the numbers actually needed — 16.98:1 dark / 13.29:1 
+    light, a wide margin, while the `bg-primary/15` tint still carries the 
+    "this is a match/active" visual identity on its own without needing 
+    purple text on top of it too. Profile's icon-only `Sparkles` circle 
+    (same tint pattern) was deliberately left alone — icons only need 
+    3:1, already met by the untouched purple.
+  - Verified live, not just computed on paper: screenshotted Compare and 
+    Explore in both themes (pills read clean, nav/link text still reads 
+    unmistakably purple, just adjusted), then pulled real computed values 
+    directly from the rendered page to confirm — the bottom nav's active 
+    "Compare" label resolved to `rgb(112, 97, 246)` (`#7061F6`, the exact 
+    target), and the match badge's text color resolved to the expected 
+    near-white foreground value.
 - [ ] Spacing/padding drift check — confirm nothing added since the `p-4` 
   site-wide standard was set (rails, drawers, newer pages) has quietly 
   drifted from it.
@@ -2452,6 +2512,26 @@ items done so far, the rest still open:
 - [ ] Microcopy tone/capitalization pass — empty states were already 
   unified to one template; extend that same rigor to button labels, 
   section headers, and toasts/errors across the whole app.
+- [x] **Desktop profile banner removed** ✅ done (2026-07-22) — user's own 
+  addition mid-pass, prompted by reviewing the light-mode screenshots: 
+  `/profile`'s desktop-only header still had the cosmic-gradient banner 
+  (`bg-gradient-to-br from-primary/60 via-indigo-950 to-purple-950` plus 
+  two blurred glow circles and a radial vignette overlay, all `lg:block`) 
+  from the earlier "Desktop Profile redesign" pass — mobile's own header 
+  had already dropped its equivalent banner treatment entirely in the 
+  later "Mobile profile header redesign" work, so the two had quietly 
+  drifted inconsistent. Removed the gradient/glow/vignette markup outright 
+  in `profile/page.tsx`, along with the banner's own `lg:p-8` interior 
+  padding (the page's existing outer `lg:p-4` wrapper is enough on its 
+  own, consistent with the site-wide `p-4` padding standard) — desktop 
+  now renders as a plain flat header, avatar/name/stats sitting directly 
+  on the page background, matching mobile's already-established look. 
+  `/u/[username]` needed no change — checked and confirmed it never had 
+  this banner treatment at any width to begin with (per its own "still 
+  just the plain single-column mobile layout, not a real desktop 
+  redesign" history), so it was already the "no banner" version this 
+  brought `/profile` in line with. Verified live at both 1440px and 412px: 
+  desktop now shows the flat header correctly, mobile confirmed unchanged.
 
 Do not implement features from future sprints until explicitly instructed.
 

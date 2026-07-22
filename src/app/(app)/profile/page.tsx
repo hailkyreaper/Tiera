@@ -161,11 +161,7 @@ export default async function ProfilePage({
   return (
     <div className="flex w-full flex-1 lg:gap-6 lg:p-4">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col xl:max-w-4xl">
-        <div className="relative flex flex-col gap-3 px-4 pt-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6 lg:overflow-hidden lg:rounded-[20px] lg:bg-gradient-to-br lg:from-primary/60 lg:via-indigo-950 lg:to-purple-950 lg:p-8">
-          <div className="absolute -top-16 -left-10 hidden size-56 rounded-full bg-fuchsia-500/30 blur-3xl lg:block" />
-          <div className="absolute top-0 -right-12 hidden size-48 rounded-full bg-primary/40 blur-3xl lg:block" />
-          <div className="absolute inset-0 hidden bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.35))] lg:block" />
-
+        <div className="relative flex flex-col gap-3 px-4 pt-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
           {edit !== "true" && (
             <Link
               href="/profile?edit=true"

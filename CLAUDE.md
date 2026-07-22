@@ -1895,10 +1895,21 @@ polish checklist):
     both times before the page had actually revalidated). Restored the 
     test account's real follow-state afterward since verifying it 
     unfollow/re-follow had actually shifted it.
-- [ ] Client-side fetch error handling (`BookSearchInput`, 
-  `username-autocomplete`) — what actually happens on a network failure 
-  mid-search? Still not checked — this is client-side `fetch()` calls, a 
-  different code path from the server-side Supabase audit above.
+- [x] **Client-side fetch error handling** ✅ done (2026-07-22) — 
+  `BookSearchInput`'s live typeahead (`searchBooksLive(query).then(...)`) 
+  and `UsernameAutocomplete`'s (`searchUsernames(query).then(...)`) both 
+  had zero `.catch()` on their Server Action call — a real network 
+  failure (not a Supabase error, a genuine "browser can't reach the 
+  server" case) became an unhandled promise rejection with no visible 
+  effect beyond the dropdown silently freezing. Both now catch, 
+  `console.error` for debuggability, and clear suggestions (same 
+  end-state as a legitimate "no results"). Verified live, not just by 
+  reading the code: Playwright test that aborts every POST request 
+  (`route.abort("internetdisconnected")`) after the page loads, then 
+  types into each search box — confirmed zero unhandled page errors in 
+  both cases (previously would have been one), and screenshotted 
+  `BookSearchInput` mid-failure showing the typed text with no dropdown 
+  and the rest of the page (nav, back button, page title) fully intact.
 
 *Performance*
 - [x] Raw `<img>` audit ✅ checked, clean — grepped the whole `src/` tree, 

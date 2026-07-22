@@ -7,7 +7,7 @@ import { SegmentedTabs } from "@/components/segmented-tabs";
 import { TopMatchesRail } from "@/components/top-matches-rail";
 import { TrendingThisWeekRail } from "@/components/trending-this-week-rail";
 import { PopularGenresRail } from "@/components/popular-genres-rail";
-import { computeMatch, getBookScores } from "@/lib/db/taste-match";
+import { computeMatch, getBookScores, getBookScoresForUsers } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
 type ExploreTab = "for-you" | "following";
@@ -142,15 +142,23 @@ export default async function ExplorePage({
 
   // Match % against each unique list creator (skipping yourself), computed
   // once per creator and reused across all of their cards in the feed.
+  // Previously called getBookScores (2 queries) per creator in a
+  // sequential loop — up to 2N round-trips for N distinct creators on the
+  // feed. getBookScoresForUsers batches all of them into 2 queries total,
+  // run alongside the viewer's own getBookScores call instead of after it.
   const matchByUserId = new Map<string, number | null>();
   if (user) {
-    const viewerScores = await getBookScores(supabase, user.id);
+    const otherCreatorIds = userIds.filter((id) => id !== user.id);
+    const [viewerScores, creatorScoresByUser] = await Promise.all([
+      getBookScores(supabase, user.id),
+      getBookScoresForUsers(supabase, otherCreatorIds),
+    ]);
     for (const creatorId of userIds) {
       if (creatorId === user.id) {
         matchByUserId.set(creatorId, null);
         continue;
       }
-      const creatorScores = await getBookScores(supabase, creatorId);
+      const creatorScores = creatorScoresByUser.get(creatorId) ?? new Map();
       const match = computeMatch(viewerScores, creatorScores);
       matchByUserId.set(creatorId, match.percentage);
     }

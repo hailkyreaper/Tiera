@@ -73,6 +73,74 @@ export async function getBookScores(
   return averaged;
 }
 
+type BatchListRow = { id: string; user_id: string };
+type BatchRankedRow = { tier_list_id: string; book_id: string; tier: string };
+
+// Batched version of getBookScores for computing several users' score maps
+// at once — 2 queries total instead of 2 per user. Same batch-fetch-then-
+// group-in-memory approach getTopMatches (top-matches.ts) already uses;
+// pulled out here so Explore's own per-creator match % (previously a
+// sequential getBookScores call per creator — up to 2N round-trips for N
+// creators shown on the feed) can use it too, without duplicating the
+// batching logic a second time.
+export async function getBookScoresForUsers(
+  supabase: SupabaseServerClient,
+  userIds: string[],
+): Promise<Map<string, Map<string, number>>> {
+  const result = new Map<string, Map<string, number>>();
+  if (userIds.length === 0) return result;
+
+  const lists = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, user_id")
+      .in("user_id", userIds)
+      .returns<BatchListRow[]>(),
+    "fetching lists for batched book scores",
+  );
+
+  const listIdToUserId = new Map((lists ?? []).map((l) => [l.id, l.user_id]));
+  const listIds = [...listIdToUserId.keys()];
+  if (listIds.length === 0) return result;
+
+  const items = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("tier_list_id, book_id, tier")
+      .in("tier_list_id", listIds)
+      .neq("tier", "unranked")
+      .returns<BatchRankedRow[]>(),
+    "fetching ranked items for batched book scores",
+  );
+
+  const sums = new Map<string, Map<string, { sum: number; count: number }>>();
+  for (const item of items ?? []) {
+    const userId = listIdToUserId.get(item.tier_list_id);
+    if (!userId) continue;
+    const score = TIER_SCORES[item.tier];
+    if (!score) continue;
+    let userSums = sums.get(userId);
+    if (!userSums) {
+      userSums = new Map();
+      sums.set(userId, userSums);
+    }
+    const entry = userSums.get(item.book_id) ?? { sum: 0, count: 0 };
+    entry.sum += score;
+    entry.count += 1;
+    userSums.set(item.book_id, entry);
+  }
+
+  for (const [userId, userSums] of sums) {
+    const averaged = new Map<string, number>();
+    for (const [bookId, { sum, count }] of userSums) {
+      averaged.set(bookId, sum / count);
+    }
+    result.set(userId, averaged);
+  }
+
+  return result;
+}
+
 export type TasteMatch = {
   percentage: number | null;
   sharedBookCount: number;

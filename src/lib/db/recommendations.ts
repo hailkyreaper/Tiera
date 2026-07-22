@@ -2,6 +2,7 @@ import {
   computeMatch,
   getAlignedGenres,
   getBookScores,
+  getBookScoresForUsers,
   TIER_SCORES,
   type SupabaseServerClient,
 } from "@/lib/db/taste-match";
@@ -115,8 +116,17 @@ export async function getRecommendations(
     scores: Map<string, number>;
   }[] = [];
 
+  // Previously called getBookScores (2 sequential queries) per candidate
+  // profile inside this loop — up to 2N round-trips for N other users on
+  // the platform. Batched via getBookScoresForUsers (same helper built for
+  // Explore's identical per-creator match % bug) into 2 queries total.
+  const theirScoresByUser = await getBookScoresForUsers(
+    supabase,
+    (profiles ?? []).map((p) => p.id),
+  );
+
   for (const profile of profiles ?? []) {
-    const theirScores = await getBookScores(supabase, profile.id);
+    const theirScores = theirScoresByUser.get(profile.id) ?? new Map();
     const match = computeMatch(myScores, theirScores);
     if (match.percentage === null) continue;
     candidates.push({

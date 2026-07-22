@@ -1951,15 +1951,63 @@ polish checklist):
     (no `EXPLAIN ANALYZE` available), same limitation as the ILIKE 
     question above — confirmed these are genuine, correctly-targeted 
     gaps, not confirmed via a measured before/after.
-- [ ] N+1 / sequential-`await`-in-a-loop audit — spot-checked two files 
-  (`list-cards.ts`, `favorites.ts`), both clean (synchronous data-shaping 
-  loops over already-fetched data, no `await` inside). 13 more files with 
-  `for...of` loops not yet checked: `explore/page.tsx`, `taste-match.ts`, 
-  `open-library.ts`, `admin/backfill-categories/actions.ts`, 
-  `recommendations.ts`, `top-matches.ts`, `lists/[id]/import/goodreads/
-  actions.ts`, `discovery.ts`, `search-queries.ts`, `lists/[id]/import/ai/
-  actions.ts`, `lists/[id]/page.tsx`, `add-book-button.tsx`, 
-  `format-time.ts`.
+- [x] **N+1 / sequential-`await`-in-a-loop audit** ✅ done (2026-07-22) — 
+  checked every file in the codebase with a `for...of` loop (14 total, via a 
+  direct grep sweep, not just the originally-scoped list) for a sequential 
+  `await` inside the loop body. Three genuine N+1 bugs found and fixed, all 
+  following the same shape: a per-entity DB/API call sequentially awaited 
+  inside a loop over a list whose length scales with real usage (user count, 
+  catalog size), instead of being batched or run through the existing bounded-
+  concurrency pool:
+  - **Explore feed** (`explore/page.tsx`) — computed each list creator's 
+    match % via a sequential `getBookScores` call (2 queries) per distinct 
+    creator on the feed, up to 2N round-trips for N creators. Fixed with a 
+    new `getBookScoresForUsers` (`taste-match.ts`) that batch-fetches every 
+    candidate's `tier_lists`/`tier_list_items` in 2 queries total and 
+    computes per-user averaged scores in memory — same batching approach 
+    `top-matches.ts`'s `getTopMatches` already used for an identical bug 
+    fixed earlier this sprint. Verified live: loaded `/explore` twice, 
+    confirmed the match-percentage list was identical both times (22 items), 
+    zero console errors, correct visual rendering.
+  - **Admin backfill** (`admin/backfill-categories/actions.ts`) — `runBackfill` 
+    re-scans the *entire* `books` catalog and makes 1-3 sequential external 
+    API calls (Open Library, sometimes Google Books) per book in a plain 
+    `for...of` loop — the same serverless-timeout risk already identified and 
+    fixed for Goodreads/AI-photo import, just missed on this route since it 
+    predates both of those fixes. Rewritten to run 6 books at a time via the 
+    existing `mapWithConcurrency` pool (each iteration now returns a 
+    `BackfillOutcome` object instead of mutating shared counters, which isn't 
+    safe across concurrent workers, with totals reduced from the results 
+    array afterward). `tsc --noEmit` clean; confirmed the page still loads 
+    with no server error. Did not trigger a full live run to verify (it's a 
+    real catalog-wide mutation, already run and verified working in an 
+    earlier session per the "Book descriptions were all empty" entry above) — 
+    confidence instead comes from the type-check plus the fact that only the 
+    concurrency wrapper changed, not the underlying per-book update logic.
+  - **Recommendations** (`recommendations.ts`) — `getRecommendations` computed 
+    match % against every other profile on the platform via a sequential 
+    `getBookScores` call per candidate inside a loop, before narrowing down 
+    to the top 5 similar users. Same fix as Explore's: batched via the new 
+    shared `getBookScoresForUsers`.
+  - Also caught and fixed a smaller version of the same pattern in 
+    `getUserListCards` (`list-cards.ts`) — two independent `getBookScores` 
+    calls (viewer, list owner) were awaited sequentially rather than via 
+    `Promise.all`; not a scaling N+1 (fixed at 2 calls regardless of list 
+    count) but a free parallelization win.
+  - Everything else checked out already clean: `discovery.ts`, `favorites.ts`, 
+    `search-queries.ts`, `top-matches.ts` (already fixed in the earlier 
+    Compare/Explore rework), `lists/[id]/page.tsx` (its own match-% pair 
+    already used `Promise.all`), both `lists/[id]/import/*/actions.ts` files 
+    (already routed through `mapWithConcurrency`, with phase 1 of Goodreads 
+    import deliberately sequential on purpose — see that file's own comment, 
+    it's DB-only and has to stay ordered to avoid a duplicate-creation race), 
+    `open-library.ts`'s `dedupeByTitleAuthor` (properly nested `Promise.all`), 
+    `books.ts`, `taste-match.ts`'s own internal loops (synchronous tallying, 
+    no `await`), `profile/actions.ts`'s `reorderLibraryBooks` (already 
+    `Promise.all`'d, the trailing loop just asserts on already-resolved 
+    results), `add-book-button.tsx` and `format-time.ts` (no loop-await 
+    pattern at all — a single action call and a pure sync function, 
+    respectively). `tsc --noEmit` clean after every change.
 - [ ] Revalidation strategy check — confirm `revalidatePath` calls aren't 
   over-triggering full rebuilds beyond what's actually needed.
 - [ ] A real Lighthouse/Core Web Vitals pass, if tooling allows.

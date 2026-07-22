@@ -10,6 +10,7 @@ import {
   fetchOpenLibraryDataByWorkKey,
   getOpenLibraryData,
 } from "@/lib/open-library";
+import { mapWithConcurrency } from "@/lib/concurrency";
 
 type BookRow = {
   id: string;
@@ -49,14 +50,26 @@ export async function runBackfill() {
     "fetching books for admin backfill",
   );
 
-  let updated = 0;
-  let coversFilled = 0;
-  let descriptionsFilled = 0;
-  let publishedDatesFilled = 0;
-  let failed = 0;
-  let noCategories = 0;
+  type BackfillOutcome = {
+    updated: boolean;
+    coverFilled: boolean;
+    descriptionFilled: boolean;
+    publishedDateFilled: boolean;
+    failed: boolean;
+    noCategories: boolean;
+  };
 
-  for (const book of books ?? []) {
+  // Previously a plain sequential for-of loop — 1-3 external API calls
+  // (Open Library, sometimes Google Books) per book, one at a time, over
+  // the *entire* catalog. Same serverless-timeout risk already identified
+  // and fixed for Goodreads/AI import (see CLAUDE.md), just missed here:
+  // this genuinely re-scans every book, not just ones missing data, so it
+  // grows with the whole catalog, not just new additions. Bounded to 6 at
+  // a time via the same mapWithConcurrency pool those imports use.
+  const outcomes = await mapWithConcurrency(
+    books ?? [],
+    6,
+    async (book): Promise<BackfillOutcome> => {
     try {
       // Prefer an exact lookup by the work id we already have on file over
       // a fresh title+author text search — strictly more reliable (no
@@ -88,30 +101,38 @@ export async function runBackfill() {
       }
 
       const updates: Record<string, unknown> = {};
+      const outcome: BackfillOutcome = {
+        updated: false,
+        coverFilled: false,
+        descriptionFilled: false,
+        publishedDateFilled: false,
+        failed: false,
+        noCategories: false,
+      };
 
       if (categories.length > 0) {
         updates.categories = categories;
       } else {
-        noCategories++;
+        outcome.noCategories = true;
       }
 
       if (!book.thumbnail_url && openLibrary.coverUrl) {
         updates.thumbnail_url = openLibrary.coverUrl;
-        coversFilled++;
+        outcome.coverFilled = true;
       }
 
       if (!book.description && openLibrary.description) {
         updates.description = openLibrary.description;
-        descriptionsFilled++;
+        outcome.descriptionFilled = true;
       }
 
       if (!book.published_date && openLibrary.publishedDate) {
         updates.published_date = openLibrary.publishedDate;
-        publishedDatesFilled++;
+        outcome.publishedDateFilled = true;
       }
 
       if (Object.keys(updates).length === 0) {
-        continue;
+        return outcome;
       }
 
       const { error } = await supabase
@@ -119,14 +140,35 @@ export async function runBackfill() {
         .update(updates)
         .eq("id", book.id);
 
-      if (error) {
-        failed++;
-      } else {
-        updated++;
-      }
+      outcome.updated = !error;
+      outcome.failed = !!error;
+      return outcome;
     } catch {
-      failed++;
+      return {
+        updated: false,
+        coverFilled: false,
+        descriptionFilled: false,
+        publishedDateFilled: false,
+        failed: true,
+        noCategories: false,
+      };
     }
+    },
+  );
+
+  let updated = 0;
+  let coversFilled = 0;
+  let descriptionsFilled = 0;
+  let publishedDatesFilled = 0;
+  let failed = 0;
+  let noCategories = 0;
+  for (const outcome of outcomes) {
+    if (outcome.updated) updated++;
+    if (outcome.coverFilled) coversFilled++;
+    if (outcome.descriptionFilled) descriptionsFilled++;
+    if (outcome.publishedDateFilled) publishedDatesFilled++;
+    if (outcome.failed) failed++;
+    if (outcome.noCategories) noCategories++;
   }
 
   const message = `Updated ${updated} book(s) (${coversFilled} covers filled in, ${descriptionsFilled} descriptions filled in, ${publishedDatesFilled} published dates filled in), ${failed} failed, ${noCategories} had no categories available.`;

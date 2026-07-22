@@ -117,12 +117,16 @@ export async function getUserListCards(
   }
 
   // A single match % for the (viewer, list owner) pair — same for every
-  // list of theirs, since match % isn't a per-list property.
+  // list of theirs, since match % isn't a per-list property. The two
+  // getBookScores calls are independent, so run them concurrently rather
+  // than sequentially.
   const matchPercentage: number | null =
     viewerId && viewerId !== userId
       ? computeMatch(
-          await getBookScores(supabase, viewerId),
-          await getBookScores(supabase, userId),
+          ...(await Promise.all([
+            getBookScores(supabase, viewerId),
+            getBookScores(supabase, userId),
+          ])),
         ).percentage
       : null;
 

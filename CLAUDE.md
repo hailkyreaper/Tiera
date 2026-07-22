@@ -14,9 +14,11 @@ practice, real feature work beyond Sprint 8's stated scope also landed alongside
 it (in-app notifications, desktop discovery panels, recommendation feedback 
 tracking, a To Be Read shelf, Library custom ordering — see the "Current sprint" 
 section's undocumented-work catch-up for the full list) rather than being 
-deferred to a later sprint. Sprint 9 — Launch Prep is now CURRENT (started 
-2026-07-20, see Sprint Rule) — scope is performance, error/empty states, and 
-final QA.
+deferred to a later sprint. Sprint 9 — Launch Prep finished 2026-07-22 
+(performance, error/empty states, and final QA — all done, see that 
+section for the full breakdown). No sprint is currently marked CURRENT — 
+per the Sprint Rule, wait for the next one to be defined before starting 
+new work.
 
 ## Vision
 
@@ -1792,8 +1794,10 @@ on Explore itself.
   read as elevated white panels against the new neutral background, 
   serif headings/warm ink/borders all intact.
 
-**Sprint 9 — Launch Prep is now CURRENT** (started 2026-07-20, see Sprint 
-Rule). Scope per the Roadmap: performance, error/empty states, and final QA.
+**Sprint 9 — Launch Prep** ✅ COMPLETE (started 2026-07-20, finished 
+2026-07-22 — see Sprint Rule). Scope per the Roadmap: performance, 
+error/empty states, and final QA — all three done, see the full checklist 
+below for the complete breakdown of what was found and fixed in each.
 
 **Sprint 9 checklist** (drafted 2026-07-20, same "audit first, present 
 findings, confirm scope before fixing" approach as Sprint 8's responsive-
@@ -2135,23 +2139,127 @@ polish checklist):
     timing quirk rather than a real bug, since the direct HTML evidence 
     contradicts the audit; not chased further.
 
-*Final QA*
-- [ ] Full core-flow walkthrough: signup → onboarding → create list → rank 
-  books → Explore → Compare → follow → search → Goodreads/AI import → 
-  profile edit.
-- [ ] Auth edge cases: expired session, logged-out access to protected 
-  routes.
-- [ ] Form validation edge cases (empty submits, max-length boundaries, 
-  XSS-safe rendering of user-entered text).
-- [ ] RLS spot-check on newer tables (`notifications`, 
-  `recommendation_outcomes`, `books.is_draft` policies) — confirm they're 
-  actually enabled and correctly scoped, not just assumed.
-- [ ] Broken-link / dead-end-button sweep across the app.
-- [ ] A clean console-error pass across every page — a couple of flaky 
-  hydration warnings turned up already this session (traced to Chrome's 
-  autofill heuristics on `FollowButton`'s hidden `username` input, 
-  confirmed non-deterministic and unrelated to real app code) — worth 
-  reconfirming that's still the only source, not masking something real.
+*Final QA* ✅ done (2026-07-22) — all six items below. New reusable 
+Playwright regression scripts added under `scripts/` for each 
+(`core-flow-check.mjs`, `auth-edge-cases-check.mjs`, 
+`form-validation-check.mjs`, `rls-spot-check.mjs`, `broken-link-sweep.mjs`, 
+`console-error-pass.mjs`), same convention as the existing `scripts/*-check.mjs` 
+files. One real, low-severity gap found and fixed (tier_lists.title had no 
+server/DB-side length limit); everything else checked out clean. A recurring 
+methodology note that applied across nearly every item below: this session's 
+`next dev` server had been running continuously for many hours across dozens 
+of distinct routes by this point, and several individual checks hit 
+false-positive timeouts from slow one-time dev-mode route compiles (one 
+route took 49.9s to compile on a cold hit) rather than real bugs — every one 
+of these was confirmed false by re-checking with a longer timeout and/or 
+reading the dev server's own log directly, not just assumed away.
+
+- [x] **Full core-flow walkthrough** ✅ done — signup → create list → rank 
+  books → Explore → Compare → follow → search → import entry points → 
+  profile edit, all via a real authenticated session against the dev 
+  server. Onboarding wasn't reachable end-to-end (real Supabase signups 
+  require email confirmation, no inbox access available in this 
+  environment) — signup's own form mechanics (empty-submit validation, 
+  successful submission redirecting to `/signup/check-email`) were verified 
+  directly instead, which is as far as this environment can exercise that 
+  flow. Every other step completed successfully with zero real console 
+  errors. One real, reproducible (3/3) finding: a dev-mode-only hydration 
+  warning on the list edit page once a book has been added, root-caused to 
+  two third-party libraries' own SSR mechanics — dnd-kit's `DndContext` 
+  generates its `aria-describedby` id from a module-level counter that 
+  increments differently under React StrictMode's dev-only double-render 
+  behavior (SSR sees it once, client hydration's extra StrictMode pass sees 
+  it more), and Base UI's `Input`/`Field` primitives apply a transient 
+  `caret-color` hydration-safety style. Both are dev-mode-only by 
+  construction (StrictMode double-invocation never happens in a production 
+  build) and don't affect real functionality — drag-and-drop and the form 
+  itself work correctly regardless, confirmed throughout this whole 
+  session's testing. Not fixed — the only real fixes available (disabling 
+  StrictMode app-wide, or restructuring the tier board to mount client-only) 
+  both cost more than the cosmetic dev-console warning they'd silence.
+- [x] **Auth edge cases** ✅ done, no bugs found — swept 8 protected routes 
+  (Profile, its sub-pages, Lists, Recommendations, both admin pages, 
+  onboarding) and 5 public routes (landing, Explore, Search, a public user 
+  profile) both fully logged-out and with a tampered/garbage session cookie. 
+  Every protected route correctly redirected to `/login` in both cases; 
+  every public route rendered without redirecting. First-pass results looked 
+  alarming (several routes showed no redirect) but that was Playwright's 
+  `networkidle`/`load` resolving against Next's streaming `loading.tsx` 
+  shell before the actual async auth check and its redirect had streamed 
+  in — confirmed by waiting longer and watching the URL actually settle to 
+  `/login` a few seconds later. `/compare` "failing" (redirecting when the 
+  test expected it to be public) was the test's own wrong assumption, not a 
+  bug — Compare requires a real logged-in user's own taste data to compute 
+  anything, and the code's `if (!user) redirect("/login")` guard is 
+  intentional.
+- [x] **Form validation edge cases** ✅ done — confirmed XSS-safe: an 
+  `<img src=x onerror=...>` payload submitted through a list's title and 
+  description rendered as inert literal text (verified via 
+  `window.__xssFired` never being set, and no raw unescaped tag in the 
+  response HTML) — expected, since the codebase has exactly one 
+  `dangerouslySetInnerHTML` usage anywhere (`layout.tsx`'s static, 
+  hardcoded theme-init script, no user input involved), so every other 
+  user-text render path goes through JSX's default escaping. Empty-title 
+  submit correctly falls back to "My Tier List" (an initial test misread 
+  this as broken, again a dev-compile timing artifact — re-verified 
+  correct with a more patient check). **Real gap found**: `tier_lists.title` 
+  had no length limit at all server-side or in the DB — only the client's 
+  `<input maxLength={40}>` enforced it, and a request bypassing that (a 
+  raw fetch, not a real browser typing into the field) got a 500-character 
+  title accepted and stored as-is. Every comparable user-text column 
+  already had a matching DB check constraint (`list_comments.body`, 
+  `profiles.bio`/`location`/`display_name`) — title was just missed. Fixed: 
+  migration `0034_tier_lists_title_length_constraint.sql` adds 
+  `check (char_length(title) <= 40) not valid` (not yet run by the user — 
+  `not valid` skips checking pre-existing rows, since there's no way to 
+  directly inspect every user's data from here to confirm none already 
+  exceed 40 chars, e.g. from seeded test accounts), plus `saveListFields` 
+  (`lists/actions.ts`) now `.slice(0, 40)`s the title server-side so a 
+  bypassed request is gracefully truncated instead of crashing on the new 
+  DB constraint. `description`/`tags` have the identical gap (confirmed via 
+  their migration, plain `text`/`text[]` with no check) but were left alone 
+  — unlike title, there's no existing client-enforced number to match them 
+  to, and inventing one wasn't judged worth doing speculatively.
+- [x] **RLS spot-check** ✅ done, no bugs found — tested live against the 
+  real database via direct Supabase REST API calls (not just reading the 
+  migration SQL) using the actual authenticated test account's own access 
+  token, the same way the real browser client does. `notifications`: a 
+  direct INSERT attempt was correctly rejected (`42501`, no insert policy 
+  exists — all rows are meant to come only from the SECURITY DEFINER 
+  triggers). `recommendation_outcomes`: rows were visible to this account, 
+  which initially looked like the "admin-only read" policy leaking — 
+  resolved by confirming this test account is a genuine admin (it can load 
+  `/admin/backfill-categories`, which 404s for non-admins), so seeing rows 
+  is correct, not a bypass. `books`: an UPDATE attempt on a non-granted 
+  column (`title`) was correctly rejected with a permission error (proving 
+  the column-scoped grant from migration `0020`/`0022` is real, not just 
+  written), and a DELETE attempt against a confirmed (`is_draft = false`) 
+  book affected zero rows and left it intact (proving the DELETE policy's 
+  `is_draft = true` row-scoping is genuinely enforced). `tier_lists`/
+  `user_books` owner-scoping reconfirmed too (zero rows belonging to 
+  another user visible on an unfiltered select).
+- [x] **Broken-link / dead-end-button sweep** ✅ done, no bugs found — 
+  static grep across `src/` for placeholder patterns (`href="#"`, empty 
+  `onClick`, "Coming soon" text, TODO/FIXME) found nothing. Live crawl 
+  collected every distinct internal link across Explore, Search, Compare, 
+  Profile (+ Library tab), Recommendations, and a public `/u/[username]` — 
+  72 distinct links total, every one resolved to real content (200, not a 
+  404/error page). The one link that initially looked broken 
+  (`/recommendations?limit=10`, from the "View More Recommendations" 
+  button) turned out to be the session's single worst case of the dev- 
+  compile-timeout pattern described above — confirmed via the dev server's 
+  own log showing a genuine 49.9s one-time compile immediately followed by 
+  a real `200` response in under 3 seconds, then reproduced fast (<5s) on a 
+  follow-up hit once compiled.
+- [x] **Console-error pass** ✅ done — 18 pages (every major authenticated 
+  and public route, including tab/filter variants) with `pageerror` and 
+  `console.error` listeners attached: zero real errors found anywhere. The 
+  Chrome-autofill `FollowButton` hydration warning flagged earlier this 
+  session didn't reproduce in this pass — consistent with it already being 
+  confirmed non-deterministic, not evidence it's gone for good. The 
+  dnd-kit/Base UI hydration warning from the core-flow walkthrough above 
+  also didn't show up here, since none of these 18 pages happen to be the 
+  specific list-edit-page-with-a-book-added state that reproduces it.
 
 Do not implement features from future sprints until explicitly instructed.
 
@@ -2452,9 +2560,9 @@ pass, and unifying the two book-search implementations into one.
   call when asked directly
 - Responsive polish ✅ done (see "Current sprint" section above)
 
-### Sprint 9 — Launch Prep (CURRENT)
-- Performance, error/empty states
-- Final QA
+### Sprint 9 — Launch Prep ✅ COMPLETE
+- Performance, error/empty states ✅ done
+- Final QA ✅ done
 
 ## Sprint Rule
 Only work on the sprint marked CURRENT. Do not start future sprints unless explicitly told to. After finishing a sprint, mark it ✅ COMPLETE and wait for the next sprint to be marked CURRENT before proceeding.

@@ -48,7 +48,12 @@ async function saveListFields(
   }
 
   const tierListId = formData.get("tierListId") as string;
-  const title = (formData.get("title") as string)?.trim() || "My Tier List";
+  // Matches the client input's own maxLength={40} and the DB-level check
+  // constraint (migration 0034) — a request that bypasses the client (the
+  // maxLength attribute is only ever a UI nicety) gets silently truncated
+  // here instead of crashing on the DB constraint with a raw Postgres error.
+  const title =
+    ((formData.get("title") as string)?.trim() || "My Tier List").slice(0, 40);
   const description = (formData.get("description") as string)?.trim() || null;
   const tags = parseTags((formData.get("tags") as string) ?? "");
   const isPublic = formData.get("isPublic") === "true";

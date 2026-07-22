@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoSupabaseError, logSupabaseError } from "@/lib/supabase/assert";
+import { assertNotRateLimited } from "@/lib/rate-limit";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -347,6 +348,7 @@ export async function removeBookFromList(itemId: string, tierListId: string) {
   if (!user) {
     redirect("/login");
   }
+  await assertNotRateLimited(user.id);
 
   await supabase.from("tier_list_items").delete().eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
@@ -366,6 +368,7 @@ export async function addBookToTier(
   if (!user) {
     redirect("/login");
   }
+  await assertNotRateLimited(user.id);
 
   await supabase
     .from("tier_list_items")
@@ -391,6 +394,7 @@ export async function moveBookToTier(
   if (!user) {
     redirect("/login");
   }
+  await assertNotRateLimited(user.id);
 
   await supabase.from("tier_list_items").update({ tier }).eq("id", itemId);
   revalidatePath(`/lists/${tierListId}`);
@@ -422,6 +426,7 @@ export async function reorderTierItems(
   if (!user) {
     redirect("/login");
   }
+  await assertNotRateLimited(user.id);
 
   await Promise.all(
     orderedItemIds.map((itemId, index) =>

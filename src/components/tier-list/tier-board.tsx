@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   addBookToTier,
   moveBookToTier,
@@ -69,6 +70,23 @@ export function TierBoard({
 }) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const startContainerRef = useRef<ContainerId | null>(null);
+  const router = useRouter();
+
+  // The board updates local state optimistically before these ever resolve,
+  // so a rejection (in practice, only the rate limiter — a real Supabase
+  // failure would already have surfaced elsewhere) would otherwise leave the
+  // UI showing a move that never actually persisted, with no indication
+  // anything went wrong. router.refresh() re-syncs from the server; this is
+  // expected to be rare by design (the limit is tuned well above normal
+  // manual drag-and-drop speed).
+  async function runMutation(fn: () => Promise<void>) {
+    try {
+      await fn();
+    } catch (error) {
+      console.error("Tier list update failed, reverting to server state:", error);
+      router.refresh();
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -143,7 +161,8 @@ export function TierBoard({
         ),
       }));
       if (card?.itemId) {
-        await removeBookFromList(card.itemId, tierListId);
+        const itemId = card.itemId;
+        await runMutation(() => removeBookFromList(itemId, tierListId));
       }
       return;
     }
@@ -175,18 +194,19 @@ export function TierBoard({
     if (!card) return;
 
     if (card.itemId) {
+      const itemId = card.itemId;
       if (startContainer !== overContainer) {
-        await moveBookToTier(card.itemId, tierListId, overContainer);
+        await runMutation(() => moveBookToTier(itemId, tierListId, overContainer));
       }
     } else {
-      await addBookToTier(tierListId, card.bookId, overContainer);
+      await runMutation(() => addBookToTier(tierListId, card.bookId, overContainer));
     }
 
     const orderedItemIds = workingColumns[overContainer]
       .map((c) => c.itemId)
       .filter((v): v is string => Boolean(v));
     if (orderedItemIds.length > 0) {
-      await reorderTierItems(tierListId, orderedItemIds);
+      await runMutation(() => reorderTierItems(tierListId, orderedItemIds));
     }
   }
 

@@ -2261,6 +2261,70 @@ reading the dev server's own log directly, not just assumed away.
   also didn't show up here, since none of these 18 pages happen to be the 
   specific list-edit-page-with-a-book-added state that reproduces it.
 
+**Real rate-limiting on the tier-list mutation actions** ✅ done (2026-07-22) — 
+pulled from the Ideas Backlog now that Launch Prep is done. Closes the gap 
+that entry described: the existing `updated_at` cooldown (migration 0025) 
+only throttles how often Explore's Recent sort can refresh from repeated 
+edits, it can't tell a few legitimate edits apart from a script hammering 
+the endpoint, and does nothing to protect the DB itself.
+- Asked the user to choose an approach first (this was explicitly flagged as 
+  needing one): a DB-backed counter table (no new dependency, but an extra 
+  round-trip per mutation and doesn't stop abuse before it reaches the DB) 
+  vs. Upstash Redis (`@upstash/ratelimit` + `@upstash/redis` — the standard 
+  pairing for serverless/Vercel rate-limiting, fast, generous free tier, but 
+  a new external service + API key). User picked Upstash.
+- New `src/lib/rate-limit.ts`: a shared sliding-window limiter (30 requests 
+  per 10 seconds per user, one bucket shared across all four gated actions, 
+  not per-action) — tuned generous enough for genuine rapid manual drag-and- 
+  drop (each drag fires 1-2 of these calls, so this covers roughly 15+ fast 
+  consecutive drags every 10 seconds) while still throttling a sustained 
+  scripted flood almost immediately. Lazily constructed and degrades to a 
+  silent no-op (logs a warning, never throws) if 
+  `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` aren't set, rather than 
+  breaking every tier-list edit for every user if the env vars are ever 
+  missing — **the user still needs to create an Upstash Redis database and 
+  add those two env vars** (to `.env.local` for dev, and to Vercel's project 
+  env vars for production) for this to actually take effect; until then it's 
+  wired up but inert.
+- Applied to exactly the four actions named/implied in the backlog note 
+  (`lists/actions.ts`): `moveBookToTier`, `addBookToTier`, 
+  `reorderTierItems`, `removeBookFromList` — every one of the tier-board's 
+  drag-and-drop mutation endpoints, checked right after the existing 
+  `if (!user) redirect("/login")` guard. Deliberately not extended to 
+  `addBooksToUnranked`/Search-add/Goodreads/AI-import actions — those aren't 
+  named in the backlog note and aren't the same single-drag-repeatable spam 
+  vector (each requires a distinct search/upload interaction, and imports 
+  are already bounded by `mapWithConcurrency` and file size).
+- `TierBoard` (`tier-board.tsx`) previously awaited these mutation calls 
+  directly with no error handling at all, relying on the fact that a real 
+  Supabase failure was rare enough not to matter — a rate-limit rejection 
+  would have been a new, much-more-likely failure mode left as an unhandled 
+  promise rejection, silently leaving the optimistically-updated local UI 
+  state out of sync with the server (the move would visually "stick" even 
+  though it was never actually saved). New `runMutation` wrapper catches 
+  any failure and calls `router.refresh()` to resync from the server state; 
+  expected to be rare by design, since the limit is tuned well above normal 
+  human drag-and-drop speed.
+- Verified live in two passes. First, before Upstash was configured: 
+  confirmed the integration doesn't break normal editing (exercising the 
+  no-op/disabled path) — added a book, dragged it from Unranked into S 
+  tier, reloaded, and confirmed via the Unranked count (1 → 0) that the 
+  move genuinely persisted server-side, zero new console errors from this 
+  change specifically (the hydration warnings that did appear are the same 
+  pre-existing dnd-kit/Base UI dev-mode artifact already documented in the 
+  Final QA section above, not a regression). Second, after the user created 
+  a real Upstash Redis database (Regional, eviction enabled — reasonable 
+  for this use case, since the data is disposable per-user counters that 
+  already auto-expire after 10 seconds either way) and added the env vars: 
+  a standalone script exercising the exact same sliding-window config 
+  directly against the real database confirmed it behaves exactly as 
+  designed — 30 requests allowed, blocking starts precisely at request 
+  #31, every time. Re-ran the live drag-and-drop test against the real, 
+  now-active limiter too: book added and moved successfully, confirmed via 
+  the same before/after Unranked count check, with the real server logs 
+  showing every request completing cleanly (200s, no errors) — a single 
+  edit is nowhere near the 30-request threshold, as expected.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -2576,16 +2640,11 @@ explicitly before building.
 - Bad word filter for comments/usernames (moved here from To Do 2026-07-10, not 
   started). Needs a decision first: simple hardcoded wordlist (free, easy to 
   bypass) vs. a real moderation library/API (better coverage, more setup), and 
-  whether it should hard-block submission or just flag for review.
+  whether it should hard-block submission or just flag for review. Recommended 
+  next pull from this backlog — real UGC moderation gap, relevant now that 
+  launch prep is done.
 - Real rate-limiting / bot-pattern detection on the tier-list mutation actions 
-  (moveBookToTier, addBookToTier, etc.), not just the blunt updated_at cooldown 
-  added 2026-07-14 (migration 0025 + lists/actions.ts `UPDATED_AT_COOLDOWN_MS`) 
-  to stop scripted edits from gaming Explore's Recent sort. The cooldown only 
-  caps how often the *ranking benefit* can refresh — it can't tell "a few 
-  legitimate edits" from "a script hammering the endpoint," and does nothing to 
-  protect the DB itself from abuse. Not started; needs a decision on approach 
-  (e.g. a request-count table + short window, or an existing rate-limit 
-  service/library).
+  ✅ done (2026-07-22) — see its own entry below, pulled out of this backlog.
 
 ## To Do
 

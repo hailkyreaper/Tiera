@@ -20,7 +20,7 @@ export default async function SignupPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex flex-1 items-center justify-center px-6">
+    <main className="flex flex-1 items-center justify-center px-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Create your account</CardTitle>
@@ -60,6 +60,6 @@ export default async function SignupPage({
           </Link>
         </CardFooter>
       </Card>
-    </div>
+    </main>
   );
 }

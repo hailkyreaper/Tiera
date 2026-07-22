@@ -9,7 +9,7 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-background px-6 text-center">
+    <main className="flex flex-1 flex-col items-center justify-center gap-6 bg-background px-6 text-center">
       <h1 className="text-3xl font-semibold tracking-tight text-foreground">
         Tiera
       </h1>
@@ -19,6 +19,6 @@ export default async function Home() {
       <Link href={user ? "/profile" : "/signup"} className={buttonVariants()}>
         {user ? "Go to profile" : "Get started"}
       </Link>
-    </div>
+    </main>
   );
 }

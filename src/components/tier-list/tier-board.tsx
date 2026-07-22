@@ -228,6 +228,9 @@ export function TierBoard({
                 alt={activeCard.title}
                 width={400}
                 height={600}
+                sizes={
+                  startContainerRef.current === "unranked" ? "71px" : "46px"
+                }
                 className="h-auto w-full"
               />
             ) : (

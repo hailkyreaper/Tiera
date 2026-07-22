@@ -6,6 +6,17 @@ import { TierRowGrid } from "./tier-row-grid";
 
 const COLUMNS = 10;
 
+// Each cover is one cell in a fixed 10 (+1 badge) column grid, so its real
+// rendered width is roughly the card's content width / 11 — nowhere near
+// the width={400} intrinsic size above, which only sets the aspect ratio.
+// With no sizes hint, the browser assumes up to 100vw and fetches Next's
+// largest matching deviceSize breakpoint regardless of the tiny actual
+// slot (confirmed live via Lighthouse — this is the single largest image-
+// weight contributor on the app, since a single list card can render up to
+// 60 of these). Covers the realistic content-width range this renders in
+// (mobile card columns down to ~340px, desktop list pages up to ~768px).
+const COVER_SIZES = "(min-width: 1024px) 70px, 35px";
+
 type PreviewBook = {
   id: string;
   title: string;
@@ -70,6 +81,7 @@ export function TierRowBar({
                   width={400}
                   height={600}
                   quality={highQuality ? 100 : 75}
+                  sizes={COVER_SIZES}
                   className="h-auto w-full"
                 />
               </BookDetailDrawer>
@@ -80,6 +92,7 @@ export function TierRowBar({
                 width={400}
                 height={600}
                 quality={highQuality ? 100 : 75}
+                sizes={COVER_SIZES}
                 className="h-auto w-full"
               />
             )

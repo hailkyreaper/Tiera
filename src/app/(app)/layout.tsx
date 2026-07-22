@@ -32,9 +32,9 @@ export default function AppLayout({
            * a few dozen px wider than the viewport, forcing users to pinch-
            * zoom out to reach anything past the edge. This one override is
            * what lets the whole subtree shrink to the real viewport width. */}
-          <div className="flex min-w-0 flex-1 flex-col pb-16 lg:pb-0">
+          <main className="flex min-w-0 flex-1 flex-col pb-16 lg:pb-0">
             {children}
-          </div>
+          </main>
         </div>
       </div>
       <Suspense fallback={null}>

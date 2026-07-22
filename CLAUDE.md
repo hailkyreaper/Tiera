@@ -2008,9 +2008,132 @@ polish checklist):
     results), `add-book-button.tsx` and `format-time.ts` (no loop-await 
     pattern at all — a single action call and a pure sync function, 
     respectively). `tsc --noEmit` clean after every change.
-- [ ] Revalidation strategy check — confirm `revalidatePath` calls aren't 
-  over-triggering full rebuilds beyond what's actually needed.
-- [ ] A real Lighthouse/Core Web Vitals pass, if tooling allows.
+- [x] **Revalidation strategy check** ✅ done (2026-07-22), no over-
+  triggering found — read every `revalidatePath` call site in the codebase 
+  (11 files, all server actions). Every call is scoped to the specific 
+  path(s) whose content actually changed, each with its own comment 
+  explaining why (e.g. `revalidateFeeds()` in `lists/actions.ts` hitting 
+  `/compare` + `/compare/[username]` (as `"page"`, covering every username) 
+  + `/explore` on a book move/add/remove — legitimate, since that single 
+  mutation really does change both `computeMatch`'s score inputs for every 
+  pairing against this user and, via the `tier_list_items` trigger, the 
+  `updated_at` Explore's Recent sort reads). The only app-wide 
+  `revalidatePath("/", "layout")` calls are in `auth/actions.ts` 
+  (login/logout) — appropriate, since auth state legitimately affects 
+  every page's rendering (Sidebar's user card, every owner-only branch, 
+  etc.), and these fire once per auth event, not on a hot path. 
+  `revalidatePath` itself is a cheap cache-invalidation marker (not a 
+  synchronous rebuild), so calling it multiple times per action — as 
+  several of these already do — isn't a real perf cost the way a 
+  redundant DB query would be; there was nothing here shaped like the 
+  DB-index or N+1 findings above. One thing noticed but not changed: 
+  `lists/[id]/search/actions.ts`'s `addToUnrankedAndStay` revalidates a 
+  path with a query string baked in 
+  (`/lists/${tierListId}/search?q=${q}`), which may not actually match 
+  Next's path-cache key the same way a bare path does — left alone since 
+  the actual UX doesn't depend on it working (`AddBookButton`'s persistent 
+  checkmark, not a page revalidation, is what gives "Added" feedback here — 
+  see that component's own doc comment), so a no-op here would be harmless 
+  either way, not worth a speculative fix with no way to verify the actual 
+  behavior without production cache access.
+- [x] **Lighthouse/Core Web Vitals pass** ✅ done (2026-07-22) — tooling was 
+  available (`npx lighthouse`, system Chrome), so ran real audits rather than 
+  skipping. Built for production (`next build` + `next start` on a separate 
+  port, dev server on 3000 left untouched) and authenticated Lighthouse's 
+  headless Chrome via the saved Playwright session's cookie 
+  (`scripts/.auth/state.json`) passed through `--extra-headers`, since most 
+  pages require login. Mobile form factor (Lighthouse's default), matching 
+  this app's mobile-first design rule.
+  - **False alarm, ruled out first**: the very first run showed a shocking 
+    Performance score of 12 and CLS of 0.742, traced to a stale `.next` 
+    build artifact — the served HTML referenced 
+    `/_next/static/css/app/layout.css?v=...`, a path that 404'd, while the 
+    real hashed CSS file sitting on disk was never linked at all (confirmed 
+    via `curl` + comparing against `.next/static/css/`'s actual contents). 
+    A full clean rebuild (`rm -rf .next`) fixed it outright — confirmed this 
+    was leftover confusion from many incremental builds run back-to-back 
+    earlier this session, not a real app bug: CLS dropped to 0 and Best 
+    Practices hit 100 immediately after. Hit the identical stale-cache 
+    failure mode a second time later in this same pass (a build failed 
+    outright with `Cannot read properties of undefined (reading 'call')`) — 
+    same fix, same conclusion. Worth remembering for future local Lighthouse/
+    production-build testing in this repo: always `rm -rf .next` before 
+    trusting a `next build` result if `.next` has been built into repeatedly 
+    without a clean in between.
+  - **Real bug found and fixed — missing `sizes` on cover images, site-wide**: 
+    Lighthouse's image-delivery insight caught a book cover being fetched at 
+    331×500 (35KB) while rendered at only ~30×52px — a ~34KB waste on that 
+    one image alone. Root cause: every cover-rendering `<Image>` in the app 
+    sets a `width`/`height` (for aspect ratio) and is styled responsively 
+    (`w-full`/`h-auto`), but none of them ever passed a `sizes` attribute — 
+    without one, the browser can't know the image's real rendered size and 
+    defaults to assuming up to 100vw, so it always requests Next's largest 
+    matching deviceSize breakpoint regardless of how small the actual slot 
+    is. Fixed in four places: `BookCover` (`sizes={\`${size}px\`}`, using 
+    its own existing `size` prop — every caller already wraps it in a 
+    roughly-`size`px container, confirmed by reading every call site), 
+    `TierRowBar` (the read-only tier preview rendered on Explore/Profile/
+    list-detail — likely the single largest contributor, since one list 
+    card can render up to 60 of these tiny covers across 6 tiers × 10 
+    columns), `SortableBookChip` (the interactive create-list board's 
+    equivalent), and `tier-board.tsx`'s drag overlay (a genuinely fixed 
+    71px/46px width depending on source tier, so given an exact match 
+    rather than an estimate). Verified: `tsc --noEmit` clean; re-ran 
+    Lighthouse's image-delivery insight afterward and it went from "Est 
+    savings of 254 KiB" (score 0.5) to a clean score of 1 with nothing left 
+    to report; screenshotted Explore afterward to confirm covers still 
+    render crisp with no visual regression.
+  - **Real bug found and fixed — no `<main>` landmark anywhere in the app**: 
+    every page failed Lighthouse's "Document does not have a main landmark" 
+    accessibility audit. Fixed by changing the content wrapper `<div>` to 
+    `<main>` in `(app)/layout.tsx` (covers every authenticated page at 
+    once) and in the three standalone pages outside that layout group 
+    (`page.tsx` the logged-out landing screen, `login/page.tsx`, 
+    `signup/page.tsx`) — purely a semantic tag swap (`main` is `display: 
+    block` by default, same as the `div` it replaced), so no visual/layout 
+    risk. Confirmed the fail disappeared from Lighthouse's accessibility 
+    audit list afterward.
+  - **Net result on Explore** (representative — Profile/Compare tracked the 
+    same shape): Performance 71 → 86, Accessibility gained the main-landmark 
+    fix, Best Practices 100, SEO 91, across three re-runs after the clean 
+    rebuild and both fixes above. Core Web Vitals: FCP ~1.7s (good), CLS 0 
+    (good, once the stale-CSS false alarm was ruled out), LCP ~4.2s and TBT 
+    ~520-570ms both landed in "needs improvement" territory on every page 
+    tested (Explore/Profile/Compare) — Lighthouse's own LCP-breakdown 
+    insight attributed this to element render delay (~1.3s) rather than 
+    resource loading, i.e. main-thread JS/hydration cost, not a network or 
+    image problem. Not fixed — a real finding, but the actual fix (bundle 
+    splitting, deferring non-critical hydration work) is a meaningfully 
+    bigger, more architectural undertaking than this audit pass's scope, 
+    and this local single-machine benchmark isn't a reliable stand-in for 
+    real production numbers behind a CDN anyway (Vercel would also always 
+    get a clean build, closing off the false-alarm class of issue found 
+    above by construction). Worth a dedicated pass later if this becomes a 
+    stated priority.
+  - **Flagged, deliberately not touched**: (1) several purple-accent-on-
+    background contrast ratios fall short of WCAG AA — left alone per this 
+    file's own standing rule further below ("don't proactively restyle 
+    colors beyond what's given," under "UI is extremely inconsistent"), 
+    since `#6D5DF6` is a deliberate, documented brand color decision, not 
+    an oversight; (2) a few small touch targets (username links inside 
+    compact list-card header rows) read as insufficiently sized/spaced — 
+    likely the same class of tradeoff already explicitly accepted for 
+    similarly-sized elements during Sprint 8's dedicated touch-target 
+    checklist pass, not re-litigated here; (3) Explore's list-card titles 
+    render as `<h3>` with no intervening `<h2>`, flagged as a heading-order 
+    skip — not fixed, since the shared `ExploreListCard` component renders 
+    inside three different pages (Explore, Profile, `/u/[username]`) with 
+    three different actual heading hierarchies above it, so a single fixed 
+    heading level can't be simultaneously correct in all three without a 
+    proper per-page heading audit, which is more scope than this pass 
+    covers; (4) `meta-description` audit failed on every page including 
+    the public `/login` despite `curl`-ing the real served HTML and 
+    confirming the tag is genuinely present with real content 
+    (`<meta name="description" content="Discover entertainment you'll 
+    actually enjoy.">`, inherited correctly from the root layout's 
+    metadata) — this looks like a Lighthouse/React-19-hydration measurement 
+    timing quirk rather than a real bug, since the direct HTML evidence 
+    contradicts the audit; not chased further.
 
 *Final QA*
 - [ ] Full core-flow walkthrough: signup → onboarding → create list → rank 

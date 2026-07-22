@@ -5,6 +5,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cleanCoverUrl } from "@/lib/cover-url";
 
+// Same missing-sizes issue as TierRowBar's covers (see its own comment) —
+// this chip is one of 6 (mobile) or 10 (desktop) grid columns, nowhere near
+// the width={400} intrinsic size below, which only sets the aspect ratio.
+const COVER_SIZES = "(min-width: 1024px) 70px, 50px";
+
 export function SortableBookChip({
   bookId,
   title,
@@ -49,6 +54,7 @@ export function SortableBookChip({
           alt={title}
           width={400}
           height={600}
+          sizes={COVER_SIZES}
           className="h-auto w-full"
         />
       ) : (

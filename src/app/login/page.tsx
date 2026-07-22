@@ -20,7 +20,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex flex-1 items-center justify-center px-6">
+    <main className="flex flex-1 items-center justify-center px-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Log in</CardTitle>
@@ -52,6 +52,6 @@ export default async function LoginPage({
           </Link>
         </CardFooter>
       </Card>
-    </div>
+    </main>
   );
 }

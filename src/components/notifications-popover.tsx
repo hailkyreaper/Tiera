@@ -60,7 +60,7 @@ export function NotificationsPopover({
     <Popover.Root onOpenChange={handleOpenChange}>
       <Popover.Trigger
         aria-label="Notifications"
-        className="relative flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="relative flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
       >
         <Bell className="size-5" />
         {unreadCount > 0 && (
@@ -90,7 +90,7 @@ export function NotificationsPopover({
                       key={notification.id}
                       render={<Link href={notificationHref(notification)} />}
                       nativeButton={false}
-                      className="flex items-start gap-3 px-4 py-3 text-left hover:bg-muted"
+                      className="flex items-start gap-3 px-4 py-3 text-left hover:bg-muted active:bg-muted"
                     >
                       <Avatar
                         src={notification.actorAvatarUrl}

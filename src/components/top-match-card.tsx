@@ -15,7 +15,7 @@ export function TopMatchCard({ person }: { person: TopMatchPerson }) {
   return (
     <Link
       href={`/compare/${person.username}`}
-      className="flex flex-col gap-3 py-4 transition-colors hover:bg-muted/50"
+      className="flex flex-col gap-3 py-4 transition-colors hover:bg-muted/50 active:bg-muted/50"
     >
       <div className="flex items-center gap-4">
         <Avatar

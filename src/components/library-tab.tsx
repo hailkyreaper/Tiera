@@ -47,7 +47,7 @@ const TBR_CONTAINER_ID = "tbr-container";
 const LIBRARY_CONTAINER_ID = "library-container";
 
 const triggerClass =
-  "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted";
+  "inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted active:bg-muted";
 
 // One shared cover component for both TBR and Library — both are sortable
 // (even TBR, which has no internal order of its own) so dnd-kit's

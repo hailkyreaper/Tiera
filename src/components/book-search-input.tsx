@@ -105,7 +105,7 @@ export function BookSearchInput({
             return (
               <div
                 key={book.id}
-                className="flex items-center gap-2 rounded-xs px-2 py-1.5 hover:bg-muted"
+                className="flex items-center gap-2 rounded-xs px-2 py-1.5 hover:bg-muted active:bg-muted"
               >
                 <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-xs bg-muted">
                   {thumbnail && (

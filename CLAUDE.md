@@ -2497,12 +2497,63 @@ items done so far, the rest still open:
     "Compare" label resolved to `rgb(112, 97, 246)` (`#7061F6`, the exact 
     target), and the match badge's text color resolved to the expected 
     near-white foreground value.
-- [ ] Spacing/padding drift check — confirm nothing added since the `p-4` 
-  site-wide standard was set (rails, drawers, newer pages) has quietly 
-  drifted from it.
-- [ ] Hover/tap/transition consistency — do buttons, cards, and list rows 
-  all give the same kind of interaction feedback, or does it vary by 
-  component/era?
+- [x] **Spacing/padding drift check** ✅ done, no fix needed (2026-07-22) — 
+  audited every page wrapper, every desktop rail component (`TrendingThisWeekRail`, 
+  `TopMatchesRail`, `PopularGenresRail`, `DisagreementsRail`, 
+  `MatchRecommendationsRail`), and both drawers (`BookDetailDrawer`, 
+  `ImportDrawer`). Everything correctly follows the established 
+  conventions: authenticated pages use `p-4` (or `p-4 lg:p-6` on the four 
+  pages with a right-rail layout — Explore/Search/Compare landing/Compare 
+  detail, consistently), and every card-style rail/drawer consistently 
+  uses `p-6` for its own internal padding (a different, correctly-separate 
+  convention from page-level padding). Profile's outer wrapper looked 
+  suspicious at first (only `lg:p-4`, no base padding at that level) but 
+  turned out intentional, not drift — its inner elements (header, content) 
+  each carry their own `px-4 pt-4`/`pb-4`, and it renders correctly on 
+  mobile, confirmed live. One real, unfixed gap: the pre-auth landing/
+  login/signup pages are still on the older `px-6` value, never brought in 
+  line with the `p-4` standard — left alone rather than isolated-fixed, 
+  since those pages are already queued for a real design pass (see 
+  "Landing + sign-in page design" below) that would just redo it anyway.
+- [x] **Hover/tap/transition consistency** ✅ done (2026-07-22) — two real 
+  findings, both fixed.
+  - `BookDetailDrawer`'s shared trigger (used everywhere a book cover/row 
+    opens the synopsis drawer — Search, Recommendations, Library, Compare's 
+    Both-Love/Disagreements rows, tier previews) had zero hover/interaction 
+    feedback at all — just `cursor-pointer`, no visual change. Fixed once 
+    in the shared component (`rounded-sm transition-colors hover:bg-muted/50 
+    active:bg-muted/50`), which fixes every caller at once rather than 
+    patching each individually. Checked `SearchResultCard` too since it 
+    looked like the same gap at first — it isn't actually clickable (no 
+    drawer, no link; only its `AddBookButton` child is interactive, and 
+    that already has its own Button-component hover state), so it correctly 
+    has no row-level hover — not a bug.
+  - Broader gap: grepped for every `hover:bg-muted`-style treatment lacking 
+    a matching `active:` state — 18 components had hover-only feedback, 
+    meaning touch users (this app's primary audience) got zero visual 
+    confirmation a tap registered on most of them, since `hover:` doesn't 
+    fire on touch devices at all. Added matching `active:` states to the 
+    high-traffic, mobile-visible ones: Explore's list cards, Compare's 
+    match cards (`TopMatchCard`), `BookDetailDrawer` (same fix as above), 
+    the notifications bell + its dropdown rows, the Library/Add-from- 
+    Library sort-pill trigger, and the book search dropdown's result rows. 
+    Deliberately skipped desktop-only elements (`Sidebar`/`SidebarNav`, 
+    the desktop rails — mouse hover is the only real interaction there) 
+    and smaller/lower-traffic controls (`BackButton`, 
+    `ThemeToggleButton`, `DropdownSelect`, `UsernameAutocomplete`, 
+    `ImportDrawer`, `ListActionsBar`, `ListOptionsMenu`, 
+    `PhotoUploadField`) to keep this pass focused rather than touching all 
+    18 indiscriminately — the shared `Button` component already has its 
+    own consistent active-press treatment 
+    (`active:...translate-y-px`) independent of this sweep, so buttons 
+    were never part of the gap.
+  - Verified live, not just by inspecting the CSS: confirmed the hover 
+    highlight actually renders on a recommendation row (screenshot), and 
+    confirmed the `:active` state genuinely fires by simulating a real 
+    mouse-down on an Explore list card and reading its computed 
+    background-color before/during the press — it changed 
+    (`rgb(20,26,33)` → `oklch(0.269 0 0)`), proving the CSS rule is live, 
+    not just present in the source.
 - [ ] Icon sizing/alignment sweep — a visual (not touch-target-size) pass 
   across nav/action-bar/inline icons for consistent scale and optical 
   alignment.

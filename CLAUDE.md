@@ -2425,6 +2425,41 @@ items done so far, the rest still open:
   checkmark, and filename text, with the AI import page's "Identify Books" 
   button correctly enabling once a photo is selected; zero console errors 
   either place.
+  - **Reworked same day, user follow-up**: the thumbnail-preview treatment 
+    above was more than what was actually wanted once seen live. Two 
+    changes: (1) AI import reverted to its original plain "Upload" button 
+    exactly as it looked before this pass, keeping only a lightweight 
+    "Uploaded: ‹filename›" line with a small checkmark — no thumbnail. 
+    (2) Profile picture reworked entirely: the "Profile picture" field 
+    under Display Name is gone; a small "Change profile picture" link now 
+    sits directly under the actual avatar image instead (edit mode only), 
+    swapping to "Photo selected" with a checkmark once a file's chosen — 
+    still no thumbnail preview, matching the AI import treatment's same 
+    lightweight preference. Since the avatar renders twice (separate 
+    mobile/desktop JSX blocks, an existing pre-this-pass pattern), the new 
+    `AvatarChangeControl` (`src/components/avatar-change-control.tsx`) 
+    reuses the existing `useIsDesktop` hook (`tier-list/use-is-desktop.ts`) 
+    so exactly one of the two instances' inputs carries `name="avatar"` 
+    for the current viewport — rendering two same-named file inputs 
+    would've made `FormData.get("avatar")` pick whichever came first in 
+    DOM order regardless of which one the user actually used, a real bug 
+    this specifically avoids. Each instance's own hidden input is 
+    associated back to the edit form via `form="edit-profile-form"` 
+    (the form gained that id) rather than DOM nesting, same trick this 
+    codebase already uses for the Goodreads-import-drawer button 
+    portaling problem. `PhotoUploadField` (the component built for the 
+    reverted-away treatment) is now unused by both original call sites — 
+    deleted rather than left as dead code.
+  - Verified live end-to-end, not just visually: old field confirmed gone, 
+    new trigger confirmed present, selecting a file showed "Photo 
+    selected," and — the real test — clicking Save actually persisted a 
+    new avatar image (confirmed via the rendered `<img>` src changing). 
+    **Side effect worth knowing**: that live test genuinely changed the 
+    test account's real avatar to a design-mockup reference image (avatar 
+    uploads overwrite the same storage path, so there's no simple revert) 
+    — flagged to the user directly rather than silently left; only 
+    fixable by re-uploading the real original photo, which isn't saved 
+    anywhere to restore automatically.
 - [x] Light mode full pass — dropped by the user (2026-07-22) rather than 
   pursued: the screenshot-review workflow itself hit friction (several 
   full-page captures failed to upload, likely a size/dimension limit on 
@@ -2554,15 +2589,53 @@ items done so far, the rest still open:
     background-color before/during the press — it changed 
     (`rgb(20,26,33)` → `oklch(0.269 0 0)`), proving the CSS rule is live, 
     not just present in the source.
-- [ ] Icon sizing/alignment sweep — a visual (not touch-target-size) pass 
-  across nav/action-bar/inline icons for consistent scale and optical 
-  alignment.
-- [ ] Desktop/mobile cohesion — the sidebar, rails, and other desktop-only 
-  additions were built incrementally; worth a fresh look at whether 
-  desktop still feels like the same app as mobile, or bolted-on.
-- [ ] Microcopy tone/capitalization pass — empty states were already 
-  unified to one template; extend that same rigor to button labels, 
-  section headers, and toasts/errors across the whole app.
+- [x] **Icon sizing/alignment sweep** ✅ done (2026-07-22) — surveyed 
+  every icon-size class app-wide first (`grep` for `size-*` across every 
+  component), rather than guessing at problem spots. Overall already 
+  fairly consistent: small inline icons (checkmarks, meta-info icons like 
+  `MapPin`/`CalendarDays`) cluster around `size-3.5`, standard inline 
+  icons around `size-4`, nav/header-level icons around `size-5`. Found one 
+  real, unexplained mismatch: `SidebarNav`'s regular nav items 
+  (Explore/Search/Compare/Profile) use `size-6` icons, but its own "Create 
+  List" button right below them used `size-5` — same `text-base` label 
+  size in both, no comment or reasoning for the icons differing, reads as 
+  organic drift rather than a deliberate choice. Fixed by bumping Create's 
+  icon to `size-6` to match. Deliberately left the broader mobile-`size-5`- 
+  vs-desktop-`size-6` difference (bottom `NavBar` vs `SidebarNav`, same 
+  nav destinations) alone — that one's proportional to each context's own 
+  text scale (`text-xs` mobile labels vs `text-base` desktop labels), same 
+  legitimate pattern already used elsewhere (Explore's list-card icons 
+  responsively scale `size-3.5` → `lg:size-4` alongside the card's own 
+  `lg:p-5` growth) rather than an inconsistency to unify. `TopNav`'s back- 
+  arrow-plus-title alignment checked and already correct (`items-center` 
+  on the shared flex row). Verified the sidebar fix live via screenshot.
+- [x] **Desktop/mobile cohesion** ✅ checked, reads cohesive (2026-07-22) — 
+  screenshotted Explore, Search, Compare, and Profile at 1440px and did a 
+  direct visual review (not just skimming). Nothing read as bolted-on: the 
+  sidebar mirrors the bottom nav's exact destinations and iconography, the 
+  right-rail panels (Trending/Top Matches/Popular Genres, Recommendations) 
+  use the same card/typography language as the rest of the app rather 
+  than a distinct "desktop widget" style, and colors/spacing/type scale 
+  all carried over consistently — largely a side effect of this same pass 
+  already having fixed the specific things that would've undermined that 
+  (the leftover desktop-only gradient banner, the sidebar icon-size 
+  mismatch, purple contrast). No new findings, no changes made. While 
+  reviewing the Profile screenshot, spotted 3 stray test-draft lists 
+  (leftover residue from this session's own earlier testing, not a real 
+  bug) and cleaned them up.
+- [x] **Microcopy tone/capitalization pass** ✅ done (2026-07-22) — 
+  surveyed button labels, loading-state text, error/validation messages, 
+  and empty states across the whole app. Already in genuinely good shape — 
+  a natural result of this app's history already including dedicated 
+  copy-consistency work (the empty-state unification, the comment-count 
+  label fix). One real, small drift found: `updateProfile`'s avatar- 
+  validation error read "Please choose an image file." while every other 
+  comparable validation message in the app is a blunt, no-"Please" 
+  imperative ("Choose a CSV file first.", "Choose a photo first.") — 
+  fixed to match ("Choose an image file."). No `text-primary/toasts` — 
+  this app has no toast library, so that part of the original checklist 
+  wording didn't apply; inline errors and redirect `?error=` messages are 
+  the equivalent here, and those were the ones checked.
 - [x] **Desktop profile banner removed** ✅ done (2026-07-22) — user's own 
   addition mid-pass, prompted by reviewing the light-mode screenshots: 
   `/profile`'s desktop-only header still had the cosmic-gradient banner 
@@ -2583,6 +2656,32 @@ items done so far, the rest still open:
   redesign" history), so it was already the "no banner" version this 
   brought `/profile` in line with. Verified live at both 1440px and 412px: 
   desktop now shows the flat header correctly, mobile confirmed unchanged.
+
+**Edit Profile button unclickable — real bug, found and fixed** ✅ done 
+(2026-07-22) — user report ("I or another user wasn't able to click their 
+edit profile button"), reproduced live before touching anything rather 
+than guessing. `document.elementFromPoint()` at the button's own on- 
+screen coordinates returned a *different* element entirely — the avatar 
+row on mobile, the stats row on desktop — confirming the button was being 
+visually and functionally covered, not just hard to see. Root cause: 
+`/profile`'s Edit Profile `Link` and its sibling blocks (the avatar row, 
+`ProfileStats`) all carried the same `z-10`. At equal z-index, later DOM 
+elements paint over earlier ones regardless of `position: absolute` — the 
+Edit Link comes first in the JSX, so its siblings (added after it in the 
+markup) were stacking on top of it and intercepting every click, on both 
+mobile and desktop. Predates today's banner-removal work — mobile's 
+markup wasn't touched by that change and was independently broken too, 
+so this wasn't a regression from that, just a pre-existing bug this pass 
+happened to surface. Fixed by giving the Edit Link `z-20` instead of 
+`z-10`, so it reliably stacks above its siblings regardless of DOM order. 
+`/u/[username]`'s own Follow button checked too — unaffected, it never 
+used this `absolute`-positioning pattern to begin with (already sits in a 
+normal inline row per the earlier mobile-profile-redesign work). Verified 
+live on both mobile and desktop: `elementFromPoint` now correctly resolves 
+to the button itself, and a real click navigates to `?edit=true` (confirmed 
+with `waitForURL`, not just a fixed timeout — an earlier check using a flat 
+1s wait looked like a second bug, false alarm, it just needed a beat 
+longer for the client-side transition).
 
 Do not implement features from future sprints until explicitly instructed.
 

@@ -32,7 +32,7 @@ export async function updateProfile(formData: FormData) {
   if (file && file.size > 0) {
     if (!file.type.startsWith("image/")) {
       redirect(
-        `/profile?edit=true&error=${encodeURIComponent("Please choose an image file.")}`,
+        `/profile?edit=true&error=${encodeURIComponent("Choose an image file.")}`,
       );
     }
 

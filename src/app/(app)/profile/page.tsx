@@ -13,7 +13,7 @@ import { ProfileTabs } from "@/components/profile-tabs";
 import { LibraryTab } from "@/components/library-tab";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { Avatar } from "@/components/avatar";
-import { PhotoUploadField } from "@/components/photo-upload-field";
+import { AvatarChangeControl } from "@/components/avatar-change-control";
 import { ProfileBio } from "@/components/profile-bio";
 import { RecommendationsRail } from "@/components/recommendations-rail";
 import { createClient } from "@/lib/supabase/server";
@@ -165,7 +165,15 @@ export default async function ProfilePage({
           {edit !== "true" && (
             <Link
               href="/profile?edit=true"
-              className="absolute top-4 right-4 z-10"
+              // z-20, not z-10 like its siblings (avatar row, stats row) —
+              // at equal z-index, later DOM elements paint over earlier
+              // ones regardless of position: absolute, so this button was
+              // being visually and functionally covered by content that
+              // comes after it in the markup (confirmed live via
+              // elementFromPoint at the button's own coordinates resolving
+              // to the avatar row on mobile, the stats row on desktop —
+              // clicks landed on those instead of the button underneath).
+              className="absolute top-4 right-4 z-20"
             >
               <Button type="button" variant="outline" size="sm">
                 Edit Profile
@@ -178,15 +186,20 @@ export default async function ProfilePage({
            * mockup). Desktop keeps its own untouched block right after. */}
           <div className="z-10 flex flex-col gap-3 lg:hidden">
             <div className="flex items-center gap-3">
-              <div className="rounded-full p-1">
-                <Avatar
-                  src={profile?.avatar_url}
-                  name={profile?.username ?? ""}
-                  imageSize={144}
-                  sizeClassName="size-16"
-                  textClassName="text-2xl"
-                  className="ring-2 ring-primary"
-                />
+              <div className="flex flex-col items-center gap-1">
+                <div className="rounded-full p-1">
+                  <Avatar
+                    src={profile?.avatar_url}
+                    name={profile?.username ?? ""}
+                    imageSize={144}
+                    sizeClassName="size-16"
+                    textClassName="text-2xl"
+                    className="ring-2 ring-primary"
+                  />
+                </div>
+                {edit === "true" && (
+                  <AvatarChangeControl formId="edit-profile-form" context="mobile" />
+                )}
               </div>
 
               <div className="flex min-w-0 flex-col items-start">
@@ -220,15 +233,20 @@ export default async function ProfilePage({
           </div>
 
           <div className="z-10 hidden lg:flex lg:flex-row lg:items-center lg:gap-4">
-            <div className="rounded-full p-1">
-              <Avatar
-                src={profile?.avatar_url}
-                name={profile?.username ?? ""}
-                imageSize={144}
-                sizeClassName="size-36"
-                textClassName="text-4xl"
-                className="ring-4 ring-primary"
-              />
+            <div className="flex flex-col items-center gap-2">
+              <div className="rounded-full p-1">
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={profile?.username ?? ""}
+                  imageSize={144}
+                  sizeClassName="size-36"
+                  textClassName="text-4xl"
+                  className="ring-4 ring-primary"
+                />
+              </div>
+              {edit === "true" && (
+                <AvatarChangeControl formId="edit-profile-form" context="desktop" />
+              )}
             </div>
 
             <div className="flex flex-col items-start">
@@ -271,6 +289,7 @@ export default async function ProfilePage({
         <div className="flex flex-1 flex-col items-center gap-6 px-4 pt-4 pb-4 text-center">
           {edit === "true" ? (
             <form
+              id="edit-profile-form"
               action={updateProfile}
               className="flex w-full flex-col gap-4 text-left"
             >
@@ -284,14 +303,6 @@ export default async function ProfilePage({
                   placeholder="Your name"
                 />
               </div>
-              <PhotoUploadField
-                id="avatar"
-                name="avatar"
-                label="Profile picture"
-                previewShape="circle"
-                existingImageUrl={profile?.avatar_url}
-                fallbackInitial={(profile?.display_name ?? profile?.username)?.[0]?.toUpperCase()}
-              />
               <div className="flex flex-col gap-2">
                 <Label htmlFor="bio">Bio</Label>
                 <Input

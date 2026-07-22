@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PhotoUploadField } from "@/components/photo-upload-field";
 import { bookFormFields, secureThumbnail } from "@/lib/google-books";
 import type { BookFields } from "@/lib/db/books";
 import {
@@ -273,13 +273,31 @@ export function AiPhotoImportForm({ tierListId }: { tierListId: string }) {
         </p>
       )}
 
-      <PhotoUploadField
-        id="photo"
-        name="photo"
-        label="Book photo"
-        capture="environment"
-        onFileSelected={setFile}
-      />
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-foreground">
+          Book photo
+        </span>
+        <label
+          htmlFor="photo"
+          className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-sm bg-muted px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
+        >
+          Upload
+        </label>
+        <input
+          id="photo"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        />
+        {file && (
+          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+            <Check className="size-3 shrink-0 text-primary" />
+            Uploaded: {file.name}
+          </p>
+        )}
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

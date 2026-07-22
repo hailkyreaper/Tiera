@@ -43,7 +43,7 @@ export function SidebarNav() {
         onClick={(event) => handleNavClick(event, createItem.href)}
         className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90"
       >
-        <CreateIcon className="size-5" />
+        <CreateIcon className="size-6" />
         Create List
       </Link>
     </div>

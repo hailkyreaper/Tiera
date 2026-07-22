@@ -44,11 +44,22 @@ export function BookSearchInput({
 
     const requestId = ++latestRequestId.current;
     const timeout = setTimeout(() => {
-      searchBooksLive(query).then((results) => {
-        if (requestId === latestRequestId.current) {
-          setSuggestions(results);
-        }
-      });
+      searchBooksLive(query)
+        .then((results) => {
+          if (requestId === latestRequestId.current) {
+            setSuggestions(results);
+          }
+        })
+        .catch((error) => {
+          // A network failure here previously became an unhandled promise
+          // rejection with no user-visible effect beyond the dropdown
+          // silently never updating — log it and degrade to "no
+          // suggestions" instead, same as a genuine empty result.
+          console.error("Live book search failed:", error);
+          if (requestId === latestRequestId.current) {
+            setSuggestions([]);
+          }
+        });
     }, 250);
 
     return () => clearTimeout(timeout);

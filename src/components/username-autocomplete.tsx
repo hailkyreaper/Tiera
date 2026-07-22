@@ -28,7 +28,15 @@ export function UsernameAutocomplete({
     }
 
     const timeout = setTimeout(() => {
-      searchUsernames(query).then(setSuggestions);
+      searchUsernames(query)
+        .then(setSuggestions)
+        .catch((error) => {
+          // Same gap as BookSearchInput's live search — a network failure
+          // here previously became an unhandled promise rejection with no
+          // visible effect beyond the dropdown silently never updating.
+          console.error("Username search failed:", error);
+          setSuggestions([]);
+        });
     }, 250);
 
     return () => clearTimeout(timeout);

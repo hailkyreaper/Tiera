@@ -1793,8 +1793,152 @@ on Explore itself.
   serif headings/warm ink/borders all intact.
 
 **Sprint 9 — Launch Prep is now CURRENT** (started 2026-07-20, see Sprint 
-Rule). Scope per the Roadmap: performance, error/empty states, and final QA. 
-Nothing built yet this sprint.
+Rule). Scope per the Roadmap: performance, error/empty states, and final QA.
+
+**Sprint 9 checklist** (drafted 2026-07-20, same "audit first, present 
+findings, confirm scope before fixing" approach as Sprint 8's responsive-
+polish checklist):
+
+*Error/empty states*
+- [x] `error.tsx` boundaries (root + `(app)`) ✅ done — the app had none 
+  anywhere, so any uncaught error fell through to Next's bare default 
+  page. Added at both root (`src/app/error.tsx`, no nav context) and 
+  inside `(app)/` (`src/app/(app)/error.tsx`, keeps Sidebar/NavBar/TopBar 
+  visible around it, since `(app)/layout.tsx` still renders around its 
+  own error boundary — it just can't catch errors thrown by the layout 
+  itself, those bubble to the root one instead). Both show "Try again" 
+  (`reset()`) and a way home. Verified live with a deliberately-thrown 
+  temporary test route at both levels, then removed.
+- [x] `not-found.tsx` boundaries (root + `(app)`) ✅ done — same reasoning 
+  and pairing as `error.tsx`. Verified live against a genuinely unmatched 
+  route (root) and a real `notFound()` call via a missing username (in-app, 
+  nav stayed visible correctly).
+- [x] `loading.tsx` boundaries (root + `(app)`) ✅ done — Next.js applies a 
+  `loading.tsx` to every route nested under it, so one file at 
+  `(app)/loading.tsx` covers every authenticated page, plus one at root for 
+  pre-auth pages — same pairing pattern as the two boundaries above. New 
+  shared `src/components/page-loading.tsx` (centered `Loader2` spin) backs 
+  both. Verified live by forcing an artificial delay on a temporary test 
+  route and catching the mid-navigation state via Playwright (`waitUntil: 
+  "commit"` instead of the usual `"networkidle"`, to actually observe it 
+  before it resolves) — confirmed the spinner shows with nav intact, then 
+  correctly replaced by real content.
+- [x] **Audit swallowed Supabase `error` fields** ✅ done (2026-07-22) — 
+  swept the whole codebase: 30 files, ~40 query call sites total (more 
+  than the ~51-occurrence estimate suggested, since several were hiding in 
+  `Promise.all`/ternary-with-fallback destructures the first grep missed). 
+  Two new helpers in `src/lib/supabase/assert.ts`:
+  - `assertNoSupabaseError` — throws a real `Error` on a genuine query 
+    failure (never on a legitimate "no rows" result), caught by the 
+    error.tsx boundaries above. Used for queries backing a page's actual 
+    core content — `list-cards.ts`, `library.ts`, `favorites.ts`, 
+    `taste-match.ts`/`top-matches.ts`, Explore's main feed query, every 
+    page-level Server Component fetch (Profile, `/u/[username]`, 
+    `/compare/[username]`, list detail, search, library, both import 
+    pages), and the write side of `lists/actions.ts`/`search/actions.ts`.
+  - `logSupabaseError` — logs server-side and degrades to a safe fallback 
+    instead of throwing, for queries where a failure genuinely shouldn't 
+    take down an unrelated page: `discovery.ts`'s desktop rails, 
+    `notifications.ts` (bell dropdown), `search-queries.ts`'s trending 
+    searches, `recommendations.ts` (backs both the standalone page *and* 
+    a rail embedded on Profile/Explore/Compare — throwing there would 
+    crash pages that have nothing to do with recommendations), 
+    `isAdmin()` (deliberately fails closed either way — a DB hiccup 
+    should never accidentally grant admin access — this just makes a 
+    wrongly-denied admin debuggable instead of silently indistinguishable 
+    from "not an admin"), and `Sidebar`'s mini user-card (rendered by 
+    `(app)/layout.tsx` itself, so a throw there would take out the 
+    *entire* nav shell on every page, not just one page's content).
+  - Two real bugs found and fixed along the way, not just the general 
+    pattern: (1) `middleware.ts`'s onboarding check ran on *every 
+    request* and treated a failed query identically to "no profile row" 
+    — a transient DB blip could wrongly bounce an already-onboarded user 
+    back to `/onboard/username`. Fixed to only redirect on a genuine 
+    empty result, log-and-pass-through on an actual error. (2) Saving a 
+    list's title/description/tags/visibility (`saveListFields`) and the 
+    search page's "Add to library" button both had zero error checking on 
+    their actual write — a failed save or add looked identical to success 
+    from the user's side. Both now throw on a real failure.
+  - Verified throughout: `tsc --noEmit` clean after every file, and a 
+    22-route smoke test (every touched page, mobile viewport) passed 
+    clean with zero console/page errors.
+- [x] **Server action error handling** ✅ done — extended the same sweep 
+  to every remaining mutation, well past the original ~8-occurrence 
+  estimate once a broader `await supabase` (bare, unassigned) grep turned 
+  up two whole files the first pass never scoped: `profile/actions.ts` 
+  (profile save, avatar save, remove-from-library, clear-want-to-read, 
+  library reorder — 5 more unguarded writes) and 
+  `notifications/actions.ts` (mark-all-read). Also caught 
+  `u/actions.ts` (follow/unfollow) and `lists/social-actions.ts` 
+  (like/unlike/post-comment/delete-comment), which a first draft of this 
+  entry wrongly claimed were "already fine" — verified that was false 
+  before writing it down, fixed both instead of leaving the claim in.
+  - **Real bug this surfaced, not just missing error checks**: adding 
+    `assertNoSupabaseError` to `toggleFollow`'s insert immediately threw 
+    a live `duplicate key value violates unique constraint 
+    "follows_pkey"` — the Follow button had no protection against a 
+    stale/already-following state (a real one, hit live during 
+    verification, not synthetic), so a plain `.insert()` crashed instead 
+    of just no-opping. Root-caused and fixed properly rather than 
+    papering over it: switched both `toggleFollow`'s follow-insert and 
+    `toggleLike`'s like-insert to `.upsert(..., { ignoreDuplicates: 
+    true })` on their real unique constraints (`follows_pkey` on 
+    `(follower_id, following_id)`; `list_likes`' `(tier_list_id, 
+    user_id)`), the same pattern `addBookToLibrary`'s `user_books` upsert 
+    already used for this exact reason. Confirmed Postgres skips the 
+    `AFTER INSERT` trigger on an ignored conflict, so `list_likes`' 
+    like-count trigger still can't double-count from this.
+  - Verified live end-to-end after the fix: follow/unfollow round-tripped 
+    with no error, a real comment post-then-delete round-tripped 
+    correctly (confirmed via a clean page re-read each time, not the 
+    initial fast/flaky post-click check, which falsely read "not found" 
+    both times before the page had actually revalidated). Restored the 
+    test account's real follow-state afterward since verifying it 
+    unfollow/re-follow had actually shifted it.
+- [ ] Client-side fetch error handling (`BookSearchInput`, 
+  `username-autocomplete`) — what actually happens on a network failure 
+  mid-search? Still not checked — this is client-side `fetch()` calls, a 
+  different code path from the server-side Supabase audit above.
+
+*Performance*
+- [x] Raw `<img>` audit ✅ checked, clean — grepped the whole `src/` tree, 
+  zero raw `<img>` tags; everything already goes through `next/image`.
+- [ ] **Missing DB indexes** — only 2 of 32 migrations create any index at 
+  all. Likely gap on frequently-filtered foreign-key columns 
+  (`tier_list_items.tier_list_id`, `user_books.user_id`, `follows.*`, 
+  `notifications.user_id`, etc.) — not yet confirmed which specific 
+  columns are actually missing coverage or how much it matters at the 
+  current data volume.
+- [ ] N+1 / sequential-`await`-in-a-loop audit — spot-checked two files 
+  (`list-cards.ts`, `favorites.ts`), both clean (synchronous data-shaping 
+  loops over already-fetched data, no `await` inside). 13 more files with 
+  `for...of` loops not yet checked: `explore/page.tsx`, `taste-match.ts`, 
+  `open-library.ts`, `admin/backfill-categories/actions.ts`, 
+  `recommendations.ts`, `top-matches.ts`, `lists/[id]/import/goodreads/
+  actions.ts`, `discovery.ts`, `search-queries.ts`, `lists/[id]/import/ai/
+  actions.ts`, `lists/[id]/page.tsx`, `add-book-button.tsx`, 
+  `format-time.ts`.
+- [ ] Revalidation strategy check — confirm `revalidatePath` calls aren't 
+  over-triggering full rebuilds beyond what's actually needed.
+- [ ] A real Lighthouse/Core Web Vitals pass, if tooling allows.
+
+*Final QA*
+- [ ] Full core-flow walkthrough: signup → onboarding → create list → rank 
+  books → Explore → Compare → follow → search → Goodreads/AI import → 
+  profile edit.
+- [ ] Auth edge cases: expired session, logged-out access to protected 
+  routes.
+- [ ] Form validation edge cases (empty submits, max-length boundaries, 
+  XSS-safe rendering of user-entered text).
+- [ ] RLS spot-check on newer tables (`notifications`, 
+  `recommendation_outcomes`, `books.is_draft` policies) — confirm they're 
+  actually enabled and correctly scoped, not just assumed.
+- [ ] Broken-link / dead-end-button sweep across the app.
+- [ ] A clean console-error pass across every page — a couple of flaky 
+  hydration warnings turned up already this session (traced to Chrome's 
+  autofill heuristics on `FollowButton`'s hidden `username` input, 
+  confirmed non-deterministic and unrelated to real app code) — worth 
+  reconfirming that's still the only source, not masking something real.
 
 Do not implement features from future sprints until explicitly instructed.
 

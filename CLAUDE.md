@@ -1914,12 +1914,43 @@ polish checklist):
 *Performance*
 - [x] Raw `<img>` audit ✅ checked, clean — grepped the whole `src/` tree, 
   zero raw `<img>` tags; everything already goes through `next/image`.
-- [ ] **Missing DB indexes** — only 2 of 32 migrations create any index at 
-  all. Likely gap on frequently-filtered foreign-key columns 
-  (`tier_list_items.tier_list_id`, `user_books.user_id`, `follows.*`, 
-  `notifications.user_id`, etc.) — not yet confirmed which specific 
-  columns are actually missing coverage or how much it matters at the 
-  current data volume.
+- [x] **Missing DB indexes** ✅ done (2026-07-22) — checked every table's 
+  actual definition against how the app really queries it, rather than 
+  assuming every FK needs one. Several turned out already covered by an 
+  existing unique constraint whose leading column happens to match the 
+  app's query pattern (`user_books (user_id, book_id)` — `user_id`-only 
+  lookups use it via the leftmost-prefix rule; same reasoning cleared 
+  `list_likes`, `follows`, and `books.google_volume_id`). Four real, 
+  zero-coverage gaps found and fixed in migration 
+  `0033_add_missing_indexes.sql`:
+  - `tier_lists.user_id` — the big one, hit by `getUserListCards`, 
+    `getFavoriteBooks`, `getBookScores` (backs every Compare/taste-match 
+    calculation), `cleanupAbandonedDrafts`, and implicitly by RLS on 
+    every plain select against the table regardless of application code.
+  - `tier_list_items.book_id` — the existing `unique(tier_list_id, 
+    book_id)` only accelerates `tier_list_id`-led lookups; 
+    `deleteOrphanedDraftBooks` (`lists/actions.ts`) filters by `book_id` 
+    alone, un-helped by that index, every time a draft list is discarded.
+  - `list_comments.tier_list_id` — zero coverage, hit every time a list's 
+    comment thread loads.
+  - `search_queries.created_at` — zero coverage on an unbounded, 
+    only-grows table; `getTrendingSearches` range-scans and sorts by it 
+    on every Explore/Search load that shows the Trending Searches rail.
+  - Flagged but not fixed: `profiles`' `.ilike("username", ...)` lookups 
+    — there's a unique index on `lower(username)`, but a plain `ILIKE` 
+    query may not actually be able to use it (that needs `lower(x) = 
+    lower(y)`-shaped queries or a `pg_trgm` index to confirm either way) 
+    — would need `EXPLAIN ANALYZE` against the real database to verify, 
+    which isn't available the same way running the migration itself is. 
+    Worth a follow-up if username search ever feels slow.
+  - User ran the migration and confirmed it applied; verified live 
+    afterward with a smoke test across every page that touches the newly 
+    indexed tables (Explore, Profile, Compare, `/u/[username]`, Search, 
+    list detail) — all clean, zero errors. Real-world speedup itself 
+    isn't independently measurable without direct DB query-plan access 
+    (no `EXPLAIN ANALYZE` available), same limitation as the ILIKE 
+    question above — confirmed these are genuine, correctly-targeted 
+    gaps, not confirmed via a measured before/after.
 - [ ] N+1 / sequential-`await`-in-a-loop audit — spot-checked two files 
   (`list-cards.ts`, `favorites.ts`), both clean (synchronous data-shaping 
   loops over already-fetched data, no `await` inside). 13 more files with 

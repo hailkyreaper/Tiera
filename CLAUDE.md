@@ -2368,6 +2368,27 @@ admin review surface from scratch, since nothing like that exists today).
   wiring (one `if (containsBadWord(username))` check before an existing, 
   already-proven redirect pattern).
 
+**Extended the bad word filter to comments** ✅ done (2026-07-22) — same 
+session, user's own follow-up right after usernames landed. Reuses the 
+identical `containsBadWord()` from `bad-words.ts` as-is (no comment- 
+specific tuning) — the user asked to extend the *filter*, not build a 
+second one.
+- Wired into `addComment` (`lists/social-actions.ts`): a bad-word comment 
+  silently doesn't post, folded into the same `if (!body || 
+  containsBadWord(body)) return;` check the function already used for an 
+  empty comment. Deliberately not a redirect-with-error like the username 
+  field — `CommentsSection` is a plain `<form action={addComment}>` inline 
+  widget on the list detail page with no error-display mechanism at all 
+  (not even for the pre-existing empty-comment case), so matching that 
+  existing silent-no-op precedent is the consistent choice, not a new 
+  decision.
+- Verified live end-to-end (comments don't have the email-confirmation 
+  blocker usernames do, so this could be tested for real, not just via 
+  isolated logic tests): posted a normal comment on a real list (count 
+  0 → 1), then attempted a comment containing a blocked word (count stayed 
+  at 1, confirmed not inserted), zero console errors either way. Cleaned 
+  up the test comment afterward.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -2680,11 +2701,8 @@ explicitly before building.
 
 - V2: Upgrade `current_tier` calculation from flat average to recency-weighted 
   average (Amazon/Netflix-style time-decay). Deferred for MVP simplicity.
-- Bad word filter for usernames ✅ done (2026-07-22) — see its own entry 
-  below, pulled out of this backlog. Scoped to usernames only per the 
-  user's own request; comments are still unfiltered — pull this backlog 
-  item again (re-add it) if that's wanted later, same wordlist/approach 
-  would just need wiring into `addComment` (`lists/social-actions.ts`) too.
+- Bad word filter for usernames and comments ✅ done (2026-07-22) — see its 
+  own entries below, pulled out of this backlog.
 - Real rate-limiting / bot-pattern detection on the tier-list mutation actions 
   ✅ done (2026-07-22) — see its own entry below, pulled out of this backlog.
 
@@ -2705,8 +2723,8 @@ explicitly before building.
   separate change to `findOrCreateBook`'s matching logic, not yet done.
 - Saved matches ✅ removed — see "Current sprint" above (no destination screen, 
   user decided to just delete the feature rather than build one).
-- Bad word filter for usernames ✅ done — see "Current sprint" area above 
-  (comments still unfiltered, moved back to Ideas Backlog if wanted later).
+- Bad word filter for usernames and comments ✅ done — see "Current sprint" 
+  area above.
 - User feedback: "UI is extremely inconsistent" — user's plan (2026-07-10): not 
   a dedicated pass, addressed incrementally as they hand over specific color 
   values. Don't proactively restyle colors beyond what's given. Applied so far, 

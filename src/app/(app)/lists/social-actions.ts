@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoSupabaseError } from "@/lib/supabase/assert";
+import { containsBadWord } from "@/lib/bad-words";
 
 export async function toggleLike(formData: FormData) {
   const supabase = await createClient();
@@ -59,7 +60,11 @@ export async function addComment(formData: FormData) {
   const tierListId = formData.get("tierListId") as string;
   const body = (formData.get("body") as string)?.trim();
 
-  if (!body) {
+  // Same silent no-op as an empty body — this form has no error-display
+  // mechanism (a plain <form action>, no useActionState), unlike the
+  // onboarding username field's dedicated page with a `?error=` param, so
+  // there's nothing sensible to redirect to from an inline comment box.
+  if (!body || containsBadWord(body)) {
     return;
   }
 

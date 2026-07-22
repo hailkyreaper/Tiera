@@ -1622,16 +1622,22 @@ button rendering outside its card on Compare's list.
   taps into edit mode. Confirmed via computed style: `16px` on mobile 
   now, and confirmed the visual size next to its "Visibility" label still 
   reads fine (2px difference, not visually jarring).
-- [ ] The parked Chrome-desktop-mobile-emulation-only tier-row overflow 
-  from the Post-Sprint-6 round-3 bug-fix pass — attempted again 
-  (2026-07-20) via real Chrome (the `claude-in-chrome` extension, not 
-  just Playwright), specifically because the original report was from 
-  Chrome DevTools' own device-emulation mode, which Playwright's plain 
-  viewport resize doesn't perfectly replicate. Blocked by tooling, not 
-  by the app: the extension's window-resize call reported success but 
-  never actually changed `window.innerWidth` (checked directly, 3 
-  attempts at different sizes, no change) — window was maximized and the 
-  resize didn't take. No new evidence either way; still parked.
+- [x] **The parked Chrome-desktop-mobile-emulation-only tier-row overflow** 
+  ✅ closed out, not reproducible (2026-07-22) — attempted again 
+  (2026-07-20) via real Chrome (the `claude-in-chrome` extension, not just 
+  Playwright), blocked by the same tooling limitation as before (its 
+  window-resize call doesn't replicate DevTools' actual device-emulation 
+  mode, which uses a different underlying mechanism). This time the user 
+  reproduced it manually in real Chrome DevTools instead — checked 
+  Explore/Profile/list-detail down to 260px width (well past any real 
+  device, the smallest common phone width is ~320-360px) and confirmed it 
+  looks clean the entire way down, no glitch at any point. Combined with 
+  every earlier automated check (Playwright at every tested width, the 
+  compiled CSS/HTML output) also coming back clean, there's no remaining 
+  evidence this bug still exists — closed out rather than left parked 
+  indefinitely. If it ever resurfaces, get the exact device preset/width 
+  and a screenshot at the moment it's seen, since neither was ever 
+  captured for the original report.
 
 **Profile/Compare stuck narrow on landscape phones and portrait tablets** 
 ✅ done (2026-07-20) — user's own report: rotating a phone to landscape, 
@@ -2389,6 +2395,64 @@ second one.
   at 1, confirmed not inserted), zero console errors either way. Cleaned 
   up the test comment afterward.
 
+**Final UI-sharpening pass** (started 2026-07-22) — user asked what a 
+final polish checklist would look like before launch; drafted below, 
+grounded in this app's own history rather than generic boilerplate. Two 
+items done so far, the rest still open:
+- [x] **Photo upload feedback (AI photo import + profile picture)** 
+  ✅ done (2026-07-22) — user's own addition to the checklist. Both fields 
+  previously gave weak or zero feedback after picking a file: AI import 
+  showed only a small filename text line, and the profile picture field 
+  was literal plain server-rendered markup with no client state at all — 
+  selecting a new avatar gave no indication whatsoever before hitting 
+  Save. New shared `src/components/photo-upload-field.tsx` 
+  (`PhotoUploadField`): shows a real thumbnail preview (via 
+  `URL.createObjectURL`, revoked on unmount/replacement to avoid leaking 
+  object URLs) with a small checkmark badge overlaid on it, plus a 
+  "‹filename› selected" confirmation line — a much stronger "yes, this is 
+  queued, you can continue" signal than text alone, especially for a photo 
+  field where seeing the actual image matters. Takes a `previewShape` prop 
+  (`circle` for the avatar, `square` for AI import's book photo) and an 
+  optional `existingImageUrl`/`fallbackInitial` pair so the avatar field 
+  shows the current photo/initial before anything new is picked, which AI 
+  import (a one-shot field, nothing "existing") doesn't use. Wired into 
+  both `profile/page.tsx` (replacing the old plain markup entirely) and 
+  `ai-photo-import-form.tsx` (replacing its own inline input, via the new 
+  `onFileSelected` callback prop so the form's existing `file` state — 
+  which its own compression/upload logic already depends on — stays wired 
+  the same way it always was). Verified live at mobile and desktop widths: 
+  selecting a real image file on both pages correctly shows the thumbnail, 
+  checkmark, and filename text, with the AI import page's "Identify Books" 
+  button correctly enabling once a photo is selected; zero console errors 
+  either place.
+- [ ] Light mode full pass — light mode only got real design attention 
+  recently (warm palette + shadows); dark mode has had dozens of 
+  iterations by comparison. Worth a dedicated side-by-side review now that 
+  it's actually reachable via the toggle.
+- [ ] Serif display font placement — flip-flopped already (rolled out 
+  site-wide, then reverted on Explore's list-card titles in the most 
+  recent commit before this pass started). Decide definitively where it 
+  lives vs. doesn't, rather than leaving it an ongoing back-and-forth.
+- [ ] Purple accent (`#6D5DF6`) contrast — flagged during the Sprint 9 
+  Lighthouse pass and deliberately left alone at the time ("don't 
+  proactively restyle colors beyond what's given"). A final-polish pass is 
+  the right moment to revisit that call on purpose.
+- [ ] Spacing/padding drift check — confirm nothing added since the `p-4` 
+  site-wide standard was set (rails, drawers, newer pages) has quietly 
+  drifted from it.
+- [ ] Hover/tap/transition consistency — do buttons, cards, and list rows 
+  all give the same kind of interaction feedback, or does it vary by 
+  component/era?
+- [ ] Icon sizing/alignment sweep — a visual (not touch-target-size) pass 
+  across nav/action-bar/inline icons for consistent scale and optical 
+  alignment.
+- [ ] Desktop/mobile cohesion — the sidebar, rails, and other desktop-only 
+  additions were built incrementally; worth a fresh look at whether 
+  desktop still feels like the same app as mobile, or bolted-on.
+- [ ] Microcopy tone/capitalization pass — empty states were already 
+  unified to one template; extend that same rigor to button labels, 
+  section headers, and toasts/errors across the whole app.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -2612,11 +2676,13 @@ pass, and unifying the two book-search implementations into one.
   outlier just gets clipped instead of stretching the whole row, and `object-contain` 
   removed in favor of plain `h-auto` sizing (the aspect-ratio cap on the wrapper 
   handles capping, so the image itself doesn't need its own fit mode).
-- Known remaining issue: some tier rows still visually overflow past their divider 
-  in Chrome desktop's mobile-emulation mode specifically (confirmed NOT reproducible 
-  via Playwright at any tested width, nor via the compiled CSS/HTML output — the 
-  underlying rule and every automated check are clean). Parked for now per user 
-  instruction; revisit if it recurs.
+- Known issue at the time (tier rows visually overflowing past their divider in 
+  Chrome desktop's mobile-emulation mode) ✅ closed out 2026-07-22, not 
+  reproducible — never confirmed via Playwright at any tested width or the 
+  compiled CSS/HTML output, and the user's own manual check in real Chrome 
+  DevTools down to 260px (well past any real device width) came back clean 
+  too. See the Sprint 8 responsive-polish checklist above for the full 
+  closeout note.
 - Corner radius: cards (`bg-card` surfaces incl. the shared `Card`/`Button` 
   components) and non-tier book covers (`BookCover`) moved from the old 20px-based 
   `rounded-xl`/`rounded-2xl` to `rounded-sm`. Tier list book chips/badges and tier 

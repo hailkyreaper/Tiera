@@ -13,6 +13,7 @@ import { ProfileTabs } from "@/components/profile-tabs";
 import { LibraryTab } from "@/components/library-tab";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { Avatar } from "@/components/avatar";
+import { PhotoUploadField } from "@/components/photo-upload-field";
 import { ProfileBio } from "@/components/profile-bio";
 import { RecommendationsRail } from "@/components/recommendations-rail";
 import { createClient } from "@/lib/supabase/server";
@@ -287,22 +288,14 @@ export default async function ProfilePage({
                   placeholder="Your name"
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="avatar">Profile picture</Label>
-                <label
-                  htmlFor="avatar"
-                  className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-sm bg-muted px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
-                >
-                  Upload
-                </label>
-                <input
-                  id="avatar"
-                  type="file"
-                  name="avatar"
-                  accept="image/*"
-                  className="sr-only"
-                />
-              </div>
+              <PhotoUploadField
+                id="avatar"
+                name="avatar"
+                label="Profile picture"
+                previewShape="circle"
+                existingImageUrl={profile?.avatar_url}
+                fallbackInitial={(profile?.display_name ?? profile?.username)?.[0]?.toUpperCase()}
+              />
               <div className="flex flex-col gap-2">
                 <Label htmlFor="bio">Bio</Label>
                 <Input

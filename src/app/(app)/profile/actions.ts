@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
@@ -18,10 +19,13 @@ export async function updateProfile(formData: FormData) {
   const bio = (formData.get("bio") as string)?.trim() || null;
   const location = (formData.get("location") as string)?.trim() || null;
 
-  await supabase
-    .from("profiles")
-    .update({ display_name: displayName, bio, location })
-    .eq("id", user.id);
+  assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .update({ display_name: displayName, bio, location })
+      .eq("id", user.id),
+    "saving profile",
+  );
 
   const file = formData.get("avatar") as File | null;
 
@@ -49,10 +53,13 @@ export async function updateProfile(formData: FormData) {
       data: { publicUrl },
     } = supabase.storage.from("avatars").getPublicUrl(path);
 
-    await supabase
-      .from("profiles")
-      .update({ avatar_url: `${publicUrl}?v=${Date.now()}` })
-      .eq("id", user.id);
+    assertNoSupabaseError(
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: `${publicUrl}?v=${Date.now()}` })
+        .eq("id", user.id),
+      "saving avatar",
+    );
   }
 
   redirect("/profile");
@@ -70,11 +77,14 @@ export async function removeBooksFromLibrary(bookIds: string[]) {
     redirect("/login");
   }
 
-  await supabase
-    .from("user_books")
-    .delete()
-    .eq("user_id", user.id)
-    .in("book_id", bookIds);
+  assertNoSupabaseError(
+    await supabase
+      .from("user_books")
+      .delete()
+      .eq("user_id", user.id)
+      .in("book_id", bookIds),
+    "removing books from library",
+  );
 
   revalidatePath("/profile");
 }
@@ -92,11 +102,14 @@ export async function clearWantToRead(bookId: string) {
     redirect("/login");
   }
 
-  await supabase
-    .from("user_books")
-    .update({ want_to_read: false })
-    .eq("user_id", user.id)
-    .eq("book_id", bookId);
+  assertNoSupabaseError(
+    await supabase
+      .from("user_books")
+      .update({ want_to_read: false })
+      .eq("user_id", user.id)
+      .eq("book_id", bookId),
+    "clearing want-to-read",
+  );
 
   revalidatePath("/profile");
 }
@@ -121,7 +134,7 @@ export async function reorderLibraryBooks(bookIds: string[]) {
     redirect("/login");
   }
 
-  await Promise.all(
+  const results = await Promise.all(
     bookIds.map((bookId, index) =>
       supabase
         .from("user_books")
@@ -130,4 +143,7 @@ export async function reorderLibraryBooks(bookIds: string[]) {
         .eq("book_id", bookId),
     ),
   );
+  for (const result of results) {
+    assertNoSupabaseError(result, "saving library order");
+  }
 }

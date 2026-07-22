@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -41,18 +42,25 @@ const NOTIFICATIONS_LIMIT = 20;
 // profiles directly, so an embedded `profiles!actor_id(...)` join isn't
 // available; same batch-fetch-then-Map pattern already used throughout
 // (e.g. explore/page.tsx's profileByUserId).
+// Backs the notification bell — supplementary top-bar UI, not core page
+// content, so failures here (logSupabaseError below) degrade to "no
+// notifications" rather than throwing and taking down the whole page.
 export async function getNotifications(
   supabase: SupabaseServerClient,
   userId: string,
   limit = NOTIFICATIONS_LIMIT,
 ): Promise<NotificationItem[]> {
-  const { data: rows } = await supabase
-    .from("notifications")
-    .select("id, type, actor_id, tier_list_id, read, created_at")
-    .eq("recipient_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-    .returns<NotificationRow[]>();
+  const rows = logSupabaseError(
+    await supabase
+      .from("notifications")
+      .select("id, type, actor_id, tier_list_id, read, created_at")
+      .eq("recipient_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+      .returns<NotificationRow[]>(),
+    "fetching notifications",
+    [],
+  );
 
   const items = rows ?? [];
   if (items.length === 0) return [];
@@ -66,7 +74,7 @@ export async function getNotifications(
     ),
   ];
 
-  const [{ data: profiles }, { data: lists }] = await Promise.all([
+  const [profilesResult, listsResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url")
@@ -78,8 +86,18 @@ export async function getNotifications(
           .select("id, title")
           .in("id", listIds)
           .returns<TierListRow[]>()
-      : Promise.resolve({ data: [] as TierListRow[] }),
+      : Promise.resolve({ data: [] as TierListRow[], error: null }),
   ]);
+  const profiles = logSupabaseError(
+    profilesResult,
+    "fetching notification actor profiles",
+    [],
+  );
+  const lists = logSupabaseError(
+    listsResult,
+    "fetching notification tier lists",
+    [],
+  );
 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
   const listById = new Map((lists ?? []).map((l) => [l.id, l]));

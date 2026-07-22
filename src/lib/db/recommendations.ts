@@ -5,6 +5,7 @@ import {
   TIER_SCORES,
   type SupabaseServerClient,
 } from "@/lib/db/taste-match";
+import { logSupabaseError } from "@/lib/supabase/assert";
 
 // Only recommend books a similar user rated A-tier or better.
 const RECOMMENDATION_TIER_THRESHOLD = TIER_SCORES.A;
@@ -49,21 +50,34 @@ type BookRow = {
   average_rating: number | null;
 };
 
+// Uses logSupabaseError (degrade + log) rather than assertNoSupabaseError
+// throughout this file, not the usual default — getRecommendations backs
+// both the standalone Recommendations page *and* RecommendationsRail, which
+// is embedded as supplementary content on Profile/Explore/Compare. Those
+// pages' own core data has nothing to do with recommendations, so a
+// recommendations-query failure throwing would take down unrelated pages
+// via the shared (app)/error.tsx boundary — worse than just showing an
+// empty recommendations section.
 export async function getRecommendations(
   supabase: SupabaseServerClient,
   userId: string,
   limit = 5,
 ): Promise<RecommendationsResult> {
-  const [myScores, { data: profiles }, { data: libraryRows }] =
-    await Promise.all([
-      getBookScores(supabase, userId),
-      supabase
-        .from("profiles")
-        .select("id")
-        .neq("id", userId)
-        .returns<ProfileRow[]>(),
-      supabase.from("user_books").select("book_id").eq("user_id", userId),
-    ]);
+  const [myScores, profilesResult, libraryRowsResult] = await Promise.all([
+    getBookScores(supabase, userId),
+    supabase.from("profiles").select("id").neq("id", userId).returns<ProfileRow[]>(),
+    supabase.from("user_books").select("book_id").eq("user_id", userId),
+  ]);
+  const profiles = logSupabaseError(
+    profilesResult,
+    "fetching candidate profiles for recommendations",
+    [],
+  );
+  const libraryRows = logSupabaseError(
+    libraryRowsResult,
+    "fetching library for recommendations",
+    [],
+  );
 
   // Exclude anything already in the user's library *or* already ranked by
   // them directly — covers older accounts/rows from before library-syncing
@@ -78,14 +92,17 @@ export async function getRecommendations(
   // the user already has under one row's id doesn't resurface under the
   // other row's id.
   const myLibraryIds = [...myLibrary];
-  const { data: myBookRows } =
+  const myBookRows = logSupabaseError(
     myLibraryIds.length > 0
       ? await supabase
           .from("books")
           .select("id, title")
           .in("id", myLibraryIds)
           .returns<{ id: string; title: string }[]>()
-      : { data: [] as { id: string; title: string }[] };
+      : { data: [] as { id: string; title: string }[], error: null },
+    "fetching my book titles for recommendation dedup",
+    [],
+  );
 
   const myTitles = new Set(
     (myBookRows ?? []).map((book) => book.title.trim().toLowerCase()),
@@ -134,7 +151,7 @@ export async function getRecommendations(
     }
   }
 
-  const [alignedGenresByCandidate, { data: candidateCategoryRows }] =
+  const [alignedGenresByCandidate, candidateCategoryRowsResult] =
     await Promise.all([
       Promise.all(
         pool.map((candidate) =>
@@ -149,8 +166,14 @@ export async function getRecommendations(
             .returns<{ id: string; categories: string[] | null }[]>()
         : Promise.resolve({
             data: [] as { id: string; categories: string[] | null }[],
+            error: null,
           }),
     ]);
+  const candidateCategoryRows = logSupabaseError(
+    candidateCategoryRowsResult,
+    "fetching candidate book categories for recommendations",
+    [],
+  );
 
   const categoriesByBook = new Map(
     (candidateCategoryRows ?? []).map((row) => [row.id, row.categories ?? []]),
@@ -212,11 +235,15 @@ export async function getRecommendations(
     return { recommendations: [], usedThreshold, viewerBooksRanked: myScores.size };
   }
 
-  const { data: books } = await supabase
-    .from("books")
-    .select("id, title, authors, thumbnail_url, description, average_rating")
-    .in("id", bookIds)
-    .returns<BookRow[]>();
+  const books = logSupabaseError(
+    await supabase
+      .from("books")
+      .select("id, title, authors, thumbnail_url, description, average_rating")
+      .in("id", bookIds)
+      .returns<BookRow[]>(),
+    "fetching recommended books",
+    [],
+  );
 
   const recommendations: BookRecommendation[] = (books ?? [])
     .filter((book) => !myTitles.has(book.title.trim().toLowerCase()))

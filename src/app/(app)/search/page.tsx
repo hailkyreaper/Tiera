@@ -4,6 +4,7 @@ import { searchBooks } from "@/lib/db/books";
 import { getAllGenres } from "@/lib/db/discovery";
 import { logSearchQuery } from "@/lib/db/search-queries";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { SearchResultCard } from "@/components/search-result-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
 import { UsernameAutocomplete } from "@/components/username-autocomplete";
@@ -168,12 +169,15 @@ async function PeopleSearch({ q }: { q?: string }) {
 
   if (q) {
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .ilike("username", `%${q}%`)
-      .limit(20)
-      .returns<ProfileRow[]>();
+    const data = assertNoSupabaseError(
+      await supabase
+        .from("profiles")
+        .select("id, username")
+        .ilike("username", `%${q}%`)
+        .limit(20)
+        .returns<ProfileRow[]>(),
+      "searching people",
+    );
     people = data ?? [];
   }
 

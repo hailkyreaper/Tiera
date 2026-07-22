@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -43,11 +44,16 @@ export async function getTrendingThisWeek(
     Date.now() - TRENDING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select("book_id, books(id, title, authors, thumbnail_url)")
-    .gte("created_at", since)
-    .returns<TrendingItemRow[]>();
+  // Decorative desktop rail — log and degrade rather than throw.
+  const items = logSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("book_id, books(id, title, authors, thumbnail_url)")
+      .gte("created_at", since)
+      .returns<TrendingItemRow[]>(),
+    "fetching trending this week",
+    [],
+  );
 
   const tally = new Map<string, number>();
   const bookById = new Map<string, TrendingItemRow["books"]>();
@@ -83,11 +89,16 @@ export async function getPopularGenres(
   supabase: SupabaseServerClient,
   limit = POPULAR_GENRES_LIMIT,
 ): Promise<string[]> {
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select("books(categories)")
-    .neq("tier", "unranked")
-    .returns<CategoryRow[]>();
+  // Decorative desktop rail — log and degrade rather than throw.
+  const items = logSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("books(categories)")
+      .neq("tier", "unranked")
+      .returns<CategoryRow[]>(),
+    "fetching popular genres",
+    [],
+  );
 
   const tally = new Map<string, number>();
   for (const item of items ?? []) {
@@ -109,11 +120,17 @@ type CategoriesOnlyRow = { categories: string[] | null };
 export async function getAllGenres(
   supabase: SupabaseServerClient,
 ): Promise<string[]> {
-  const { data } = await supabase
-    .from("books")
-    .select("categories")
-    .not("categories", "is", null)
-    .returns<CategoriesOnlyRow[]>();
+  // Populates a filter dropdown's options — a failure just means fewer
+  // filter choices shown, not a broken page. Log and degrade.
+  const data = logSupabaseError(
+    await supabase
+      .from("books")
+      .select("categories")
+      .not("categories", "is", null)
+      .returns<CategoriesOnlyRow[]>(),
+    "fetching all genres",
+    [],
+  );
 
   const genres = new Set<string>();
   for (const row of data ?? []) {

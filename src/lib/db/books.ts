@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError, logSupabaseError } from "@/lib/supabase/assert";
 import { byPopularity, normalizeCategory, type GoogleBookVolume } from "@/lib/google-books";
 import {
   dedupeByTitleAuthor,
@@ -61,11 +62,20 @@ export async function findOrCreateBook(
   // confirmed real search result commits immediately, same as always.
   { isDraft = false }: { isDraft?: boolean } = {},
 ): Promise<string | null> {
-  const { data: existingBook } = await supabase
-    .from("books")
-    .select("id")
-    .eq("google_volume_id", fields.googleVolumeId)
-    .maybeSingle<BookIdRow>();
+  // Uses logSupabaseError (not the usual assertNoSupabaseError) throughout
+  // this lookup — this function already returns null on its own insert
+  // failure further below (a deliberate, established convention its
+  // callers rely on), so a failed lookup here degrades the same way
+  // instead of throwing and taking down whatever action called it.
+  const existingBook = logSupabaseError(
+    await supabase
+      .from("books")
+      .select("id")
+      .eq("google_volume_id", fields.googleVolumeId)
+      .maybeSingle<BookIdRow>(),
+    "looking up existing book by volume id",
+    null,
+  );
 
   if (existingBook) {
     return existingBook.id;
@@ -84,11 +94,15 @@ export async function findOrCreateBook(
     ? fields.authors.split(", ")[0]
     : undefined;
   if (fields.title && firstAuthorForMatch) {
-    const { data: titleMatches } = await supabase
-      .from("books")
-      .select("id, authors")
-      .ilike("title", fields.title.trim())
-      .returns<{ id: string; authors: string[] | null }[]>();
+    const titleMatches = logSupabaseError(
+      await supabase
+        .from("books")
+        .select("id, authors")
+        .ilike("title", fields.title.trim())
+        .returns<{ id: string; authors: string[] | null }[]>(),
+      "looking up existing book by title/author",
+      [],
+    );
 
     const existingByTitleAuthor = titleMatches?.find(
       (book) =>
@@ -175,18 +189,25 @@ export async function searchLocalBooks(
   query: string,
   limit = 10,
 ): Promise<GoogleBookVolume[]> {
-  const { data } = await supabase
-    .from("books")
-    .select(
-      "google_volume_id, title, authors, description, thumbnail_url, published_date, page_count, average_rating, categories",
-    )
-    .ilike("title", `%${query}%`)
-    // Unconfirmed rows from an in-progress (not-yet-saved) Goodreads import
-    // shouldn't be searchable app-wide until the importer actually saves
-    // the list — see migration 0022.
-    .eq("is_draft", false)
-    .limit(limit)
-    .returns<LocalBookRow[]>();
+  // Best-effort — live API results (merged in by the caller) are the
+  // fallback of record, so a failed local-cache lookup degrades to "no
+  // local matches" rather than throwing and losing the live results too.
+  const data = logSupabaseError(
+    await supabase
+      .from("books")
+      .select(
+        "google_volume_id, title, authors, description, thumbnail_url, published_date, page_count, average_rating, categories",
+      )
+      .ilike("title", `%${query}%`)
+      // Unconfirmed rows from an in-progress (not-yet-saved) Goodreads import
+      // shouldn't be searchable app-wide until the importer actually saves
+      // the list — see migration 0022.
+      .eq("is_draft", false)
+      .limit(limit)
+      .returns<LocalBookRow[]>(),
+    "searching local books",
+    [],
+  );
 
   return (data ?? []).map(localBookToVolume);
 }

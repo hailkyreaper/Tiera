@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 export type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -34,20 +35,23 @@ export async function getBookScores(
   supabase: SupabaseServerClient,
   userId: string,
 ): Promise<Map<string, number>> {
-  const { data: myLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", userId);
+  const myLists = assertNoSupabaseError(
+    await supabase.from("tier_lists").select("id").eq("user_id", userId),
+    "fetching lists for book scores",
+  );
 
   const listIds = (myLists ?? []).map((list) => list.id);
   if (listIds.length === 0) return new Map();
 
-  const { data: rankedItems } = await supabase
-    .from("tier_list_items")
-    .select("book_id, tier")
-    .in("tier_list_id", listIds)
-    .neq("tier", "unranked")
-    .returns<RankedRow[]>();
+  const rankedItems = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("book_id, tier")
+      .in("tier_list_id", listIds)
+      .neq("tier", "unranked")
+      .returns<RankedRow[]>(),
+    "fetching ranked items for book scores",
+  );
 
   // Average a user's own tier score for a book across every list it
   // appears in, so it only counts once toward the comparison.
@@ -217,11 +221,14 @@ export async function getComparisonSummary(
     };
   }
 
-  const { data: books } = await supabase
-    .from("books")
-    .select("id, title, authors, thumbnail_url, categories, description, average_rating")
-    .in("id", sharedIds)
-    .returns<BookRow[]>();
+  const books = assertNoSupabaseError(
+    await supabase
+      .from("books")
+      .select("id, title, authors, thumbnail_url, categories, description, average_rating")
+      .in("id", sharedIds)
+      .returns<BookRow[]>(),
+    "fetching shared books for comparison summary",
+  );
 
   const shared: SharedBook[] = (books ?? []).map((book) => ({
     bookId: book.id,
@@ -306,11 +313,14 @@ export async function getAlignedGenres(
   }
   if (alignedBookIds.length === 0) return new Set();
 
-  const { data } = await supabase
-    .from("books")
-    .select("categories")
-    .in("id", alignedBookIds)
-    .returns<{ categories: string[] | null }[]>();
+  const data = assertNoSupabaseError(
+    await supabase
+      .from("books")
+      .select("categories")
+      .in("id", alignedBookIds)
+      .returns<{ categories: string[] | null }[]>(),
+    "fetching aligned-genre books",
+  );
 
   const genres = new Set<string>();
   for (const row of data ?? []) {
@@ -331,11 +341,15 @@ async function getRankedRecommendationCandidates(
   viewerId: string,
   otherId: string,
 ): Promise<{ book: RecommendationBookRow; score: number }[]> {
-  const [otherScores, viewerScores, { data: libraryRows }] = await Promise.all([
+  const [otherScores, viewerScores, libraryRowsResult] = await Promise.all([
     getBookScores(supabase, otherId),
     getBookScores(supabase, viewerId),
     supabase.from("user_books").select("book_id").eq("user_id", viewerId),
   ]);
+  const libraryRows = assertNoSupabaseError(
+    libraryRowsResult,
+    "fetching viewer's library for recommendations",
+  );
 
   const viewerLibrary = new Set([
     ...(libraryRows ?? []).map((row) => row.book_id as string),
@@ -348,20 +362,22 @@ async function getRankedRecommendationCandidates(
 
   if (candidateIds.length === 0) return [];
 
-  const { data: viewerBookRows } =
+  const viewerBookRows = assertNoSupabaseError(
     viewerLibrary.size > 0
       ? await supabase
           .from("books")
           .select("id, title")
           .in("id", [...viewerLibrary])
           .returns<{ id: string; title: string }[]>()
-      : { data: [] as { id: string; title: string }[] };
+      : { data: [] as { id: string; title: string }[], error: null },
+    "fetching viewer's book titles for dedup",
+  );
 
   const viewerTitles = new Set(
     (viewerBookRows ?? []).map((book) => book.title.trim().toLowerCase()),
   );
 
-  const [{ data: candidateBooks }, alignedGenres] = await Promise.all([
+  const [candidateBooksResult, alignedGenres] = await Promise.all([
     supabase
       .from("books")
       .select(
@@ -371,6 +387,10 @@ async function getRankedRecommendationCandidates(
       .returns<RecommendationBookRow[]>(),
     getAlignedGenres(supabase, viewerScores, otherScores),
   ]);
+  const candidateBooks = assertNoSupabaseError(
+    candidateBooksResult,
+    "fetching recommendation candidate books",
+  );
 
   const sorted = (candidateBooks ?? [])
     .filter((book) => !viewerTitles.has(book.title.trim().toLowerCase()))

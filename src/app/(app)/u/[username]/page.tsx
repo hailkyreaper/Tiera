@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { FavoritesRow } from "@/components/favorites-row";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { BackButton } from "@/components/back-button";
@@ -32,11 +33,16 @@ export default async function PublicUserPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, location, created_at")
-    .ilike("username", username)
-    .maybeSingle<ProfileRow>();
+  const profile = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select(
+        "id, username, display_name, avatar_url, bio, location, created_at",
+      )
+      .ilike("username", username)
+      .maybeSingle<ProfileRow>(),
+    "fetching profile",
+  );
 
   if (!profile) {
     notFound();
@@ -46,10 +52,10 @@ export default async function PublicUserPage({
     redirect("/profile");
   }
 
-  const { data: theirLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", profile.id);
+  const theirLists = assertNoSupabaseError(
+    await supabase.from("tier_lists").select("id").eq("user_id", profile.id),
+    "fetching user's lists",
+  );
 
   const listIds = (theirLists ?? []).map((list) => list.id);
   const listsCount = listIds.length;

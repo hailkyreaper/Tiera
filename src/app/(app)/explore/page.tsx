@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
 import { TopMatchesRail } from "@/components/top-matches-rail";
@@ -101,13 +102,16 @@ export default async function ExplorePage({
           .order("created_at", { ascending: false })
           .order("id");
 
-  const { data: tierLists } = await listsQuery.returns<TierListRow[]>();
+  const tierLists = assertNoSupabaseError(
+    await listsQuery.returns<TierListRow[]>(),
+    "fetching explore feed",
+  );
 
   const lists = tierLists ?? [];
   const listIds = lists.map((list) => list.id);
   const userIds = [...new Set(lists.map((list) => list.user_id))];
 
-  const [{ data: items }, { data: profiles }] = await Promise.all([
+  const [itemsResult, profilesResult] = await Promise.all([
     listIds.length > 0
       ? supabase
           .from("tier_list_items")
@@ -117,15 +121,20 @@ export default async function ExplorePage({
           .in("tier_list_id", listIds)
           .order("position", { ascending: true })
           .returns<ItemRow[]>()
-      : Promise.resolve({ data: [] as ItemRow[] }),
+      : Promise.resolve({ data: [] as ItemRow[], error: null }),
     userIds.length > 0
       ? supabase
           .from("profiles")
           .select("id, username, avatar_url")
           .in("id", userIds)
           .returns<ProfileRow[]>()
-      : Promise.resolve({ data: [] as ProfileRow[] }),
+      : Promise.resolve({ data: [] as ProfileRow[], error: null }),
   ]);
+  const items = assertNoSupabaseError(itemsResult, "fetching explore feed items");
+  const profiles = assertNoSupabaseError(
+    profilesResult,
+    "fetching explore feed creators",
+  );
 
   const profileByUserId = new Map(
     (profiles ?? []).map((profile) => [profile.id, profile]),

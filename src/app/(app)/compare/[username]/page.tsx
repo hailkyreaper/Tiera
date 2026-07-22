@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import {
   getBookScores,
   getComparisonSummary,
@@ -40,17 +41,23 @@ export default async function CompareWithUserPage({
     redirect("/login");
   }
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .eq("id", user.id)
-    .maybeSingle<ProfileRow>();
+  const me = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle<ProfileRow>(),
+    "fetching your profile",
+  );
 
-  const { data: them } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .ilike("username", username)
-    .maybeSingle<ProfileRow>();
+  const them = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .ilike("username", username)
+      .maybeSingle<ProfileRow>(),
+    "fetching their profile",
+  );
 
   if (!me || !them) {
     notFound();

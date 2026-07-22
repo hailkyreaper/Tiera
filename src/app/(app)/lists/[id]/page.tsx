@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
 import { StandaloneTierBoard } from "@/components/tier-list/standalone-tier-board";
 import type { DetailedColumns } from "@/components/tier-list/read-only-board";
@@ -74,13 +75,16 @@ export default async function TierListPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: tierList } = await supabase
-    .from("tier_lists")
-    .select(
-      "id, title, description, tags, user_id, is_public, like_count, comment_count, created_at",
-    )
-    .eq("id", id)
-    .maybeSingle<TierListRow>();
+  const tierList = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select(
+        "id, title, description, tags, user_id, is_public, like_count, comment_count, created_at",
+      )
+      .eq("id", id)
+      .maybeSingle<TierListRow>(),
+    "fetching list",
+  );
 
   if (!tierList) {
     notFound();
@@ -88,14 +92,17 @@ export default async function TierListPage({
 
   const isOwner = user?.id === tierList.user_id;
 
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select(
-      "id, tier, position, books(id, title, thumbnail_url, description, authors, average_rating)",
-    )
-    .eq("tier_list_id", id)
-    .order("position", { ascending: true })
-    .returns<TierListItemRow[]>();
+  const items = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select(
+        "id, tier, position, books(id, title, thumbnail_url, description, authors, average_rating)",
+      )
+      .eq("tier_list_id", id)
+      .order("position", { ascending: true })
+      .returns<TierListItemRow[]>(),
+    "fetching list items",
+  );
 
   const initialColumns: Columns = {
     S: [],
@@ -225,21 +232,26 @@ export default async function TierListPage({
         : Promise.resolve(null),
     ]);
 
-  const { data: creator } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url")
-    .eq("id", tierList.user_id)
-    .maybeSingle<ProfileRow>();
+  const creator = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username, avatar_url")
+      .eq("id", tierList.user_id)
+      .maybeSingle<ProfileRow>(),
+    "fetching list creator",
+  );
 
   const commenterIds = [...new Set((comments ?? []).map((c) => c.user_id))];
-  const { data: commenterProfiles } =
+  const commenterProfiles = assertNoSupabaseError(
     commenterIds.length > 0
       ? await supabase
           .from("profiles")
           .select("id, username, avatar_url")
           .in("id", commenterIds)
           .returns<ProfileRow[]>()
-      : { data: [] as ProfileRow[] };
+      : { data: [] as ProfileRow[], error: null },
+    "fetching commenter profiles",
+  );
 
   const profileByUserId = new Map(
     (commenterProfiles ?? []).map((profile) => [profile.id, profile]),

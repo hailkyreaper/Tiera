@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 
 // No dedicated /notifications page (dropdown-only UI, see NotificationsBell)
 // — this still lives under an (app)/notifications folder, matching every
@@ -13,9 +14,13 @@ export async function markAllNotificationsRead() {
 
   if (!user) return;
 
-  await supabase
-    .from("notifications")
-    .update({ read: true })
-    .eq("recipient_id", user.id)
-    .eq("read", false);
+  logSupabaseError(
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("recipient_id", user.id)
+      .eq("read", false),
+    "marking notifications read",
+    null,
+  );
 }

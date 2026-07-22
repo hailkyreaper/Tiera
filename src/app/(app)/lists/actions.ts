@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError, logSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -52,28 +53,40 @@ async function saveListFields(
   const tags = parseTags((formData.get("tags") as string) ?? "");
   const isPublic = formData.get("isPublic") === "true";
 
-  const { data: currentList } = await supabase
-    .from("tier_lists")
-    .select("updated_at")
-    .eq("id", tierListId)
-    .maybeSingle();
+  // Best-effort — if this fails we just don't know the cooldown state, and
+  // fall through to "off cooldown" (same as no row found), same tradeoff
+  // as before. Not worth throwing over on the way to the actual save below.
+  const currentList = logSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("updated_at")
+      .eq("id", tierListId)
+      .maybeSingle(),
+    "checking list update cooldown",
+    null,
+  );
   const offCooldown =
     !currentList?.updated_at ||
     Date.now() - new Date(currentList.updated_at).getTime() >
       UPDATED_AT_COOLDOWN_MS;
 
-  await supabase
-    .from("tier_lists")
-    .update({
-      title,
-      description,
-      tags,
-      is_public: isPublic,
-      ...(offCooldown ? { updated_at: new Date().toISOString() } : {}),
-      ...(markSaved ? { is_draft: false } : {}),
-    })
-    .eq("id", tierListId)
-    .eq("user_id", user.id);
+  // The actual save write — previously had no error check at all, so a
+  // failed save looked identical to a successful one from the user's side.
+  assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .update({
+        title,
+        description,
+        tags,
+        is_public: isPublic,
+        ...(offCooldown ? { updated_at: new Date().toISOString() } : {}),
+        ...(markSaved ? { is_draft: false } : {}),
+      })
+      .eq("id", tierListId)
+      .eq("user_id", user.id),
+    "saving list details",
+  );
 
   // Only the real Save button (markSaved) commits the list's books for
   // real. Goodreads import stages books straight into tier_list_items
@@ -97,21 +110,26 @@ async function commitListBooks(
   userId: string,
   tierListId: string,
 ) {
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select("book_id")
-    .eq("tier_list_id", tierListId);
+  const items = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("book_id")
+      .eq("tier_list_id", tierListId),
+    "fetching list items to commit on save",
+  );
 
   const bookIds = [...new Set((items ?? []).map((item) => item.book_id))];
   if (bookIds.length === 0) return;
 
-  await Promise.all([
+  const [libraryResult, draftResult] = await Promise.all([
     supabase.from("user_books").upsert(
       bookIds.map((bookId) => ({ user_id: userId, book_id: bookId })),
       { onConflict: "user_id,book_id", ignoreDuplicates: true },
     ),
     supabase.from("books").update({ is_draft: false }).in("id", bookIds),
   ]);
+  assertNoSupabaseError(libraryResult, "committing books to library on save");
+  assertNoSupabaseError(draftResult, "clearing draft flag on save");
 }
 
 export async function updateListDetails(formData: FormData) {
@@ -189,19 +207,25 @@ async function discardDraftList(
   userId: string,
   tierListId: string,
 ): Promise<boolean> {
-  const { data: items } = await supabase
-    .from("tier_list_items")
-    .select("book_id")
-    .eq("tier_list_id", tierListId);
+  const items = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("book_id")
+      .eq("tier_list_id", tierListId),
+    "fetching items for draft discard",
+  );
   const bookIds = [...new Set((items ?? []).map((item) => item.book_id))];
 
-  const { data: deleted } = await supabase
-    .from("tier_lists")
-    .delete()
-    .eq("id", tierListId)
-    .eq("user_id", userId)
-    .eq("is_draft", true)
-    .select("id");
+  const deleted = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .delete()
+      .eq("id", tierListId)
+      .eq("user_id", userId)
+      .eq("is_draft", true)
+      .select("id"),
+    "discarding draft list",
+  );
 
   if (!deleted || deleted.length === 0) {
     return false;

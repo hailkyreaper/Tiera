@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 import { parseGoodreadsCsv, tierForRating } from "@/lib/goodreads-csv";
 import { fetchCoverUrlByIsbn, getOpenLibraryData } from "@/lib/open-library";
 import { mapWithConcurrency } from "@/lib/concurrency";
@@ -73,20 +74,28 @@ async function findExistingBookId(
     const syntheticId = row.isbn ? `isbn:${row.isbn}` : null;
 
     if (syntheticId) {
-      const { data: existingById } = await supabase
-        .from("books")
-        .select("id")
-        .eq("google_volume_id", syntheticId)
-        .maybeSingle<BookIdRow>();
+      const existingById = logSupabaseError(
+        await supabase
+          .from("books")
+          .select("id")
+          .eq("google_volume_id", syntheticId)
+          .maybeSingle<BookIdRow>(),
+        "checking for existing book by synthetic id (Goodreads import)",
+        null,
+      );
       if (existingById) return existingById.id;
     }
 
     if (row.author) {
-      const { data: existingByTitle } = await supabase
-        .from("books")
-        .select("id, title, authors")
-        .ilike("title", row.title)
-        .returns<{ id: string; title: string; authors: string[] | null }[]>();
+      const existingByTitle = logSupabaseError(
+        await supabase
+          .from("books")
+          .select("id, title, authors")
+          .ilike("title", row.title)
+          .returns<{ id: string; title: string; authors: string[] | null }[]>(),
+        "checking for existing book by title (Goodreads import)",
+        [],
+      );
 
       const match = (existingByTitle ?? []).find(
         (b) =>

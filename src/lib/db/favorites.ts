@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -16,21 +17,24 @@ export async function getFavoriteBooks(
   userId: string,
   limit?: number,
 ): Promise<FavoriteBook[]> {
-  const { data: myLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", userId);
+  const myLists = assertNoSupabaseError(
+    await supabase.from("tier_lists").select("id").eq("user_id", userId),
+    "fetching lists for favorites",
+  );
 
   const listIds = (myLists ?? []).map((list) => list.id);
   if (listIds.length === 0) return [];
 
-  const { data: rankedItems } = await supabase
-    .from("tier_list_items")
-    .select("tier, book_id, books(id, title, thumbnail_url)")
-    .in("tier_list_id", listIds)
-    .in("tier", ["S", "A"])
-    .order("created_at", { ascending: false })
-    .returns<RankedRow[]>();
+  const rankedItems = assertNoSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("tier, book_id, books(id, title, thumbnail_url)")
+      .in("tier_list_id", listIds)
+      .in("tier", ["S", "A"])
+      .order("created_at", { ascending: false })
+      .returns<RankedRow[]>(),
+    "fetching ranked items for favorites",
+  );
 
   const seen = new Set<string>();
   const books: FavoriteBook[] = [];

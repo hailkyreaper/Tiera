@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { getLibraryBooks, sortLibraryBooks, type LibrarySort } from "@/lib/db/library";
 import { AddFromLibrarySection } from "@/components/add-from-library-section";
 import { TopNav } from "@/components/top-nav";
@@ -26,17 +27,20 @@ export default async function AddFromLibraryPage({
     redirect("/login");
   }
 
-  const { data: tierList } = await supabase
-    .from("tier_lists")
-    .select("id, title, user_id")
-    .eq("id", id)
-    .maybeSingle<TierListRow>();
+  const tierList = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, title, user_id")
+      .eq("id", id)
+      .maybeSingle<TierListRow>(),
+    "fetching list",
+  );
 
   if (!tierList || tierList.user_id !== user.id) {
     notFound();
   }
 
-  const [libraryBooks, { data: existingItems }] = await Promise.all([
+  const [libraryBooks, tierListItemsResult] = await Promise.all([
     getLibraryBooks(supabase, user.id),
     supabase
       .from("tier_list_items")
@@ -44,6 +48,10 @@ export default async function AddFromLibraryPage({
       .eq("tier_list_id", id)
       .returns<ItemRow[]>(),
   ]);
+  const existingItems = assertNoSupabaseError(
+    tierListItemsResult,
+    "fetching list items",
+  );
 
   const alreadyInList = new Set((existingItems ?? []).map((i) => i.book_id));
   const availableBooks = libraryBooks.filter(

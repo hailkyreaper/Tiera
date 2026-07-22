@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 import { SidebarNav } from "./sidebar-nav";
 import { Avatar } from "@/components/avatar";
 
@@ -24,12 +25,20 @@ export async function Sidebar() {
 
   let profile: ProfileRow | null = null;
   if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("username, display_name, avatar_url")
-      .eq("id", user.id)
-      .maybeSingle<ProfileRow>();
-    profile = data;
+    // Sidebar is rendered by (app)/layout.tsx itself, not a page — a throw
+    // here would bubble past (app)/error.tsx (which can't catch its own
+    // layout's errors) to the root boundary, losing the entire nav shell
+    // on every page over one failed mini-profile-card fetch. Degrade
+    // instead: the user card just doesn't render, nav still works.
+    profile = logSupabaseError(
+      await supabase
+        .from("profiles")
+        .select("username, display_name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle<ProfileRow>(),
+      "fetching sidebar user profile",
+      null,
+    );
   }
 
   return (

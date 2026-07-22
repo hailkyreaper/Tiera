@@ -45,13 +45,22 @@ export async function updateSession(request: NextRequest) {
   );
 
   if (user && !isExempt) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile) {
+    // A failed query here used to be indistinguishable from "no profile
+    // row" — a transient DB blip would wrongly bounce an already-onboarded
+    // user back to /onboard/username on every request until it cleared.
+    // Only redirect on a genuine "no row found" (no error, no profile);
+    // an actual query failure just logs and lets the request through.
+    if (profileError) {
+      console.error(
+        `Middleware: checking onboarding status: ${profileError.message}`,
+      );
+    } else if (!profile) {
       const url = request.nextUrl.clone();
       url.pathname = "/onboard/username";
       url.search = "";

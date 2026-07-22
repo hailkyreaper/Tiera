@@ -16,6 +16,7 @@ import { Avatar } from "@/components/avatar";
 import { ProfileBio } from "@/components/profile-bio";
 import { RecommendationsRail } from "@/components/recommendations-rail";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { getUserListCards, cleanupAbandonedDrafts } from "@/lib/db/list-cards";
 import { cn } from "@/lib/utils";
@@ -98,17 +99,23 @@ export default async function ProfilePage({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, display_name, avatar_url, bio, location")
-    .eq("id", user.id)
-    .maybeSingle<ProfileRow>();
+  const profile = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url, bio, location")
+      .eq("id", user.id)
+      .maybeSingle<ProfileRow>(),
+    "fetching profile",
+  );
 
-  const { data: myLists } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("is_draft", false);
+  const myLists = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_draft", false),
+    "fetching your lists",
+  );
 
   const listIds = (myLists ?? []).map((list) => list.id);
   const listsCount = listIds.length;

@@ -2,6 +2,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { isAdmin } from "@/lib/auth/admin";
 import { normalizeCategory } from "@/lib/google-books";
 import {
@@ -38,12 +39,15 @@ export async function runBackfill() {
   // Re-checks every book (not just ones missing categories/covers), since
   // Open Library's data is often better than what Google Books already gave
   // us for a book.
-  const { data: books } = await supabase
-    .from("books")
-    .select(
-      "id, google_volume_id, title, authors, thumbnail_url, description, published_date",
-    )
-    .returns<BookRow[]>();
+  const books = assertNoSupabaseError(
+    await supabase
+      .from("books")
+      .select(
+        "id, google_volume_id, title, authors, thumbnail_url, description, published_date",
+      )
+      .returns<BookRow[]>(),
+    "fetching books for admin backfill",
+  );
 
   let updated = 0;
   let coversFilled = 0;

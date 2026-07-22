@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -32,12 +33,19 @@ export async function getTrendingSearches(
     Date.now() - TRENDING_SEARCHES_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data } = await supabase
-    .from("search_queries")
-    .select("query")
-    .gte("created_at", since)
-    .order("created_at", { ascending: false })
-    .limit(TRENDING_SEARCHES_SAMPLE_SIZE);
+  // Trending Searches is decorative sidebar content, same "don't break the
+  // page over it" reasoning as logSearchQuery's insert above — log and
+  // degrade to an empty list rather than throwing.
+  const data = logSupabaseError(
+    await supabase
+      .from("search_queries")
+      .select("query")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(TRENDING_SEARCHES_SAMPLE_SIZE),
+    "fetching trending searches",
+    [],
+  );
 
   const tally = new Map<string, number>();
   for (const row of data ?? []) {

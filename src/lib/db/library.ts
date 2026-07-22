@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -34,13 +35,16 @@ export async function getLibraryBooks(
   supabase: SupabaseServerClient,
   userId: string,
 ): Promise<LibraryBook[]> {
-  const { data } = await supabase
-    .from("user_books")
-    .select(
-      "created_at, want_to_read, position, books(id, title, authors, thumbnail_url, average_rating, description)",
-    )
-    .eq("user_id", userId)
-    .returns<UserBookRow[]>();
+  const data = assertNoSupabaseError(
+    await supabase
+      .from("user_books")
+      .select(
+        "created_at, want_to_read, position, books(id, title, authors, thumbnail_url, average_rating, description)",
+      )
+      .eq("user_id", userId)
+      .returns<UserBookRow[]>(),
+    "fetching library books",
+  );
 
   return (data ?? []).map((row) => ({
     bookId: row.books.id,

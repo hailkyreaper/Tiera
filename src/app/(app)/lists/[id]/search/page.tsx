@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { searchBooks } from "@/lib/db/books";
 import { addToUnrankedAndStay } from "./actions";
 import { SearchResultCard } from "@/components/search-result-card";
@@ -27,11 +28,14 @@ export default async function ListSearchPage({
     redirect("/login");
   }
 
-  const { data: tierList } = await supabase
-    .from("tier_lists")
-    .select("id, title, user_id")
-    .eq("id", id)
-    .maybeSingle<TierListRow>();
+  const tierList = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, title, user_id")
+      .eq("id", id)
+      .maybeSingle<TierListRow>(),
+    "fetching list",
+  );
 
   if (!tierList || tierList.user_id !== user.id) {
     notFound();

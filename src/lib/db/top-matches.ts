@@ -5,6 +5,7 @@ import {
   type SupabaseServerClient,
 } from "@/lib/db/taste-match";
 import type { FavoriteBook } from "@/lib/db/favorites";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 export type TopMatchPerson = {
   userId: string;
@@ -77,49 +78,61 @@ export async function getTopMatches(
   let candidateIds: string[];
 
   if (followingOnly) {
-    const { data: follows } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", viewerId);
+    const follows = assertNoSupabaseError(
+      await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", viewerId),
+      "fetching follows for top matches",
+    );
     candidateIds = (follows ?? []).map((row) => row.following_id as string);
   } else {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id")
-      .neq("id", viewerId);
+    const profiles = assertNoSupabaseError(
+      await supabase.from("profiles").select("id").neq("id", viewerId),
+      "fetching candidate profiles for top matches",
+    );
     candidateIds = (profiles ?? []).map((row) => row.id as string);
   }
 
   if (candidateIds.length === 0) return [];
 
-  const { data: profileRows } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", candidateIds)
-    .returns<ProfileRow[]>();
+  const profileRows = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", candidateIds)
+      .returns<ProfileRow[]>(),
+    "fetching top match profiles",
+  );
 
   if (!profileRows || profileRows.length === 0) return [];
 
-  const { data: listRows } = await supabase
-    .from("tier_lists")
-    .select("id, user_id")
-    .in(
-      "user_id",
-      profileRows.map((p) => p.id),
-    )
-    .returns<ListRow[]>();
+  const listRows = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, user_id")
+      .in(
+        "user_id",
+        profileRows.map((p) => p.id),
+      )
+      .returns<ListRow[]>(),
+    "fetching top match candidates' lists",
+  );
 
   const listIdToUserId = new Map((listRows ?? []).map((l) => [l.id, l.user_id]));
   const allListIds = [...listIdToUserId.keys()];
 
   const itemsByUser = new Map<string, ItemRow[]>();
   if (allListIds.length > 0) {
-    const { data: itemRows } = await supabase
-      .from("tier_list_items")
-      .select("tier_list_id, tier, book_id, books(id, title, thumbnail_url, categories)")
-      .in("tier_list_id", allListIds)
-      .order("created_at", { ascending: false })
-      .returns<ItemRow[]>();
+    const itemRows = assertNoSupabaseError(
+      await supabase
+        .from("tier_list_items")
+        .select("tier_list_id, tier, book_id, books(id, title, thumbnail_url, categories)")
+        .in("tier_list_id", allListIds)
+        .order("created_at", { ascending: false })
+        .returns<ItemRow[]>(),
+      "fetching top match candidates' ranked items",
+    );
 
     for (const item of itemRows ?? []) {
       const userId = listIdToUserId.get(item.tier_list_id);

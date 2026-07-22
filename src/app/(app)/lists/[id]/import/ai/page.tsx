@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { TopNav } from "@/components/top-nav";
 import { AiPhotoImportForm } from "@/components/tier-list/ai-photo-import-form";
 import { MAX_BOOKS_PER_PHOTO } from "@/lib/gemini";
@@ -22,11 +23,14 @@ export default async function AiImportPage({
     redirect("/login");
   }
 
-  const { data: tierList } = await supabase
-    .from("tier_lists")
-    .select("id, title, user_id")
-    .eq("id", id)
-    .maybeSingle<TierListRow>();
+  const tierList = assertNoSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, title, user_id")
+      .eq("id", id)
+      .maybeSingle<TierListRow>(),
+    "fetching list",
+  );
 
   if (!tierList || tierList.user_id !== user.id) {
     notFound();

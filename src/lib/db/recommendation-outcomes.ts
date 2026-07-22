@@ -1,4 +1,5 @@
 import { scoreToTier, type SupabaseServerClient } from "@/lib/db/taste-match";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 
 export type RecommendationSource =
   | "compare_detail"
@@ -176,12 +177,15 @@ const BUCKETS: {
 export async function getRecommendationOutcomesReport(
   supabase: SupabaseServerClient,
 ): Promise<OutcomesReportRow[]> {
-  const { data } = await supabase
-    .from("recommendation_outcomes")
-    .select(
-      "viewer_match_percentage, shared_book_count, viewer_final_tier, viewer_final_score",
-    )
-    .returns<OutcomeRow[]>();
+  const data = assertNoSupabaseError(
+    await supabase
+      .from("recommendation_outcomes")
+      .select(
+        "viewer_match_percentage, shared_book_count, viewer_final_tier, viewer_final_score",
+      )
+      .returns<OutcomeRow[]>(),
+    "fetching recommendation outcomes report",
+  );
 
   const rows = data ?? [];
 

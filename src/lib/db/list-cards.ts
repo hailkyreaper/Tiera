@@ -1,6 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { Tier } from "@/lib/tiers";
 import { computeMatch, getBookScores } from "@/lib/db/taste-match";
+import { assertNoSupabaseError, logSupabaseError } from "@/lib/supabase/assert";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -27,24 +28,34 @@ export async function cleanupAbandonedDrafts(
 ): Promise<void> {
   const cutoff = new Date(Date.now() - ABANDONED_DRAFT_GRACE_MS).toISOString();
 
-  const { data: candidates } = await supabase
-    .from("tier_lists")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("is_draft", true)
-    .eq("title", DEFAULT_LIST_TITLE)
-    .is("description", null)
-    .is("tags", null)
-    .lt("created_at", cutoff)
-    .returns<DraftCandidateRow[]>();
+  // Opportunistic housekeeping, not core page content — a failure here
+  // shouldn't stop the profile page from loading, just skip this sweep.
+  const candidates = logSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("is_draft", true)
+      .eq("title", DEFAULT_LIST_TITLE)
+      .is("description", null)
+      .is("tags", null)
+      .lt("created_at", cutoff)
+      .returns<DraftCandidateRow[]>(),
+    "fetching abandoned draft candidates",
+    [],
+  );
 
   const candidateIds = (candidates ?? []).map((row) => row.id);
   if (candidateIds.length === 0) return;
 
-  const { data: itemRows } = await supabase
-    .from("tier_list_items")
-    .select("tier_list_id")
-    .in("tier_list_id", candidateIds);
+  const itemRows = logSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("tier_list_id")
+      .in("tier_list_id", candidateIds),
+    "fetching items for abandoned draft check",
+    [],
+  );
 
   const idsWithItems = new Set(
     (itemRows ?? []).map((row) => row.tier_list_id as string),
@@ -115,11 +126,14 @@ export async function getUserListCards(
         ).percentage
       : null;
 
-  const { data: tierLists } = await query.returns<TierListRow[]>();
+  const tierLists = assertNoSupabaseError(
+    await query.returns<TierListRow[]>(),
+    "fetching list cards",
+  );
   const lists = tierLists ?? [];
   const listIds = lists.map((list) => list.id);
 
-  const { data: items } =
+  const items = assertNoSupabaseError(
     listIds.length > 0
       ? await supabase
           .from("tier_list_items")
@@ -127,7 +141,9 @@ export async function getUserListCards(
           .in("tier_list_id", listIds)
           .order("position", { ascending: true })
           .returns<ItemRow[]>()
-      : { data: [] as ItemRow[] };
+      : { data: [] as ItemRow[], error: null },
+    "fetching list card items",
+  );
 
   const previewByListId: Record<string, ListCardData["preview"]> = {};
   for (const list of lists) {

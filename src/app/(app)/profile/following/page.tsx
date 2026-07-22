@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { TopNav } from "@/components/top-nav";
 import { FollowButton } from "@/components/follow-button";
 import { Avatar } from "@/components/avatar";
@@ -22,21 +23,23 @@ export default async function FollowingPage() {
     redirect("/login");
   }
 
-  const { data: follows } = await supabase
-    .from("follows")
-    .select("following_id")
-    .eq("follower_id", user.id);
+  const follows = assertNoSupabaseError(
+    await supabase.from("follows").select("following_id").eq("follower_id", user.id),
+    "fetching follows",
+  );
 
   const followingIds = (follows ?? []).map((row) => row.following_id);
 
-  const { data: profiles } =
+  const profiles = assertNoSupabaseError(
     followingIds.length > 0
       ? await supabase
           .from("profiles")
           .select("id, username, display_name, avatar_url")
           .in("id", followingIds)
           .returns<ProfileRow[]>()
-      : { data: [] as ProfileRow[] };
+      : { data: [] as ProfileRow[], error: null },
+    "fetching following profiles",
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">

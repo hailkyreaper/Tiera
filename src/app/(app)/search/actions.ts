@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError, logSupabaseError } from "@/lib/supabase/assert";
 import { bookFieldsFromFormData, findOrCreateBook } from "@/lib/db/books";
 
 export async function addBookToLibrary(formData: FormData) {
@@ -25,12 +26,19 @@ export async function addBookToLibrary(formData: FormData) {
     return;
   }
 
-  await supabase
-    .from("user_books")
-    .upsert(
-      { user_id: user.id, book_id: bookId },
-      { onConflict: "user_id,book_id", ignoreDuplicates: true },
-    );
+  // The "Add" button previously had no way to know its write actually
+  // failed — the upsert's error was never checked, so a failure looked
+  // identical to success from the user's side. Throwing here at least
+  // surfaces it instead of silently pretending the book was added.
+  assertNoSupabaseError(
+    await supabase
+      .from("user_books")
+      .upsert(
+        { user_id: user.id, book_id: bookId },
+        { onConflict: "user_id,book_id", ignoreDuplicates: true },
+      ),
+    "adding book to library",
+  );
 
   revalidatePath("/search");
 }
@@ -43,12 +51,16 @@ export async function searchUsernames(
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .ilike("username", `%${query}%`)
-    .limit(8)
-    .returns<{ id: string; username: string }[]>();
+  const data = logSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username")
+      .ilike("username", `%${query}%`)
+      .limit(8)
+      .returns<{ id: string; username: string }[]>(),
+    "searching usernames",
+    [],
+  );
 
   return data ?? [];
 }

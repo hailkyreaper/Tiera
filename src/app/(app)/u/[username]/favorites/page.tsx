@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { getFavoriteBooks } from "@/lib/db/favorites";
 import { FavoritesGrid } from "@/components/favorites-grid";
 import { TopNav } from "@/components/top-nav";
@@ -14,11 +15,14 @@ export default async function UserFavoritesPage({
   const { username } = await params;
   const supabase = await createClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .ilike("username", username)
-    .maybeSingle<ProfileRow>();
+  const profile = assertNoSupabaseError(
+    await supabase
+      .from("profiles")
+      .select("id, username")
+      .ilike("username", username)
+      .maybeSingle<ProfileRow>(),
+    "fetching profile",
+  );
 
   if (!profile) {
     notFound();

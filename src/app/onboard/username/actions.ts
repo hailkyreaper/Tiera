@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { containsBadWord } from "@/lib/bad-words";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,20}$/;
 
@@ -21,6 +22,14 @@ export async function setUsername(formData: FormData) {
     redirect(
       `/onboard/username?error=${encodeURIComponent(
         "Username must be 3-20 characters: letters, numbers, or underscore only.",
+      )}`,
+    );
+  }
+
+  if (containsBadWord(username)) {
+    redirect(
+      `/onboard/username?error=${encodeURIComponent(
+        "That username isn't allowed. Please choose another.",
       )}`,
     );
   }

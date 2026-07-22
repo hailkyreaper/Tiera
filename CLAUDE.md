@@ -2325,6 +2325,49 @@ the endpoint, and does nothing to protect the DB itself.
   showing every request completing cleanly (200s, no errors) — a single 
   edit is nowhere near the 30-request threshold, as expected.
 
+**Bad word filter for usernames** ✅ done (2026-07-22) — pulled from the 
+Ideas Backlog. Three decisions the backlog note flagged as needed, asked of 
+the user directly: scope (usernames only, per the user's own literal 
+request — not comments), detection method (hardcoded wordlist over a 
+moderation API — free, instant, no new external dependency; accepted 
+tradeoff: bypassable with obfuscation, and the user owns upkeep of the list 
+over time), enforcement (hard-block the submission with an inline error, 
+same UX pattern as the existing empty-title/format validation, rather than 
+a flag-for-review queue — the latter would've meant building a whole new 
+admin review surface from scratch, since nothing like that exists today).
+- New `src/lib/bad-words.ts`: a hardcoded blocked-terms list plus a 
+  `containsBadWord()` check. Usernames are already constrained to 
+  `[A-Za-z0-9_]` (`USERNAME_PATTERN`), so the only obfuscation surface 
+  within that charset is leetspeak digit-substitution and underscore-as- 
+  separator — normalization undoes both (lowercase, strip underscores, map 
+  `0/1/3/4/5/7/8` back to their letter look-alikes) before matching, rather 
+  than a naive case-insensitive substring check that a trivial `b_a_d` or 
+  `b4d` would sail straight through.
+- Wired into `setUsername` (`onboard/username/actions.ts`) — the only place 
+  in the app a username is ever set (confirmed by checking every other 
+  actions file; there's no rename flow, so this one integration point 
+  covers 100% of the surface). Checked right after the existing 
+  `USERNAME_PATTERN` format check, same redirect-with-error-query-param 
+  pattern as that check already uses.
+- Verified via 14 direct test cases against the normalization/matching 
+  logic (obfuscated variants, leetspeak, underscore-separation, and 
+  known-safe words that share a substring with a blocked term) — 13 passed 
+  outright; the 1 "failure" was a wrong test expectation on my part (I 
+  assumed `4` could stand in for `c`, but the mapping only defines `4→a`), 
+  not a bug in the code. Deliberately included `scunthorpe` as a test case, 
+  which does (correctly, if unfortunately) flag as blocked — a real, well- 
+  known limitation of any substring-based wordlist (the "Scunthorpe 
+  problem": the town's name contains "cunt"), and an explicitly accepted 
+  tradeoff of choosing a simple hardcoded list over a smarter/paid 
+  alternative, not something fixed here. Could not test the real 
+  onboarding form end-to-end (the saved test session is already onboarded, 
+  and Supabase signup requires email confirmation this environment can't 
+  complete — same limitation already noted in the Final QA core-flow 
+  walkthrough above) — confidence instead comes from the isolated logic 
+  tests plus the simple, easy-to-verify-by-reading nature of the actual 
+  wiring (one `if (containsBadWord(username))` check before an existing, 
+  already-proven redirect pattern).
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap
@@ -2637,12 +2680,11 @@ explicitly before building.
 
 - V2: Upgrade `current_tier` calculation from flat average to recency-weighted 
   average (Amazon/Netflix-style time-decay). Deferred for MVP simplicity.
-- Bad word filter for comments/usernames (moved here from To Do 2026-07-10, not 
-  started). Needs a decision first: simple hardcoded wordlist (free, easy to 
-  bypass) vs. a real moderation library/API (better coverage, more setup), and 
-  whether it should hard-block submission or just flag for review. Recommended 
-  next pull from this backlog — real UGC moderation gap, relevant now that 
-  launch prep is done.
+- Bad word filter for usernames ✅ done (2026-07-22) — see its own entry 
+  below, pulled out of this backlog. Scoped to usernames only per the 
+  user's own request; comments are still unfiltered — pull this backlog 
+  item again (re-add it) if that's wanted later, same wordlist/approach 
+  would just need wiring into `addComment` (`lists/social-actions.ts`) too.
 - Real rate-limiting / bot-pattern detection on the tier-list mutation actions 
   ✅ done (2026-07-22) — see its own entry below, pulled out of this backlog.
 
@@ -2663,8 +2705,8 @@ explicitly before building.
   separate change to `findOrCreateBook`'s matching logic, not yet done.
 - Saved matches ✅ removed — see "Current sprint" above (no destination screen, 
   user decided to just delete the feature rather than build one).
-- Bad word filter for comments/usernames — moved to Ideas Backlog (not being 
-  scheduled into a sprint right now); see that section for the open questions.
+- Bad word filter for usernames ✅ done — see "Current sprint" area above 
+  (comments still unfiltered, moved back to Ideas Backlog if wanted later).
 - User feedback: "UI is extremely inconsistent" — user's plan (2026-07-10): not 
   a dedicated pass, addressed incrementally as they hand over specific color 
   values. Don't proactively restyle colors beyond what's given. Applied so far, 

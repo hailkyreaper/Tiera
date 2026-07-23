@@ -6,10 +6,10 @@ import { formatRelativeTime } from "@/lib/format-time";
 import { Avatar } from "@/components/avatar";
 import { BookCover } from "@/components/book-cover";
 import { MatchBadge } from "@/components/match-badge";
-import { HeroTierRow } from "@/components/marketing/hero-list-card";
+import { HeroTierRow } from "./hero-list-card";
 import { buttonVariants } from "@/components/ui/button";
 import type { TopMatchPerson } from "@/lib/db/top-matches";
-import type { ActivityItem } from "@/components/marketing/friend-activity";
+import type { ActivityItem } from "./friend-activity";
 import { cn } from "@/lib/utils";
 
 const serifStyle = {
@@ -150,29 +150,19 @@ function Step({
   children: React.ReactNode;
 }) {
   return (
-    // Mobile-only numbered badge (desktop dropped this earlier and stays
-    // that way — the badge is `lg:hidden`, and the content column's own
-    // `lg:flex lg:h-full lg:flex-col` still stretches/centers exactly as
-    // it did before this wrapper was added). Badge uses the same
-    // `rounded-sm` as the card sitting next to it, not a circle — one
-    // consistent corner language instead of two.
-    <div className="flex items-start gap-3 lg:block">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-primary font-mono text-[13px] font-bold text-white lg:hidden">
-        {number}
-      </span>
-      <div className="min-w-0 flex-1 lg:flex lg:h-full lg:flex-col">
-        <p
-          className="mb-1.5 text-xl font-bold lg:text-lg lg:text-center"
-          style={serifStyle}
-        >
-          {title}
-        </p>
-        <p className="mb-3 text-sm leading-relaxed text-muted-foreground lg:mb-3.5 lg:text-center">
-          {body}
-        </p>
-        <div className="flex flex-1 flex-col justify-center rounded-sm bg-card p-3 text-left">
-          {children}
-        </div>
+    <div className="lg:flex lg:h-full lg:flex-col">
+      <p
+        className="mb-1.5 text-xl font-bold lg:text-lg lg:text-center"
+        style={serifStyle}
+      >
+        <span className="lg:hidden">{number}. </span>
+        {title}
+      </p>
+      <p className="mb-3 text-sm leading-relaxed text-muted-foreground lg:mb-3.5 lg:text-center">
+        {body}
+      </p>
+      <div className="flex flex-1 flex-col justify-center rounded-sm bg-card p-3 text-left">
+        {children}
       </div>
     </div>
   );

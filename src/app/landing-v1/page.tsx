@@ -1,0 +1,381 @@
+// Frozen snapshot of the pre-redesign landing page, kept live at
+// /landing-v1 as a saved reference/rollback point while "/" gets rebuilt
+// from scratch. Its own marketing components live in ./_components
+// (copied, not shared, from src/components/marketing) specifically so
+// editing the new "/" design can never accidentally change this page too
+// — only Wordmark stays shared, since it's also used by /login and
+// /signup. Not intended to receive further edits going forward.
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { logSupabaseError } from "@/lib/supabase/assert";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Wordmark } from "@/components/marketing/wordmark";
+import { MarketingTierBoard } from "./_components/marketing-tier-board";
+import { HeroListCard } from "./_components/hero-list-card";
+import { HowItWorks } from "./_components/how-it-works";
+import { FriendActivity, type ActivityItem } from "./_components/friend-activity";
+import { getTopMatches, type TopMatchPerson } from "@/lib/db/top-matches";
+import {
+  getMatchRecommendations,
+  MIN_RECOMMENDATION_MATCH_PERCENTAGE,
+  MIN_RECOMMENDATION_SHARED_BOOKS,
+} from "@/lib/db/taste-match";
+import type { Tier } from "@/lib/tiers";
+
+const serifStyle = {
+  fontFamily:
+    '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif',
+};
+
+// The founder's own real, public list — shown as-is (real likes/comments,
+// real cover art) rather than a fabricated example, so the hero is
+// literally a screenshot-true artifact of the app instead of marketing
+// fiction. Falls back to the static typographic board (MarketingTierBoard)
+// if this specific list is ever unpublished or deleted, rather than
+// breaking the page over one row.
+const HERO_LIST_ID = "1028d1ca-398e-4c99-8e4f-0a835e32925b";
+
+type HeroListRow = {
+  id: string;
+  title: string;
+  user_id: string;
+  like_count: number;
+  comment_count: number;
+  created_at: string;
+};
+type HeroItemRow = {
+  tier: Tier;
+  books: { id: string; title: string; thumbnail_url: string | null };
+};
+type HeroProfileRow = { username: string; avatar_url: string | null };
+
+// The three specific accounts to source the "Match"/"Discover" steps from,
+// on both desktop and mobile — a real match's top favorites can easily turn
+// out to already all be in the founder's own library (confirmed live: the
+// site-wide #1 algorithmic match had zero unowned recommendations, since
+// their taste overlap is thorough enough that there was nothing left to
+// recommend), so getFirstAvailableMatch below tries them in this order
+// until one actually has real recommendations to show.
+const MATCH_USERNAMES = [
+  "test_reader_sixteen",
+  "test_reader_17",
+  "test_reader_fourteen",
+];
+
+// Tries each candidate in order and returns the first with real, unowned
+// recommendations, plus which person that came from (mobile needs both —
+// the same one profile drives its single Match row and its Discover list).
+async function getFirstAvailableMatch(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  viewerId: string,
+  candidates: TopMatchPerson[],
+) {
+  for (const candidate of candidates) {
+    if (
+      candidate.matchPercentage < MIN_RECOMMENDATION_MATCH_PERCENTAGE ||
+      candidate.sharedBookCount < MIN_RECOMMENDATION_SHARED_BOOKS
+    ) {
+      continue;
+    }
+    const recommendations = await getMatchRecommendations(
+      supabase,
+      viewerId,
+      candidate.userId,
+      candidate.matchPercentage,
+      4,
+    );
+    if (recommendations.length > 0) return { person: candidate, recommendations };
+  }
+  return null;
+}
+
+type RecentActivityRow = {
+  tier_list_id: string;
+  created_at: string;
+  books: { id: string; title: string; thumbnail_url: string | null };
+};
+
+// One real "most recently ranked book" per candidate (same three named
+// accounts as the Match/Discover steps, for consistency across the whole
+// page), newest first — powers the "See what your friends are reading"
+// section (design2/offset.png).
+async function getRecentActivity(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  candidates: TopMatchPerson[],
+): Promise<ActivityItem[]> {
+  if (candidates.length === 0) return [];
+
+  const listRows = logSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, user_id")
+      .in(
+        "user_id",
+        candidates.map((c) => c.userId),
+      ),
+    "fetching activity candidates' lists",
+    [],
+  );
+  const listIdToUserId = new Map(
+    (listRows ?? []).map((l) => [l.id as string, l.user_id as string]),
+  );
+  const listIds = [...listIdToUserId.keys()];
+  if (listIds.length === 0) return [];
+
+  const itemRows = logSupabaseError(
+    await supabase
+      .from("tier_list_items")
+      .select("tier_list_id, created_at, books(id, title, thumbnail_url)")
+      .in("tier_list_id", listIds)
+      .neq("tier", "unranked")
+      .order("created_at", { ascending: false })
+      .returns<RecentActivityRow[]>(),
+    "fetching recent activity items",
+    [],
+  );
+
+  const seenUsers = new Set<string>();
+  const activity: ActivityItem[] = [];
+  for (const item of itemRows ?? []) {
+    const userId = listIdToUserId.get(item.tier_list_id);
+    if (!userId || seenUsers.has(userId)) continue;
+    const person = candidates.find((c) => c.userId === userId);
+    if (!person) continue;
+    seenUsers.add(userId);
+    activity.push({
+      userId: person.userId,
+      username: person.username,
+      displayName: person.displayName,
+      avatarUrl: person.avatarUrl,
+      bookId: item.books.id,
+      bookTitle: item.books.title,
+      bookThumbnail: item.books.thumbnail_url,
+      createdAt: item.created_at,
+    });
+    if (activity.length >= 3) break;
+  }
+  return activity;
+}
+
+async function getHeroList(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const list = logSupabaseError(
+    await supabase
+      .from("tier_lists")
+      .select("id, title, user_id, like_count, comment_count, created_at")
+      .eq("id", HERO_LIST_ID)
+      .eq("is_public", true)
+      .maybeSingle<HeroListRow>(),
+    "fetching landing page hero list",
+    null,
+  );
+  if (!list) return null;
+
+  const [itemsResult, profileResult] = await Promise.all([
+    supabase
+      .from("tier_list_items")
+      .select("tier, books(id, title, thumbnail_url)")
+      .eq("tier_list_id", list.id)
+      .order("position", { ascending: true })
+      .returns<HeroItemRow[]>(),
+    supabase
+      .from("profiles")
+      .select("username, avatar_url")
+      .eq("id", list.user_id)
+      .maybeSingle<HeroProfileRow>(),
+  ]);
+  const items = logSupabaseError(itemsResult, "fetching landing page hero list items", []);
+  const profile = logSupabaseError(profileResult, "fetching landing page hero list creator", null);
+  if (!profile) return null;
+
+  const preview: Record<Tier, { id: string; title: string; thumbnail: string | null }[]> = {
+    S: [], A: [], B: [], C: [], D: [], F: [], unranked: [],
+  };
+  for (const item of items ?? []) {
+    preview[item.tier].push({
+      id: item.books.id,
+      title: item.books.title,
+      thumbnail: item.books.thumbnail_url,
+    });
+  }
+
+  return { list, profile, preview };
+}
+
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // A marketing page has nothing left to say to someone already signed in —
+  // every real product sends them straight into the app instead. (Used to
+  // render the same hero with a "Go to profile" button in that case; this
+  // is a clearer, more standard pattern.)
+  if (user) {
+    redirect("/explore");
+  }
+
+  const hero = await getHeroList(supabase);
+
+  // Real matches too — same founder account the hero list belongs to, so
+  // "How it works" and "Matching" show the actual person's actual data
+  // rather than invented readers.
+  // No `limit` — getTopMatches already computes every candidate regardless
+  // (limit only slices the final sorted list, see its own comment), and the
+  // three named accounts below aren't necessarily in the overall top few by
+  // match %, so the full sorted list is what's needed to reliably find them.
+  const allMatches = hero ? await getTopMatches(supabase, hero.list.user_id) : [];
+
+  // The three named profiles, in the given priority order — desktop shows
+  // all of them in the Match card; mobile shows just whichever one clears
+  // getFirstAvailableMatch's threshold, and that same person's real
+  // recommendations fill Discover on both breakpoints.
+  const matchCandidates = MATCH_USERNAMES.map((username) =>
+    allMatches.find((match) => match.username === username),
+  ).filter((match): match is TopMatchPerson => match !== undefined);
+  const matchSource = hero
+    ? await getFirstAvailableMatch(supabase, hero.list.user_id, matchCandidates)
+    : null;
+  const mobileMatch = matchSource?.person ?? null;
+  const discover = matchSource?.recommendations ?? [];
+
+  const recentActivity = await getRecentActivity(supabase, matchCandidates);
+
+  return (
+    <main className="flex-1 bg-background">
+      {/* Nav stays pinned to the top of the viewport like normal; only the
+          hero content below it (headline, subhead, buttons, hero image)
+          centers vertically within the remaining space, so the opening
+          screen reads as one deliberate, fully-visible moment without
+          leaving a gap above the nav. */}
+      <div className="flex min-h-screen flex-col">
+        <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
+          <nav className="flex items-center justify-between py-5 lg:py-6">
+            <Wordmark />
+            <Link
+              href="/login"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground"
+            >
+              Log in
+            </Link>
+          </nav>
+        </div>
+
+        {/* Vertically centered only at lg: — on mobile a section this short
+            almost never matches the viewport's actual height, so centering
+            it left a big, height-dependent dead gap under the nav instead
+            of a deliberate one. Top-aligned with a fixed gap reads as one
+            composed block instead of copy floating away from the logo. */}
+        <div className="flex-1 lg:flex lg:items-center">
+          <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
+            <section className="grid grid-cols-1 items-center gap-8 pt-6 pb-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
+              {/* order-2/order-1 puts the card above the headline on
+                  mobile only — desktop's order-1/order-2 keeps the
+                  original headline-left/card-right arrangement. */}
+              <div className="order-2 lg:order-1">
+                <h1
+                  className="mb-5 text-[32px] leading-[1.1] font-semibold tracking-tight text-balance lg:mb-[22px] lg:text-[52px]"
+                  style={serifStyle}
+                >
+                  Rank. <em className="text-primary-link italic">Match.</em>{" "}
+                  Discover.
+                </h1>
+                <p className="mb-7 max-w-[46ch] text-base leading-relaxed text-muted-foreground lg:mb-[34px] lg:text-lg">
+                  Build your tier list, match with readers who share your
+                  taste, and discover your next favorite read.
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link
+                    href="/signup"
+                    className={cn(buttonVariants({ size: "lg" }), "w-full justify-center lg:w-auto")}
+                  >
+                    <span className="lg:hidden">Get started</span>
+                    <span className="hidden lg:inline">Sign up →</span>
+                  </Link>
+                  {/* Desktop only — see how it works is redundant with the
+                      hero card above needing no explanation now on mobile
+                      (it's the first thing visible, not a "keep reading"
+                      ask). `contents` keeps the Link a normal flex item at
+                      lg: instead of fighting buttonVariants' own
+                      inline-flex for the display property. */}
+                  <span className="hidden lg:contents">
+                    <Link
+                      href="#how-it-works"
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "lg" }),
+                        "text-muted-foreground",
+                      )}
+                    >
+                      See how it works
+                    </Link>
+                  </span>
+                </div>
+              </div>
+
+              <div className="order-1 lg:order-2">
+                {/* Same mono/uppercase eyebrow device every other section on
+                    this page uses (How it works, Matching, Stay in the loop)
+                    — desktop only now; on mobile the card leads the section
+                    (see order-1 above) so it doesn't need a label
+                    introducing it first. */}
+                <p className="mb-3 hidden font-mono text-xs tracking-wider text-muted-foreground uppercase lg:block lg:mb-4">
+                  A real Tiera list
+                </p>
+                {hero ? (
+                  // The founder's own real tier rankings and cover art — but
+                  // the surrounding social chrome (Follow, like/comment
+                  // counts, caption) is boosted/illustrative rather than
+                  // this specific brand-new list's real (near-zero) numbers,
+                  // so the hero actually sells what a popular list on the
+                  // site looks like. See HeroListCard's own doc comment for
+                  // the full reasoning.
+                  <div className="rounded-sm shadow-[0_40px_100px_-25px_rgba(0,0,0,0.7)]">
+                    <HeroListCard
+                      title="All time favorite fantasy"
+                      username={hero.profile.username}
+                      avatarUrl={hero.profile.avatar_url}
+                      createdAt={hero.list.created_at}
+                      likeCount={43}
+                      commentCount={18}
+                      preview={hero.preview}
+                    />
+                  </div>
+                ) : (
+                  <MarketingTierBoard />
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
+        <HowItWorks
+          rankPreview={hero?.preview ?? null}
+          match={mobileMatch}
+          discover={discover.map((rec) => ({
+            book: { id: rec.bookId, title: rec.title, thumbnail: rec.thumbnail },
+            percentage: rec.matchPercentage,
+          }))}
+          connect={recentActivity[0] ?? null}
+        />
+
+        {/* Desktop-only — mobile covers the same idea via How it works'
+            Connect step instead (a single real notification row rather
+            than a whole activity list). */}
+        <div className="hidden lg:block">
+          <FriendActivity activity={recentActivity} />
+        </div>
+
+        <footer className="flex items-center justify-between border-t border-border py-7 text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground" style={serifStyle}>
+            Tiera
+          </span>
+          <span>Discover entertainment you&apos;ll actually enjoy.</span>
+        </footer>
+      </div>
+    </main>
+  );
+}

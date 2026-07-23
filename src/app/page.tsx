@@ -298,9 +298,14 @@ export default async function Home() {
           </nav>
         </div>
 
-        <div className="flex flex-1 items-center">
+        {/* Vertically centered only at lg: — on mobile a section this short
+            almost never matches the viewport's actual height, so centering
+            it left a big, height-dependent dead gap under the nav instead
+            of a deliberate one. Top-aligned with a fixed gap reads as one
+            composed block instead of copy floating away from the logo. */}
+        <div className="flex-1 lg:flex lg:items-center">
           <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
-            <section className="grid grid-cols-1 items-center gap-10 py-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
+            <section className="grid grid-cols-1 items-center gap-8 pt-6 pb-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
               <div>
                 <h1
                   className="mb-5 text-[32px] leading-[1.1] font-semibold tracking-tight text-balance lg:mb-[22px] lg:text-[52px]"
@@ -326,27 +331,38 @@ export default async function Home() {
                 </div>
               </div>
 
-              {hero ? (
-                // The founder's own real tier rankings and cover art — but the
-                // surrounding social chrome (Follow, like/comment counts,
-                // caption) is boosted/illustrative rather than this specific
-                // brand-new list's real (near-zero) numbers, so the hero
-                // actually sells what a popular list on the site looks like.
-                // See HeroListCard's own doc comment for the full reasoning.
-                <div className="rounded-sm shadow-[0_40px_100px_-25px_rgba(0,0,0,0.7)]">
-                  <HeroListCard
-                    title={hero.list.title}
-                    caption="My all-time fantasy favorites — ranked and re-ranked, three times over."
-                    username={hero.profile.username}
-                    avatarUrl={hero.profile.avatar_url}
-                    likeCount={43}
-                    commentCount={18}
-                    preview={hero.preview}
-                  />
-                </div>
-              ) : (
-                <MarketingTierBoard />
-              )}
+              <div>
+                {/* Same mono/uppercase eyebrow device every other section on
+                    this page uses (How it works, Matching, Stay in the loop)
+                    — the hero was the one place that skipped it, which made
+                    the card underneath read as an unexplained screenshot
+                    rather than a labeled example. */}
+                <p className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase lg:mb-4">
+                  A real Tiera list
+                </p>
+                {hero ? (
+                  // The founder's own real tier rankings and cover art — but
+                  // the surrounding social chrome (Follow, like/comment
+                  // counts, caption) is boosted/illustrative rather than
+                  // this specific brand-new list's real (near-zero) numbers,
+                  // so the hero actually sells what a popular list on the
+                  // site looks like. See HeroListCard's own doc comment for
+                  // the full reasoning.
+                  <div className="rounded-sm shadow-[0_40px_100px_-25px_rgba(0,0,0,0.7)]">
+                    <HeroListCard
+                      title={hero.list.title}
+                      caption="My all-time fantasy favorites — ranked and re-ranked, three times over."
+                      username={hero.profile.username}
+                      avatarUrl={hero.profile.avatar_url}
+                      likeCount={43}
+                      commentCount={18}
+                      preview={hero.preview}
+                    />
+                  </div>
+                ) : (
+                  <MarketingTierBoard />
+                )}
+              </div>
             </section>
           </div>
         </div>

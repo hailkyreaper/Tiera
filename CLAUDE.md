@@ -2683,6 +2683,69 @@ with `waitForURL`, not just a fixed timeout — an earlier check using a flat
 1s wait looked like a second bug, false alarm, it just needed a beat 
 longer for the client-side transition).
 
+**Landing page replaced with a minimal combined landing+signup screen** 
+✅ done (2026-07-23) — user's own reference (`design2/desktopp.png`/
+`mobile.png`, plus an earlier round based on `design2/example.png`) drove 
+two full redesign passes of `/` before landing here; see git history on 
+`src/app/page.tsx` for the intermediate one (hero list screenshot + 
+"View Demo" concept) if it's ever worth revisiting.
+- **The old marketing landing page (hero list screenshot, "How it works," 
+  activity feed) is saved at `/landing-v1`, not deleted** — a frozen, 
+  fully working snapshot kept specifically in case any of that content or 
+  layout is wanted again later. Its own marketing components live in 
+  `src/app/landing-v1/_components/` (copied, not shared, from the 
+  original `src/components/marketing/`) so future edits to `/` can never 
+  accidentally change it — the four original shared components 
+  (`how-it-works.tsx`, `hero-list-card.tsx`, `friend-activity.tsx`, 
+  `marketing-tier-board.tsx`) were deleted from `src/components/marketing` 
+  once confirmed nothing else referenced them. **Remember this exists** if 
+  a future landing-page pass wants to reuse or restore any of it.
+- `/` is now one screen, no scrolling: the real app icon + wordmark 
+  (reusing exactly what `TopBar` renders on desktop, not a new mark), 
+  "Rank. *Match.* Connect", a subhead, and a card that **is** the real 
+  sign-up form rather than a headline linking to one — `/signup` and 
+  `/login` still exist separately, untouched. New `signupFromHome` 
+  (`auth/actions.ts`) mirrors `signup` exactly, just with its own error 
+  redirect target (`/` instead of `/signup`) so a failed submission sends 
+  someone back to wherever they actually were.
+- **Anonymous sign-in** — a second path below an "or" divider, "Continue 
+  without an account," using Supabase's built-in anonymous auth 
+  (`signInAnonymously()`, new `continueAnonymously` action). Verified live 
+  end-to-end including the failure path — confirmed **Anonymous Sign-Ins 
+  is currently disabled** in the Supabase project's Auth settings (a real 
+  error surfaced live: "Anonymous sign-ins are disabled"); needs that 
+  toggle enabled in the dashboard before this button works, and CAPTCHA 
+  protection alongside it is recommended too — neither is something this 
+  session can configure directly.
+  - Found and fixed live: the error banner originally rendered inside the 
+    email/password form's fields regardless of which action actually 
+    failed, so an anonymous-sign-in error visually read as a sign-up 
+    error. Moved to one shared spot above both forms.
+  - Found and fixed live: onboarding (`/onboard/username`) had no way to 
+    back out once signed in — middleware forces any authenticated user 
+    with no `profiles` row there regardless of what page they try to 
+    visit next. Mattered most here specifically, since "Continue without 
+    an account" is a one-click, zero-commitment action someone could 
+    easily want to undo. New `cancelOnboarding` action (`auth/actions.ts`, 
+    same `signOut()` as `logout()` but back to `/` instead of `/login`) + 
+    a "Not you? Start over" link on the onboarding page.
+  - Migration `0035_restrict_anonymous_content_writes.sql` restricts 
+    `list_comments`/`list_likes` inserts to permanent (non-anonymous) 
+    accounts only, via the JWT's `is_anonymous` claim — Supabase's own 
+    recommended pattern for protecting public, feed-visible content from 
+    disposable-account abuse (their docs' own example uses a `news_feed` 
+    table the same way; adapted to Tiera's real closest equivalents). 
+    Ranking books and creating lists are deliberately left unrestricted — 
+    letting an anonymous visitor actually use the core product is the 
+    whole point of the feature. **Run, user confirmed successful.**
+- Vertical centering looked slightly low on both breakpoints despite 
+  measuring perfectly mathematically centered (equal space above/below, 
+  confirmed via direct `getBoundingClientRect()` measurement, not just 
+  eyeballing) — a real optical-weight illusion, not a bug: the solid 
+  `bg-card` box at the bottom reads heavier than the logo/headline above 
+  it. Fixed with a `mb-10` nudge on the content block, shifting it up 
+  ~20px for better optical (not mathematical) balance.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

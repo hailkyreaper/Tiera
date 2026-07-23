@@ -38,7 +38,12 @@ export default async function Home({
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-10">
-      <div className="w-full max-w-sm text-center">
+      {/* True flex-centering measured perfectly equal space above/below,
+          but the card's solid bg-card weight at the bottom reads as
+          heavier than the logo/headline above it, so mathematically
+          centered still looked low. mb-10 nudges the whole block up by
+          about half that margin for a better optical balance. */}
+      <div className="mb-10 w-full max-w-sm text-center">
         {/* Same icon + wordmark pairing TopBar renders on desktop — reused
             as-is rather than a new mark invented for this page alone. */}
         <div className="mb-7 flex items-center justify-center gap-2.5">

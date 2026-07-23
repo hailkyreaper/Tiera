@@ -82,3 +82,18 @@ export async function logout() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+// Onboarding (username picking) had no way to back out once you'd signed
+// in — every authenticated user with no profiles row gets forced there by
+// middleware regardless of what page they try to visit next, including
+// "/" itself. Mattered most for "Continue without an account": a
+// one-click, zero-commitment action someone could easily regret
+// immediately, with no way to undo it and go pick email sign-up instead.
+// Same signOut() as logout() above, just back to "/" instead of /login,
+// since that's genuinely where someone backing out of this wants to land.
+export async function cancelOnboarding() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/");
+}

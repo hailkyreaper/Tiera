@@ -1,4 +1,5 @@
 import { setUsername } from "./actions";
+import { cancelOnboarding } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,18 @@ export default async function OnboardUsernamePage({
             <Button type="submit" className="w-full">
               Continue
             </Button>
+          </form>
+
+          {/* Escape hatch — there was previously no way back from here at
+              all, most noticeably after "Continue without an account,"
+              a one-click action someone could easily want to undo. */}
+          <form action={cancelOnboarding} className="mt-4">
+            <button
+              type="submit"
+              className="w-full text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Not you? Start over
+            </button>
           </form>
         </CardContent>
       </Card>

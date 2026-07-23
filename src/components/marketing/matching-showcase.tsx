@@ -48,112 +48,118 @@ export function MatchingShowcase({
   recommendation: Recommendation | null;
 }) {
   return (
-    <section className="py-11 lg:py-[76px]">
-      <p className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase">
-        Matching
-      </p>
-      <h2
-        className="mb-4 max-w-[26ch] text-[27px] leading-[1.2] font-semibold tracking-tight text-balance lg:text-[34px]"
-        style={serifStyle}
-      >
-        See who reads like you do.
-      </h2>
-      <p className="mb-8 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground lg:mb-10">
-        Every match is based on books you&apos;ve both ranked—showing where
-        you agree, where you disagree, and how much evidence supports your
-        match.
-      </p>
+    // Offset to the left two-thirds on desktop (design2/offset.png's
+    // zigzag layout, leads now — the real match % is a stronger hook than
+    // the activity feed below it, which takes the right two-thirds the
+    // same way) — single column on mobile, where the offset doesn't apply.
+    <section className="grid grid-cols-1 py-8 lg:grid-cols-[2fr_1fr] lg:gap-12 lg:py-12">
+      <div>
+        <p className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+          Matching
+        </p>
+        <h2
+          className="mb-4 max-w-[26ch] text-[27px] leading-[1.2] font-semibold tracking-tight text-balance lg:text-[34px]"
+          style={serifStyle}
+        >
+          See who reads like you do.
+        </h2>
+        <p className="mb-8 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground lg:mb-10">
+          Every match is based on books you&apos;ve both ranked—showing where
+          you agree, where you disagree, and how much evidence supports your
+          match.
+        </p>
 
-      <div className="flex flex-col gap-5 rounded-sm bg-card p-5 lg:p-6">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
-            <Avatar
-              src={founder.avatarUrl}
-              name={founder.username}
-              imageSize={64}
-              sizeClassName="size-16"
-              textClassName="text-lg"
-              className="ring-4 ring-primary"
-            />
-            <div className="flex w-full min-w-0 flex-col items-center">
-              <span className="w-full truncate text-sm font-semibold text-foreground">
-                @{founder.username}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-1 p-1.5 text-center">
-            <span className="text-4xl font-bold text-primary sm:text-5xl">
-              {matchPercentage}%
-            </span>
-            <span className="text-sm font-medium text-muted-foreground">
-              Taste Match
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {sharedBookCount} shared books
-            </span>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
-            <Avatar
-              src={them.avatarUrl}
-              name={them.username}
-              imageSize={64}
-              sizeClassName="size-16"
-              textClassName="text-lg"
-              className="ring-4 ring-primary"
-            />
-            <div className="flex w-full min-w-0 flex-col items-center">
-              {them.displayName && (
-                <span className="w-full truncate text-sm font-semibold text-foreground">
-                  {them.displayName}
-                </span>
-              )}
-              <span
-                className={
-                  them.displayName
-                    ? "w-full truncate text-xs text-muted-foreground"
-                    : "w-full truncate text-sm font-semibold text-foreground"
-                }
-              >
-                @{them.username}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="hidden lg:block">
-          <CompareStatsRow
-            sharedFavoritesCount={sharedFavoritesCount}
-            sharedDislikesCount={sharedDislikesCount}
-            disagreementsCount={disagreementsCount}
-            topSharedGenre={topSharedGenre}
-          />
-        </div>
-
-        {recommendation && (
-          <div className="flex items-center gap-3 rounded-sm bg-background p-3">
-            <div className="w-12 shrink-0">
-              <BookCover
-                src={recommendation.thumbnail}
-                alt={recommendation.title}
-                size={48}
+        <div className="flex flex-col gap-5 rounded-sm bg-card p-5 lg:p-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
+              <Avatar
+                src={founder.avatarUrl}
+                name={founder.username}
+                imageSize={64}
+                sizeClassName="size-16"
+                textClassName="text-lg"
+                className="ring-4 ring-primary"
               />
+              <div className="flex w-full min-w-0 flex-col items-center">
+                <span className="w-full truncate text-sm font-semibold text-foreground">
+                  @{founder.username}
+                </span>
+              </div>
             </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate font-semibold text-foreground">
-                {recommendation.title}
+
+            <div className="flex flex-col items-center justify-center gap-1 p-1.5 text-center">
+              <span className="text-4xl font-bold text-primary sm:text-5xl">
+                {matchPercentage}%
               </span>
-              <span className="truncate text-sm text-muted-foreground">
-                {recommendation.authors?.[0] ?? "Unknown author"}
+              <span className="text-sm font-medium text-muted-foreground">
+                Taste Match
               </span>
-              <MatchBadge percentage={recommendation.matchPercentage} />
+              <span className="text-xs text-muted-foreground">
+                {sharedBookCount} shared books
+              </span>
             </div>
-            <Link href="/signup" className="shrink-0 text-sm font-medium text-primary-link">
-              Sign up to add
-            </Link>
+
+            <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
+              <Avatar
+                src={them.avatarUrl}
+                name={them.username}
+                imageSize={64}
+                sizeClassName="size-16"
+                textClassName="text-lg"
+                className="ring-4 ring-primary"
+              />
+              <div className="flex w-full min-w-0 flex-col items-center">
+                {them.displayName && (
+                  <span className="w-full truncate text-sm font-semibold text-foreground">
+                    {them.displayName}
+                  </span>
+                )}
+                <span
+                  className={
+                    them.displayName
+                      ? "w-full truncate text-xs text-muted-foreground"
+                      : "w-full truncate text-sm font-semibold text-foreground"
+                  }
+                >
+                  @{them.username}
+                </span>
+              </div>
+            </div>
           </div>
-        )}
+
+          <div className="hidden lg:block">
+            <CompareStatsRow
+              sharedFavoritesCount={sharedFavoritesCount}
+              sharedDislikesCount={sharedDislikesCount}
+              disagreementsCount={disagreementsCount}
+              topSharedGenre={topSharedGenre}
+            />
+          </div>
+
+          {recommendation && (
+            <div className="flex items-center gap-3 rounded-sm bg-background p-3">
+              <div className="w-12 shrink-0">
+                <BookCover
+                  src={recommendation.thumbnail}
+                  alt={recommendation.title}
+                  size={48}
+                />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate font-semibold text-foreground">
+                  {recommendation.title}
+                </span>
+                <span className="truncate text-sm text-muted-foreground">
+                  {recommendation.authors?.[0] ?? "Unknown author"}
+                </span>
+                <MatchBadge percentage={recommendation.matchPercentage} />
+              </div>
+              <Link href="/signup" className="shrink-0 text-sm font-medium text-primary-link">
+                Sign up to add
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

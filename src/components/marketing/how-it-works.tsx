@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TIERS, TIER_BADGE_COLORS, type Tier } from "@/lib/tiers";
+import { TIER_BADGE_COLORS, type Tier } from "@/lib/tiers";
 import { cleanCoverUrl } from "@/lib/cover-url";
 import { Avatar } from "@/components/avatar";
 import { MatchBadge } from "@/components/match-badge";
@@ -60,7 +60,7 @@ function TierList({
           >
             {tier}
           </div>
-          <div className="flex gap-[3px] bg-muted p-1">
+          <div className="flex gap-[3px] p-1">
             {rankPreview[tier].slice(0, 2).map((book) => (
               <MiniCover key={book.id} book={book} />
             ))}
@@ -71,84 +71,36 @@ function TierList({
   );
 }
 
-// Desktop "profile style" match row per feedback: picture, then name/
-// username beside it; books-ranked/shared underneath with the match score
-// inline on the right — no forward chevron, unlike the real TopMatchCard
-// this is modeled on (that one's built for an actual navigable list; this
-// is a static marketing snapshot, so a "go to this page" affordance
-// doesn't belong here).
-function MatchProfileRow({ person }: { person: TopMatchPerson }) {
+// One shared row now for both breakpoints (content's identical either way
+// since desktop stopped showing 3 profiles) — the match score sits inline
+// with the avatar/name, right-aligned on the same row. No forward
+// chevron, unlike the real TopMatchCard this is modeled on (that one's
+// built for an actual navigable list; this is a static marketing
+// snapshot, so a "go to this page" affordance doesn't belong here).
+function MatchRow({ person }: { person: TopMatchPerson }) {
   return (
-    <div className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-3">
-        <Avatar
-          src={person.avatarUrl}
-          name={person.username}
-          imageSize={40}
-          sizeClassName="size-10"
-          textClassName="text-sm"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {person.displayName ?? `@${person.username}`}
+    <div className="flex items-center gap-3">
+      <Avatar
+        src={person.avatarUrl}
+        name={person.username}
+        imageSize={40}
+        sizeClassName="size-10"
+        textClassName="text-sm"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">
+          {person.displayName ?? `@${person.username}`}
+        </p>
+        {person.displayName && (
+          <p className="truncate text-xs text-muted-foreground">
+            @{person.username}
           </p>
-          {person.displayName && (
-            <p className="truncate text-xs text-muted-foreground">
-              @{person.username}
-            </p>
-          )}
-        </div>
+        )}
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          {person.booksRankedCount} books ranked · {person.sharedBookCount} shared
-        </span>
-        <MatchBadge percentage={person.matchPercentage} className="shrink-0" />
-      </div>
-    </div>
-  );
-}
-
-// Mobile's own row: Follow sits inline with the name (top row), and the
-// match score is shrunk down to a small inline chip instead of the
-// desktop row's full-size badge — both per feedback.
-function MobileMatchRow({ person }: { person: TopMatchPerson }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <Avatar
-          src={person.avatarUrl}
-          name={person.username}
-          imageSize={40}
-          sizeClassName="size-10"
-          textClassName="text-sm"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {person.displayName ?? `@${person.username}`}
-          </p>
-          {person.displayName && (
-            <p className="truncate text-xs text-muted-foreground">
-              @{person.username}
-            </p>
-          )}
-        </div>
-        <Link
-          href="/signup"
-          className={buttonVariants({ size: "sm", variant: "outline" })}
-        >
-          Follow
-        </Link>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          {person.booksRankedCount} books ranked · {person.sharedBookCount} shared
-        </span>
-        <MatchBadge
-          percentage={person.matchPercentage}
-          className="shrink-0 px-2 py-0.5 text-[10px]"
-        />
-      </div>
+      <MatchBadge
+        percentage={person.matchPercentage}
+        className="shrink-0 px-2 py-0.5 text-[10px]"
+      />
     </div>
   );
 }
@@ -161,6 +113,16 @@ function DiscoverRow({ book, percentage }: { book: PreviewBook; percentage: numb
         <p className="truncate text-[13px] font-semibold">{book.title}</p>
         <MatchBadge percentage={percentage} className="mt-1 px-2 py-0.5 text-[10px]" />
       </div>
+      {/* Routes to signup rather than the real add-to-TBR action — there's
+          no real session to add a book to from a logged-out marketing
+          page — but keeps the real feature's own name so it reads as a
+          preview of that exact button, not an invented one. */}
+      <Link
+        href="/signup"
+        className={buttonVariants({ size: "xs", variant: "outline" })}
+      >
+        Add to TBR
+      </Link>
     </div>
   );
 }
@@ -196,92 +158,63 @@ function Step({
   );
 }
 
-const MOBILE_TIERS = ["S", "F"] as const;
-const RANKED_TIERS = TIERS.filter((tier) => tier !== "unranked") as Exclude<Tier, "unranked">[];
+const MOBILE_TIERS = ["S"] as const;
 
+// Same condensed content on both breakpoints now — one tier row, one
+// match profile (with its Follow row), one recommendation, trimmed down
+// so all three step cards land at the same height. Only Step's own
+// row-vs-centered-column arrangement still differs per breakpoint.
 export function HowItWorks({
   rankPreview,
-  desktopMatches,
-  mobileMatch,
-  desktopDiscover,
-  mobileDiscover,
+  match,
+  discover,
 }: {
   rankPreview: PreviewByTier | null;
-  desktopMatches: TopMatchPerson[];
-  mobileMatch: TopMatchPerson | null;
-  desktopDiscover: { book: PreviewBook; percentage: number }[];
-  mobileDiscover: { book: PreviewBook; percentage: number }[];
+  match: TopMatchPerson | null;
+  discover: { book: PreviewBook; percentage: number }[];
 }) {
   return (
-    <section id="how-it-works" className="py-11 lg:py-[76px]">
+    <section id="how-it-works" className="py-8 lg:py-12">
       <p className="mb-8 font-mono text-xs tracking-wider text-muted-foreground uppercase lg:mb-12">
         How it works
       </p>
 
       <div className="relative grid grid-cols-1 gap-9 lg:grid-cols-3 lg:items-stretch lg:gap-10">
-        {/* Mobile-only connecting line down the left edge, behind the
-            numbered badges — same plain neutral treatment as the number
-            badges themselves, not the tier-color gradient this used to be.
-            Desktop has no line (see Step's centered, no-line layout).
-            Positioned against this grid directly (not the section above
-            it) so it lines up with the badges regardless of what's above. */}
+        {/* Mobile: vertical line down the left edge, behind the numbered
+            badges. Desktop: horizontal line through the centered badges'
+            vertical middle (top-[17px] ≈ half of the size-9/36px badge).
+            Same plain white treatment on both — positioned against this
+            grid directly (not the section above it) so it lines up with
+            the badges regardless of what's above. */}
         <div className="absolute top-1.5 bottom-1.5 left-[17px] w-0.5 bg-white/15 lg:hidden" />
+        <div className="absolute top-[17px] left-[6%] right-[6%] hidden h-0.5 bg-white/15 lg:block" />
 
         <Step number="01" title="Rank" body="Rank the books you've read from S to F.">
-          {rankPreview && (
-            <>
-              <div className="lg:hidden">
-                <TierList tiers={MOBILE_TIERS} rankPreview={rankPreview} />
-              </div>
-              <div className="hidden lg:block">
-                <TierList tiers={RANKED_TIERS} rankPreview={rankPreview} />
-              </div>
-            </>
-          )}
+          {rankPreview && <TierList tiers={MOBILE_TIERS} rankPreview={rankPreview} />}
         </Step>
 
         <Step number="02" title="Match" body="Match with readers who share your taste.">
-          {desktopMatches.length === 0 && !mobileMatch && (
+          {match ? (
+            <MatchRow person={match} />
+          ) : (
             <p className="text-[11px] text-muted-foreground">
               Your real match % shows up here once you&apos;ve both ranked a
               few of the same books.
             </p>
           )}
-          {/* Mobile: one profile, its own Follow-inline layout. Desktop: as
-              many real matches as we have (up to 3), stacked to fill the
-              same height as the complete Rank list beside it. */}
-          {mobileMatch && (
-            <div className="lg:hidden">
-              <MobileMatchRow person={mobileMatch} />
-            </div>
-          )}
-          {desktopMatches.length > 0 && (
-            <div className="hidden flex-col divide-y divide-border lg:flex">
-              {desktopMatches.map((person) => (
-                <MatchProfileRow key={person.userId} person={person} />
-              ))}
-            </div>
-          )}
         </Step>
 
         <Step number="03" title="Discover" body="Follow readers whose taste matches yours.">
-          {mobileDiscover.length === 0 && desktopDiscover.length === 0 ? (
+          {discover.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
               Recommendations from your matches show up here.
             </p>
           ) : (
-            <>
-              <div className="flex flex-col gap-2.5 lg:hidden">
-                {mobileDiscover.slice(0, 2).map(({ book, percentage }) => (
-                  <DiscoverRow key={book.id} book={book} percentage={percentage} />
-                ))}
-              </div>
-              <div className="hidden flex-col gap-2.5 lg:flex">
-                {desktopDiscover.map(({ book, percentage }) => (
-                  <DiscoverRow key={book.id} book={book} percentage={percentage} />
-                ))}
-              </div>
-            </>
+            <div className="flex flex-col gap-2.5">
+              {discover.slice(0, 1).map(({ book, percentage }) => (
+                <DiscoverRow key={book.id} book={book} percentage={percentage} />
+              ))}
+            </div>
           )}
         </Step>
       </div>

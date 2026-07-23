@@ -280,11 +280,12 @@ export default async function Home() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Everything above "How it works" fills the first viewport and
-          centers vertically within it, so the nav+hero read as one
-          deliberate opening screen instead of just however tall its
-          content happens to be. */}
-      <div className="flex min-h-screen flex-col justify-center">
+      {/* Nav stays pinned to the top of the viewport like normal; only the
+          hero content below it (headline, subhead, buttons, hero image)
+          centers vertically within the remaining space, so the opening
+          screen reads as one deliberate, fully-visible moment without
+          leaving a gap above the nav. */}
+      <div className="flex min-h-screen flex-col">
         <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
           <nav className="flex items-center justify-between py-5 lg:py-6">
             <Wordmark />
@@ -295,55 +296,59 @@ export default async function Home() {
               Log in
             </Link>
           </nav>
+        </div>
 
-          <section className="grid grid-cols-1 items-center gap-10 py-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
-            <div>
-              <h1
-                className="mb-5 text-[32px] leading-[1.1] font-semibold tracking-tight text-balance lg:mb-[22px] lg:text-[52px]"
-                style={serifStyle}
-              >
-                Rank. <em className="text-primary-link italic">Match.</em>{" "}
-                Discover.
-              </h1>
-              <p className="mb-7 max-w-[46ch] text-base leading-relaxed text-muted-foreground lg:mb-[34px] lg:text-lg">
-                Build your tier list, match with readers who share your taste,
-                and discover your next favorite read.
-              </p>
-              <div className="flex flex-wrap items-center gap-4">
-                <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-                  Sign up →
-                </Link>
-                <Link
-                  href="#how-it-works"
-                  className={buttonVariants({ variant: "outline", size: "lg" })}
+        <div className="flex flex-1 items-center">
+          <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
+            <section className="grid grid-cols-1 items-center gap-10 py-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
+              <div>
+                <h1
+                  className="mb-5 text-[32px] leading-[1.1] font-semibold tracking-tight text-balance lg:mb-[22px] lg:text-[52px]"
+                  style={serifStyle}
                 >
-                  See how it works
-                </Link>
+                  Rank. <em className="text-primary-link italic">Match.</em>{" "}
+                  Discover.
+                </h1>
+                <p className="mb-7 max-w-[46ch] text-base leading-relaxed text-muted-foreground lg:mb-[34px] lg:text-lg">
+                  Build your tier list, match with readers who share your
+                  taste, and discover your next favorite read.
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link href="/signup" className={buttonVariants({ size: "lg" })}>
+                    Sign up →
+                  </Link>
+                  <Link
+                    href="#how-it-works"
+                    className={buttonVariants({ variant: "outline", size: "lg" })}
+                  >
+                    See how it works
+                  </Link>
+                </div>
               </div>
-            </div>
 
-            {hero ? (
-              // The founder's own real tier rankings and cover art — but the
-              // surrounding social chrome (Follow, like/comment counts,
-              // caption) is boosted/illustrative rather than this specific
-              // brand-new list's real (near-zero) numbers, so the hero
-              // actually sells what a popular list on the site looks like.
-              // See HeroListCard's own doc comment for the full reasoning.
-              <div className="rounded-sm shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)] lg:rotate-1">
-                <HeroListCard
-                  title={hero.list.title}
-                  caption="My all-time fantasy favorites — ranked, re-ranked, and fought about more than I'd like to admit."
-                  username={hero.profile.username}
-                  avatarUrl={hero.profile.avatar_url}
-                  likeCount={43}
-                  commentCount={18}
-                  preview={hero.preview}
-                />
-              </div>
-            ) : (
-              <MarketingTierBoard />
-            )}
-          </section>
+              {hero ? (
+                // The founder's own real tier rankings and cover art — but the
+                // surrounding social chrome (Follow, like/comment counts,
+                // caption) is boosted/illustrative rather than this specific
+                // brand-new list's real (near-zero) numbers, so the hero
+                // actually sells what a popular list on the site looks like.
+                // See HeroListCard's own doc comment for the full reasoning.
+                <div className="rounded-sm shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)] lg:rotate-1">
+                  <HeroListCard
+                    title={hero.list.title}
+                    caption="My all-time fantasy favorites — ranked, re-ranked, and fought about more than I'd like to admit."
+                    username={hero.profile.username}
+                    avatarUrl={hero.profile.avatar_url}
+                    likeCount={43}
+                    commentCount={18}
+                    preview={hero.preview}
+                  />
+                </div>
+              ) : (
+                <MarketingTierBoard />
+              )}
+            </section>
+          </div>
         </div>
       </div>
 
@@ -381,7 +386,7 @@ export default async function Home() {
 
         <FriendActivity activity={recentActivity} />
 
-        <FinalCta previewBooks={hero?.preview.S ?? []} />
+        <FinalCta />
 
         <footer className="flex items-center justify-between border-t border-border py-7 text-sm text-muted-foreground">
           <span className="font-semibold text-foreground" style={serifStyle}>

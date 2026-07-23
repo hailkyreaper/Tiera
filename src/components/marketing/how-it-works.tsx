@@ -51,10 +51,14 @@ function TierList({
   return (
     <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-xs">
       {populated.map((tier) => (
-        <div key={tier} className="grid grid-cols-[24px_1fr]">
+        <div key={tier} className="flex">
+          {/* w-7/aspect-[2/3] matches MiniCover exactly — same "badge is
+              one cover-width cell" rule the real TierRowGrid uses, instead
+              of an arbitrary fixed 24px column that didn't line up with
+              the covers next to it. */}
           <div
             className={cn(
-              "flex items-center justify-center text-[11px] font-extrabold text-white",
+              "flex aspect-[2/3] w-7 shrink-0 items-center justify-center text-xs font-bold text-white",
               TIER_BADGE_COLORS[tier],
             )}
           >

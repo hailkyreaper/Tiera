@@ -10,6 +10,7 @@ import { HeroTierRow } from "@/components/marketing/hero-list-card";
 import { buttonVariants } from "@/components/ui/button";
 import type { TopMatchPerson } from "@/lib/db/top-matches";
 import type { ActivityItem } from "@/components/marketing/friend-activity";
+import { cn } from "@/lib/utils";
 
 const serifStyle = {
   fontFamily:
@@ -91,7 +92,10 @@ function DiscoverRow({ book, percentage }: { book: PreviewBook; percentage: numb
           preview of that exact button, not an invented one. */}
       <Link
         href="/signup"
-        className={buttonVariants({ size: "xs", variant: "outline" })}
+        className={cn(
+          buttonVariants({ size: "xs", variant: "outline" }),
+          "text-muted-foreground",
+        )}
       >
         Add to TBR
       </Link>
@@ -135,24 +139,40 @@ function ConnectRow({ item }: { item: ActivityItem }) {
 }
 
 function Step({
+  number,
   title,
   body,
   children,
 }: {
+  number: string;
   title: string;
   body: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="lg:flex lg:h-full lg:flex-col">
-      <p className="mb-1.5 text-lg font-bold lg:text-center" style={serifStyle}>
-        {title}
-      </p>
-      <p className="mb-3.5 text-sm leading-relaxed text-muted-foreground lg:text-center">
-        {body}
-      </p>
-      <div className="flex flex-1 flex-col justify-center rounded-sm bg-card p-3 text-left">
-        {children}
+    // Mobile-only numbered badge (desktop dropped this earlier and stays
+    // that way — the badge is `lg:hidden`, and the content column's own
+    // `lg:flex lg:h-full lg:flex-col` still stretches/centers exactly as
+    // it did before this wrapper was added). Badge uses the same
+    // `rounded-sm` as the card sitting next to it, not a circle — one
+    // consistent corner language instead of two.
+    <div className="flex items-start gap-3 lg:block">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-primary font-mono text-[13px] font-bold text-white lg:hidden">
+        {number}
+      </span>
+      <div className="min-w-0 flex-1 lg:flex lg:h-full lg:flex-col">
+        <p
+          className="mb-1.5 text-xl font-bold lg:text-lg lg:text-center"
+          style={serifStyle}
+        >
+          {title}
+        </p>
+        <p className="mb-3 text-sm leading-relaxed text-muted-foreground lg:mb-3.5 lg:text-center">
+          {body}
+        </p>
+        <div className="flex flex-1 flex-col justify-center rounded-sm bg-card p-3 text-left">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -176,13 +196,23 @@ export function HowItWorks({
   connect: ActivityItem | null;
 }) {
   return (
-    <section id="how-it-works" className="py-8 lg:py-12">
-      <p className="mb-8 font-mono text-xs tracking-wider text-muted-foreground uppercase lg:mb-12">
+    <section id="how-it-works" className="py-6 lg:py-12">
+      <p className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase lg:mb-4">
         How it works
       </p>
+      {/* Same size as this page's other section headers (Stay in the
+          loop's "See what your friends are reading.") — How it works was
+          the one section with no real title of its own, just the small
+          eyebrow above. */}
+      <h2
+        className="mb-6 max-w-[20ch] text-[27px] leading-[1.2] font-semibold tracking-tight text-balance lg:mb-12 lg:text-[34px]"
+        style={serifStyle}
+      >
+        4 steps to better recs
+      </h2>
 
-      <div className="grid grid-cols-1 gap-9 lg:grid-cols-3 lg:items-stretch lg:gap-10">
-        <Step title="Rank" body="Rank the books you've read from S to F.">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch lg:gap-10">
+        <Step number="1" title="Rank" body="Rank the books you've read from S to F.">
           {rankPreview && (
             <div className="flex flex-col divide-y divide-white/10 overflow-hidden rounded-xs">
               {MOBILE_TIERS.map((tier) => (
@@ -192,7 +222,7 @@ export function HowItWorks({
           )}
         </Step>
 
-        <Step title="Match" body="Match with readers who share your taste.">
+        <Step number="2" title="Match" body="Match with readers who share your taste.">
           {match ? (
             <MatchRow person={match} />
           ) : (
@@ -203,7 +233,7 @@ export function HowItWorks({
           )}
         </Step>
 
-        <Step title="Discover" body="Follow readers whose taste matches yours.">
+        <Step number="3" title="Discover" body="Follow readers whose taste matches yours.">
           {discover.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
               Recommendations from your matches show up here.
@@ -222,7 +252,7 @@ export function HowItWorks({
             so the concept isn't dropped there, just told through a single
             real notification row instead of a whole activity list. */}
         <div className="lg:hidden">
-          <Step title="Connect" body="Stay connected and interact with who you follow.">
+          <Step number="4" title="Connect" body="Stay connected and interact with who you follow.">
             {connect ? (
               <ConnectRow item={connect} />
             ) : (

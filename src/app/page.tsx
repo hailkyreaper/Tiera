@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logSupabaseError } from "@/lib/supabase/assert";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/marketing/wordmark";
 import { MarketingTierBoard } from "@/components/marketing/marketing-tier-board";
 import { HeroListCard } from "@/components/marketing/hero-list-card";
@@ -279,8 +280,12 @@ export default async function Home() {
                   taste, and discover your next favorite read.
                 </p>
                 <div className="flex flex-wrap items-center gap-4">
-                  <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-                    Sign up →
+                  <Link
+                    href="/signup"
+                    className={cn(buttonVariants({ size: "lg" }), "w-full justify-center lg:w-auto")}
+                  >
+                    <span className="lg:hidden">Get started</span>
+                    <span className="hidden lg:inline">Sign up →</span>
                   </Link>
                   {/* Desktop only — see how it works is redundant with the
                       hero card above needing no explanation now on mobile
@@ -291,7 +296,10 @@ export default async function Home() {
                   <span className="hidden lg:contents">
                     <Link
                       href="#how-it-works"
-                      className={buttonVariants({ variant: "outline", size: "lg" })}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "lg" }),
+                        "text-muted-foreground",
+                      )}
                     >
                       See how it works
                     </Link>
@@ -321,6 +329,7 @@ export default async function Home() {
                       title="All time favorite fantasy"
                       username={hero.profile.username}
                       avatarUrl={hero.profile.avatar_url}
+                      createdAt={hero.list.created_at}
                       likeCount={43}
                       commentCount={18}
                       preview={hero.preview}

@@ -1,10 +1,9 @@
-import Link from "next/link";
 import Image from "next/image";
 import { Heart, MessageCircle } from "lucide-react";
 import { TIERS, TIER_BADGE_COLORS, type Tier } from "@/lib/tiers";
 import { cleanCoverUrl } from "@/lib/cover-url";
+import { formatRelativeTime } from "@/lib/format-time";
 import { Avatar } from "@/components/avatar";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type PreviewBook = { id: string; title: string; thumbnail: string | null };
@@ -58,20 +57,22 @@ export function HeroTierRow({ tier, books }: { tier: Exclude<Tier, "unranked">; 
 
 // A marketing-only variant of ExploreListCard — same visual language (same
 // header row shape, same rounded-sm/shadow card, same real tier-row
-// structure/colors as TierRowBar), but built to *sell* the product rather
-// than be a literal live artifact of it: a Follow button (routes to
-// signup — there's no real session to follow anyone from here), and
-// boosted like/comment counts + a written caption in place of the real
-// (low, single-word-title) numbers a brand-new account's own list
-// actually has. The real tier rankings and cover art underneath are still
-// the founder's own real list — only the surrounding social chrome is
-// illustrative. Deliberately not a link into the real list detail page,
-// since that page's real stats wouldn't match the boosted ones shown here.
+// structure/colors as TierRowBar, and now the same real relative-timestamp
+// header ExploreListCard itself uses instead of a Follow button — there's
+// no real session to follow anyone from here, and a real button just
+// competed with the actual content for attention), plus boosted like/
+// comment counts and a written caption in place of the real (low, single-
+// word-title) numbers a brand-new account's own list actually has. The
+// real tier rankings and cover art underneath are still the founder's own
+// real list — only the surrounding social chrome is illustrative.
+// Deliberately not a link into the real list detail page, since that
+// page's real stats wouldn't match the boosted ones shown here.
 export function HeroListCard({
   title,
   caption,
   username,
   avatarUrl,
+  createdAt,
   likeCount,
   commentCount,
   preview,
@@ -80,6 +81,7 @@ export function HeroListCard({
   caption?: string;
   username: string;
   avatarUrl?: string | null;
+  createdAt: string;
   likeCount: number;
   commentCount: number;
   preview: Record<Tier, PreviewBook[]>;
@@ -101,9 +103,9 @@ export function HeroListCard({
             @{username}
           </span>
         </div>
-        <Link href="/signup" className={buttonVariants({ size: "sm" })}>
-          Follow
-        </Link>
+        <span className="shrink-0 text-xs text-muted-foreground lg:text-sm">
+          {formatRelativeTime(createdAt)}
+        </span>
       </div>
 
       <div>

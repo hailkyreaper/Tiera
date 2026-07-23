@@ -333,10 +333,10 @@ export default async function Home() {
                 // brand-new list's real (near-zero) numbers, so the hero
                 // actually sells what a popular list on the site looks like.
                 // See HeroListCard's own doc comment for the full reasoning.
-                <div className="rounded-sm shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)] lg:rotate-1">
+                <div className="rounded-sm shadow-[0_40px_100px_-25px_rgba(0,0,0,0.7)]">
                   <HeroListCard
                     title={hero.list.title}
-                    caption="My all-time fantasy favorites — ranked, re-ranked, and fought about more than I'd like to admit."
+                    caption="My all-time fantasy favorites — ranked and re-ranked, three times over."
                     username={hero.profile.username}
                     avatarUrl={hero.profile.avatar_url}
                     likeCount={43}

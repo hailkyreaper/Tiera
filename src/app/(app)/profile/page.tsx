@@ -296,7 +296,7 @@ export default async function ProfilePage({
             booksRankedCount={booksRankedCount ?? 0}
             followingCount={followingCount ?? 0}
             className={cn(
-              "z-10 flex w-full divide-x divide-border/60 border-b border-border/60 py-3 lg:w-auto lg:gap-10 lg:divide-x-0 lg:border-0 lg:pt-10 lg:pb-0",
+              "z-10 flex w-full divide-x divide-border/60 border-b border-border/60 pt-3 pb-6 lg:w-auto lg:gap-10 lg:divide-x-0 lg:border-0 lg:pt-10 lg:pb-0",
               // Hidden on mobile in edit mode (already redundant with the
               // centered avatar-only header above it there) — desktop edit
               // mode is untouched, still shows it.

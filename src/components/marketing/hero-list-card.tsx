@@ -18,7 +18,7 @@ type PreviewBook = { id: string; title: string; thumbnail: string | null };
 // wildly oversized relative to the covers next to it (confirmed live —
 // the letter dominated the whole badge cell). Same real colors/covers/
 // dividers otherwise, just scaled for this narrower card.
-function HeroTierRow({ tier, books }: { tier: Exclude<Tier, "unranked">; books: PreviewBook[] }) {
+export function HeroTierRow({ tier, books }: { tier: Exclude<Tier, "unranked">; books: PreviewBook[] }) {
   return (
     <div
       className="grid gap-0.5"

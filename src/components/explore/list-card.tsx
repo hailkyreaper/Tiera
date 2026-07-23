@@ -55,7 +55,7 @@ export function ExploreListCard({
       : `/lists/${id}`;
 
   return (
-    <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 transition-colors hover:bg-muted active:bg-muted lg:gap-4 lg:p-5">
+    <div className="relative flex flex-col gap-3 rounded-sm bg-card p-4 lg:gap-4 lg:p-5">
       <Link
         href={href}
         className="absolute inset-0 rounded-sm"

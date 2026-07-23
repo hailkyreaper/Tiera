@@ -2,11 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Tier } from "@/lib/tiers";
 import { cleanCoverUrl } from "@/lib/cover-url";
+import { formatRelativeTime } from "@/lib/format-time";
 import { Avatar } from "@/components/avatar";
+import { BookCover } from "@/components/book-cover";
 import { MatchBadge } from "@/components/match-badge";
 import { HeroTierRow } from "@/components/marketing/hero-list-card";
 import { buttonVariants } from "@/components/ui/button";
 import type { TopMatchPerson } from "@/lib/db/top-matches";
+import type { ActivityItem } from "@/components/marketing/friend-activity";
 
 const serifStyle = {
   fontFamily:
@@ -96,6 +99,41 @@ function DiscoverRow({ book, percentage }: { book: PreviewBook; percentage: numb
   );
 }
 
+// Same row shape/content as FriendActivity's own activity rows (real
+// person, real "ranked a new book" line, real timestamp, real cover) —
+// reused here as the mobile-only Connect preview rather than the
+// notification bell's follow/comment/like row, per feedback: this is the
+// concrete "you'll see what people you follow are doing" moment.
+function ConnectRow({ item }: { item: ActivityItem }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar
+          src={item.avatarUrl}
+          name={item.username}
+          imageSize={36}
+          sizeClassName="size-9"
+          textClassName="text-xs"
+        />
+        <div className="min-w-0">
+          <p className="truncate text-sm text-foreground">
+            <span className="font-semibold">
+              {item.displayName ?? `@${item.username}`}
+            </span>{" "}
+            ranked a new book
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatRelativeTime(item.createdAt)}
+          </p>
+        </div>
+      </div>
+      <div className="w-9 shrink-0">
+        <BookCover src={item.bookThumbnail} alt={item.bookTitle} size={36} />
+      </div>
+    </div>
+  );
+}
+
 function Step({
   title,
   body,
@@ -130,10 +168,12 @@ export function HowItWorks({
   rankPreview,
   match,
   discover,
+  connect,
 }: {
   rankPreview: PreviewByTier | null;
   match: TopMatchPerson | null;
   discover: { book: PreviewBook; percentage: number }[];
+  connect: ActivityItem | null;
 }) {
   return (
     <section id="how-it-works" className="py-8 lg:py-12">
@@ -176,6 +216,22 @@ export function HowItWorks({
             </div>
           )}
         </Step>
+
+        {/* Mobile-only — covers the same "stay connected" idea desktop
+            gets from Stay in the loop (hidden on mobile, see page.tsx),
+            so the concept isn't dropped there, just told through a single
+            real notification row instead of a whole activity list. */}
+        <div className="lg:hidden">
+          <Step title="Connect" body="Stay connected and interact with who you follow.">
+            {connect ? (
+              <ConnectRow item={connect} />
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Notifications from people you follow show up here.
+              </p>
+            )}
+          </Step>
+        </div>
       </div>
     </section>
   );

@@ -77,7 +77,7 @@ export function HeroListCard({
   preview,
 }: {
   title: string;
-  caption: string;
+  caption?: string;
   username: string;
   avatarUrl?: string | null;
   likeCount: number;
@@ -108,9 +108,11 @@ export function HeroListCard({
 
       <div>
         <h3 className="font-semibold lg:text-lg">{title}</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground lg:text-sm">
-          {caption}
-        </p>
+        {caption && (
+          <p className="mt-0.5 text-xs text-muted-foreground lg:text-sm">
+            {caption}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col divide-y divide-white/10 overflow-hidden">

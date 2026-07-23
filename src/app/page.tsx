@@ -7,12 +7,9 @@ import { Wordmark } from "@/components/marketing/wordmark";
 import { MarketingTierBoard } from "@/components/marketing/marketing-tier-board";
 import { HeroListCard } from "@/components/marketing/hero-list-card";
 import { HowItWorks } from "@/components/marketing/how-it-works";
-import { MatchingShowcase } from "@/components/marketing/matching-showcase";
 import { FriendActivity, type ActivityItem } from "@/components/marketing/friend-activity";
-import { FinalCta } from "@/components/marketing/final-cta";
 import { getTopMatches, type TopMatchPerson } from "@/lib/db/top-matches";
 import {
-  getComparisonSummary,
   getMatchRecommendations,
   MIN_RECOMMENDATION_MATCH_PERCENTAGE,
   MIN_RECOMMENDATION_SHARED_BOOKS,
@@ -223,11 +220,6 @@ export default async function Home() {
   // match %, so the full sorted list is what's needed to reliably find them.
   const allMatches = hero ? await getTopMatches(supabase, hero.list.user_id) : [];
 
-  // Still the algorithmic 2nd-best match — a separate, earlier request
-  // ("show the compare page ... test_reader_eight") from the three named
-  // accounts above, so it's deliberately not tied to MATCH_USERNAMES.
-  const secondaryMatch = allMatches[1];
-
   // The three named profiles, in the given priority order — desktop shows
   // all of them in the Match card; mobile shows just whichever one clears
   // getFirstAvailableMatch's threshold, and that same person's real
@@ -242,41 +234,6 @@ export default async function Home() {
   const discover = matchSource?.recommendations ?? [];
 
   const recentActivity = await getRecentActivity(supabase, matchCandidates);
-
-  // The real Compare detail page's own header (You/percentage/Them +
-  // CompareStatsRow) for the founder's real secondary match — reuses the
-  // exact same components the real page renders, not a re-implementation,
-  // so this is genuinely "the compare page," not a lookalike.
-  const compareSummary =
-    hero && secondaryMatch
-      ? await getComparisonSummary(supabase, hero.list.user_id, secondaryMatch.userId)
-      : null;
-
-  const comparePercentage = compareSummary?.match.percentage ?? null;
-  const compareRecommendations =
-    hero &&
-    secondaryMatch &&
-    comparePercentage !== null &&
-    comparePercentage >= MIN_RECOMMENDATION_MATCH_PERCENTAGE &&
-    compareSummary!.match.sharedBookCount >= MIN_RECOMMENDATION_SHARED_BOOKS
-      ? await getMatchRecommendations(
-          supabase,
-          hero.list.user_id,
-          secondaryMatch.userId,
-          comparePercentage,
-          4,
-        )
-      : [];
-
-  // "Put the Dune recommendation under that" — show it specifically if
-  // it's actually one of the real recommendations for this pairing, since
-  // that's a stronger, more specific proof point than just "the first one
-  // happens to be whatever it is." Falls back to the top recommendation
-  // regardless of title otherwise — still real data either way.
-  const compareRecommendation =
-    compareRecommendations.find((r) => r.title.toLowerCase().includes("dune")) ??
-    compareRecommendations[0] ??
-    null;
 
   return (
     <main className="flex-1 bg-background">
@@ -306,7 +263,10 @@ export default async function Home() {
         <div className="flex-1 lg:flex lg:items-center">
           <div className="mx-auto w-full max-w-5xl px-4 lg:px-6">
             <section className="grid grid-cols-1 items-center gap-8 pt-6 pb-2 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-10">
-              <div>
+              {/* order-2/order-1 puts the card above the headline on
+                  mobile only — desktop's order-1/order-2 keeps the
+                  original headline-left/card-right arrangement. */}
+              <div className="order-2 lg:order-1">
                 <h1
                   className="mb-5 text-[32px] leading-[1.1] font-semibold tracking-tight text-balance lg:mb-[22px] lg:text-[52px]"
                   style={serifStyle}
@@ -322,22 +282,30 @@ export default async function Home() {
                   <Link href="/signup" className={buttonVariants({ size: "lg" })}>
                     Sign up →
                   </Link>
-                  <Link
-                    href="#how-it-works"
-                    className={buttonVariants({ variant: "outline", size: "lg" })}
-                  >
-                    See how it works
-                  </Link>
+                  {/* Desktop only — see how it works is redundant with the
+                      hero card above needing no explanation now on mobile
+                      (it's the first thing visible, not a "keep reading"
+                      ask). `contents` keeps the Link a normal flex item at
+                      lg: instead of fighting buttonVariants' own
+                      inline-flex for the display property. */}
+                  <span className="hidden lg:contents">
+                    <Link
+                      href="#how-it-works"
+                      className={buttonVariants({ variant: "outline", size: "lg" })}
+                    >
+                      See how it works
+                    </Link>
+                  </span>
                 </div>
               </div>
 
-              <div>
+              <div className="order-1 lg:order-2">
                 {/* Same mono/uppercase eyebrow device every other section on
                     this page uses (How it works, Matching, Stay in the loop)
-                    — the hero was the one place that skipped it, which made
-                    the card underneath read as an unexplained screenshot
-                    rather than a labeled example. */}
-                <p className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase lg:mb-4">
+                    — desktop only now; on mobile the card leads the section
+                    (see order-1 above) so it doesn't need a label
+                    introducing it first. */}
+                <p className="mb-3 hidden font-mono text-xs tracking-wider text-muted-foreground uppercase lg:block lg:mb-4">
                   A real Tiera list
                 </p>
                 {hero ? (
@@ -350,8 +318,7 @@ export default async function Home() {
                   // the full reasoning.
                   <div className="rounded-sm shadow-[0_40px_100px_-25px_rgba(0,0,0,0.7)]">
                     <HeroListCard
-                      title={hero.list.title}
-                      caption="My all-time fantasy favorites — ranked and re-ranked, three times over."
+                      title="All time favorite fantasy"
                       username={hero.profile.username}
                       avatarUrl={hero.profile.avatar_url}
                       likeCount={43}
@@ -376,33 +343,15 @@ export default async function Home() {
             book: { id: rec.bookId, title: rec.title, thumbnail: rec.thumbnail },
             percentage: rec.matchPercentage,
           }))}
+          connect={recentActivity[0] ?? null}
         />
 
-        {hero && secondaryMatch && compareSummary && comparePercentage !== null && (
-          <MatchingShowcase
-            founder={{
-              username: hero.profile.username,
-              displayName: null,
-              avatarUrl: hero.profile.avatar_url,
-            }}
-            them={{
-              username: secondaryMatch.username,
-              displayName: secondaryMatch.displayName,
-              avatarUrl: secondaryMatch.avatarUrl,
-            }}
-            matchPercentage={comparePercentage}
-            sharedBookCount={compareSummary.match.sharedBookCount}
-            sharedFavoritesCount={compareSummary.bothLove.length}
-            sharedDislikesCount={compareSummary.sharedDislikes.length}
-            disagreementsCount={compareSummary.disagreeOn.length}
-            topSharedGenre={compareSummary.topSharedGenre}
-            recommendation={compareRecommendation}
-          />
-        )}
-
-        <FriendActivity activity={recentActivity} />
-
-        <FinalCta />
+        {/* Desktop-only — mobile covers the same idea via How it works'
+            Connect step instead (a single real notification row rather
+            than a whole activity list). */}
+        <div className="hidden lg:block">
+          <FriendActivity activity={recentActivity} />
+        </div>
 
         <footer className="flex items-center justify-between border-t border-border py-7 text-sm text-muted-foreground">
           <span className="font-semibold text-foreground" style={serifStyle}>

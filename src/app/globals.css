@@ -222,6 +222,21 @@
   font-family: var(--font-display, inherit);
 }
 
+/* Logged-out landing/auth pages' tier-board hero — rows animate in top to
+   bottom on load, echoing the actual act of building a tier list. Scoped to
+   its own uniquely-named keyframe (MarketingTierBoard is the only user) so
+   it can't collide with or get pulled in by anything else. */
+@keyframes marketing-tier-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

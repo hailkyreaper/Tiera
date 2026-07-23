@@ -183,52 +183,65 @@ export default async function ProfilePage({
 
           {/* Mobile: avatar + name row, then bio → location+joined stacked
            * full-width below it (matches design/topmatches-style profile
-           * mockup). Desktop keeps its own untouched block right after. */}
+           * mockup). Desktop keeps its own untouched block right after.
+           * Edit mode gets its own centered, name/username-free layout
+           * instead — those are already editable as form fields below, so
+           * showing them again as plain text next to the avatar was
+           * redundant once you're in edit mode. */}
           <div className="z-10 flex flex-col gap-3 lg:hidden">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-center gap-1">
-                <div className="rounded-full p-1">
-                  <Avatar
-                    src={profile?.avatar_url}
-                    name={profile?.username ?? ""}
-                    imageSize={144}
-                    sizeClassName="size-16"
-                    textClassName="text-2xl"
-                    className="ring-2 ring-primary"
-                  />
+            {edit === "true" ? (
+              <div className="flex flex-col items-center gap-2">
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={profile?.username ?? ""}
+                  imageSize={144}
+                  sizeClassName="size-24"
+                  textClassName="text-3xl"
+                  className="ring-2 ring-primary"
+                />
+                <AvatarChangeControl formId="edit-profile-form" context="mobile" />
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full p-1">
+                    <Avatar
+                      src={profile?.avatar_url}
+                      name={profile?.username ?? ""}
+                      imageSize={144}
+                      sizeClassName="size-16"
+                      textClassName="text-2xl"
+                      className="ring-2 ring-primary"
+                    />
+                  </div>
+
+                  <div className="flex min-w-0 flex-col items-start">
+                    {profile?.display_name && (
+                      <p className="truncate text-lg font-semibold text-foreground">
+                        {profile.display_name}
+                      </p>
+                    )}
+                    <p
+                      className={cn(
+                        "truncate",
+                        profile?.display_name
+                          ? "text-sm text-muted-foreground"
+                          : "text-lg font-semibold text-foreground",
+                      )}
+                    >
+                      @{profile?.username}
+                    </p>
+                  </div>
                 </div>
-                {edit === "true" && (
-                  <AvatarChangeControl formId="edit-profile-form" context="mobile" />
-                )}
-              </div>
 
-              <div className="flex min-w-0 flex-col items-start">
-                {profile?.display_name && (
-                  <p className="truncate text-lg font-semibold text-foreground">
-                    {profile.display_name}
-                  </p>
-                )}
-                <p
-                  className={cn(
-                    "truncate",
-                    profile?.display_name
-                      ? "text-sm text-muted-foreground"
-                      : "text-lg font-semibold text-foreground",
-                  )}
-                >
-                  @{profile?.username}
-                </p>
-              </div>
-            </div>
-
-            {edit !== "true" && (
-              <ProfileBio
-                bio={profile?.bio}
-                location={profile?.location}
-                joinedDate={joinedDate}
-                metaInline
-                className="flex flex-col items-start gap-1 text-left"
-              />
+                <ProfileBio
+                  bio={profile?.bio}
+                  location={profile?.location}
+                  joinedDate={joinedDate}
+                  metaInline
+                  className="flex flex-col items-start gap-1 text-left"
+                />
+              </>
             )}
           </div>
 
@@ -282,7 +295,13 @@ export default async function ProfilePage({
             listsCount={listsCount}
             booksRankedCount={booksRankedCount ?? 0}
             followingCount={followingCount ?? 0}
-            className="z-10 flex w-full divide-x divide-border/60 border-y border-border/60 py-3 lg:w-auto lg:gap-10 lg:divide-x-0 lg:border-0 lg:pt-10 lg:pb-0"
+            className={cn(
+              "z-10 flex w-full divide-x divide-border/60 border-b border-border/60 py-3 lg:w-auto lg:gap-10 lg:divide-x-0 lg:border-0 lg:pt-10 lg:pb-0",
+              // Hidden on mobile in edit mode (already redundant with the
+              // centered avatar-only header above it there) — desktop edit
+              // mode is untouched, still shows it.
+              edit === "true" && "hidden lg:flex",
+            )}
           />
         </div>
 

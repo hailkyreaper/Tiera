@@ -146,7 +146,9 @@ export default async function ComparePage({
           <p className="text-sm text-muted-foreground">
             {tab === "friends"
               ? "None of the people you follow have enough shared books yet."
-              : "Not enough shared books with anyone yet — rank more books to see matches here."}
+              : otherUserCount === 0
+                ? "No one else has joined Tiera yet — once other readers sign up and rank a few books, matches will start showing up here."
+                : "Not enough shared books with anyone yet — rank more books to see matches here."}
           </p>
         ) : (
           <div className="flex flex-col gap-3">

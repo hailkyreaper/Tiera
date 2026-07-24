@@ -46,5 +46,10 @@ export async function setUsername(formData: FormData) {
     redirect(`/onboard/username?error=${encodeURIComponent(message)}`);
   }
 
-  redirect("/");
+  // Straight to Explore (rather than "/", which would just immediately
+  // redirect logged-in users there anyway) with a one-shot `welcome` flag —
+  // read once by the Explore page to show a first-time nudge toward
+  // creating a list, then gone on the next navigation since it's just a
+  // query param, not persisted state.
+  redirect("/explore?welcome=true");
 }

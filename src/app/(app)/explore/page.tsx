@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Sparkles, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { ExploreListCard } from "@/components/explore/list-card";
@@ -8,6 +9,8 @@ import { CompareTabs } from "@/components/compare-tabs";
 import { TopMatchesRail } from "@/components/top-matches-rail";
 import { TrendingThisWeekRail } from "@/components/trending-this-week-rail";
 import { PopularGenresRail } from "@/components/popular-genres-rail";
+import { Button } from "@/components/ui/button";
+import { WelcomeNudge } from "@/components/welcome-nudge";
 import { computeMatch, getBookScores, getBookScoresForUsers } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
@@ -46,9 +49,9 @@ type PreviewMap = Record<
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; sort?: string }>;
+  searchParams: Promise<{ tab?: string; sort?: string; welcome?: string }>;
 }) {
-  const { tab: rawTab, sort: rawSort } = await searchParams;
+  const { tab: rawTab, sort: rawSort, welcome } = await searchParams;
   const tab: ExploreTab = rawTab === "following" ? "following" : "for-you";
   const sort: ExploreSort =
     rawTab === "recent" || rawSort === "recent" ? "recent" : "popular";
@@ -203,6 +206,8 @@ export default async function ExplorePage({
           </Link>
         </div>
 
+        {welcome === "true" && <WelcomeNudge />}
+
         {/* Mobile/tablet: original single 3-tab bar — see MobileExploreTab.
          * Same underline-style CompareTabs used by Compare, stretched edge
          * to edge — unifies the two pages' primary tab look. */}
@@ -249,9 +254,41 @@ export default async function ExplorePage({
         </div>
 
         {lists.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No public tier lists yet — check back soon.
-          </p>
+          tab === "following" ? (
+            <div className="flex flex-col items-center gap-3 rounded-sm bg-card p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Users className="size-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">
+                  Not following anyone yet
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Follow people to see their tier lists here.
+                </p>
+              </div>
+              <Link href="/explore">
+                <Button type="button">Browse For You</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 rounded-sm bg-card p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Sparkles className="size-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">
+                  No public tier lists yet
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Be the first — create a tier list and share your taste.
+                </p>
+              </div>
+              <Link href="/lists">
+                <Button type="button">Create List</Button>
+              </Link>
+            </div>
+          )
         ) : (
           <div className="flex flex-col gap-4">
             {lists.map((list) => (

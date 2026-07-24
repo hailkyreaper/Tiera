@@ -35,7 +35,7 @@ export function BookCover({
       // size" and cuts the fetched resolution down to what's actually
       // needed, at whatever DPR the browser is on.
       sizes={`${size}px`}
-      className="h-auto w-full rounded-sm object-cover"
+      className="h-auto w-full rounded-sm bg-muted object-cover"
     />
   );
 }

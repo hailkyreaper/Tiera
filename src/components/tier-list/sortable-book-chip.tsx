@@ -55,7 +55,7 @@ export function SortableBookChip({
           width={400}
           height={600}
           sizes={COVER_SIZES}
-          className="h-auto w-full"
+          className="h-auto w-full bg-muted"
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">

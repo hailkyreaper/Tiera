@@ -82,7 +82,7 @@ export function TierRowBar({
                   height={600}
                   quality={highQuality ? 100 : 75}
                   sizes={COVER_SIZES}
-                  className="h-auto w-full"
+                  className="h-auto w-full bg-muted"
                 />
               </BookDetailDrawer>
             ) : (
@@ -93,7 +93,7 @@ export function TierRowBar({
                 height={600}
                 quality={highQuality ? 100 : 75}
                 sizes={COVER_SIZES}
-                className="h-auto w-full"
+                className="h-auto w-full bg-muted"
               />
             )
           ) : (

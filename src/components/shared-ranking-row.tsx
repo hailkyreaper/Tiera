@@ -5,16 +5,30 @@ import { scoreToTier } from "@/lib/db/taste-match";
 import type { SharedBook } from "@/lib/db/taste-match";
 import type { Tier } from "@/lib/tiers";
 
-// A single row in a shared-book list (Top Books You Both Love, Shared
-// Dislikes): cover, title/author, and a tier badge showing the higher of
-// the two shared scores. Cover+text open the same BookDetailDrawer used
-// elsewhere (Search, Recommendations, Library) — this was previously the
-// one place left without it.
-export function MatchedBookRow({ book }: { book: SharedBook }) {
-  const tier = scoreToTier(Math.max(book.scoreA, book.scoreB)) as Tier;
-  const badgeColor =
-    tier === "unranked" ? "bg-muted" : TIER_BADGE_COLORS[tier];
+function TierPill({ score, who }: { score: number; who: string }) {
+  const tier = scoreToTier(score) as Tier;
+  const color = tier === "unranked" ? "bg-muted" : TIER_BADGE_COLORS[tier];
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="text-[9px] font-bold tracking-wide text-muted-foreground uppercase">
+        {who}
+      </span>
+      <span
+        className={`flex size-6 items-center justify-center rounded-full text-[11px] font-bold text-white ${color}`}
+      >
+        {tier}
+      </span>
+    </div>
+  );
+}
 
+// A single row in the "Shared Ranking" list — every book both people have
+// ranked, with both tier badges shown side by side. Replaces the old split
+// of Top Books You Both Love / Shared Dislikes / Biggest Differences into
+// three separate sections: one unified list, sorted best-agreement-first,
+// where a real disagreement is already visible as two very different
+// badges rather than needing its own dedicated panel.
+export function SharedRankingRow({ book }: { book: SharedBook }) {
   return (
     <div className="flex items-center gap-3">
       <BookDetailDrawer
@@ -43,11 +57,10 @@ export function MatchedBookRow({ book }: { book: SharedBook }) {
           </div>
         </div>
       </BookDetailDrawer>
-      <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white ${badgeColor}`}
-      >
-        {tier}
-      </span>
+      <div className="flex shrink-0 items-center gap-2">
+        <TierPill score={book.scoreA} who="You" />
+        <TierPill score={book.scoreB} who="Them" />
+      </div>
     </div>
   );
 }

@@ -2746,6 +2746,130 @@ two full redesign passes of `/` before landing here; see git history on
   it. Fixed with a `mb-10` nudge on the content block, shifting it up 
   ~20px for better optical (not mathematical) balance.
 
+**Compare — full landing + detail page redesign** ✅ done. Picked up from 
+the prior session's open "N books you'll love" wording issue and grew into 
+a full rebuild of both `/compare` and `/compare/[username]`, using 
+`design2/"compare + compare stats.png"` and `design2/"compare final.png"` 
+as reference (a real mockup built via the frontend-design skill first, 
+iterated live against the running app throughout).
+
+**Landing list (`/compare`, `TopMatchCard`)**:
+- Wording resolved: "N books you'll love" → "N of their favorites you 
+  haven't read" — neutral/literal, doesn't overclaim or imply the 
+  click-through will show all N (it won't; see Recommendations below).
+- New shared `MatchRing` component (`src/components/match-ring.tsx`) — a 
+  thin SVG progress ring sized by match %, the one signature visual motif 
+  reused across the taste-score hero card and (originally) the list-row 
+  avatars. **Later removed from every avatar specifically** — "round 
+  background things on profile pictures" read as clutter once seen live; 
+  the ring now only wraps non-photo elements (the hero card's sparkle icon, 
+  the detail page's standalone match-% display), never an actual photo.
+- `topGenres` reinstated on `TopMatchPerson` (`src/lib/db/top-matches.ts`) 
+  now that the redesigned card has a real spot for it (removed in the prior 
+  session as filler with nowhere to go). Backed by a new allowlist, 
+  `src/lib/genre-labels.ts` — checked the real catalog first (99 distinct 
+  category strings), found most are Open Library topical/setting noise 
+  ("Schools In Fiction", "Washington (State) -- Fiction") that a plain 
+  length cap can't distinguish from genuine short genres. The allowlist 
+  normalizes recognized variants to one canonical label ("Science Fiction", 
+  "Hard Science Fiction" → "Sci-Fi") before tallying, so equivalent forms 
+  merge counts instead of splitting, and anything unmapped is dropped 
+  outright rather than guessed at.
+- Rank badges: numbered 1..N (real list position, a legitimate use of 
+  numbering). Podium coloring went through purple/orange-for-3rd → all 
+  top-3 the same purple (user preference). A flush-in-the-card-corner 
+  treatment (matching the card's own `rounded-sm` radius so the two curves 
+  read as one shape) was built and then reverted — user preferred the 
+  original floating chip look (`-top-1.5 -left-1.5`, its own `rounded-[7px]`, 
+  `border-2 border-card`).
+- Avatar bumped 48px→56px, card content gap 1→2, meta row gained `pt-2` — 
+  all direct spacing requests.
+- Stars next to names (decorative, no real "verified" feature) were tried 
+  and removed, on both this card and the detail page's header.
+- Tabs: pill-style `SegmentedTabs` (shared with Explore/Search — never 
+  touched) replaced with a new dedicated `CompareTabs` 
+  (`src/components/compare-tabs.tsx`) matching the reference's underline 
+  style exactly (bold+purple+underline active, muted inactive, hairline 
+  under the row), stretched edge-to-edge via a dynamic 
+  `repeat(tabs.length, 1fr)` rather than the reference's left-aligned tabs. 
+  Went through a 3-tab phase ("Top Matches" / "All Matches" / "Friends") 
+  before settling back to 2 ("Top Matches" / "Friends") — "All Matches" was 
+  tried as a real uncurated-list tab and dropped as unnecessary once "View 
+  more" (below) covered that need.
+- Sort/filter: added `CompareSortSelect` (Best Match / Most Ranked / Most 
+  Unread Favorites), tried as icon-only (new opt-in `iconOnly` prop on the 
+  shared `DropdownSelect` — Library/Search keep their labeled pills), then 
+  **removed entirely** per direct feedback ("no filter") — deleted the 
+  component and reverted `DropdownSelect`'s `iconOnly` prop since nothing 
+  else used it.
+- Display cap: "View all matches" link → flat 5 → settled on **10 shown by 
+  default, 15 max via a "View more" text link** 
+  (`DEFAULT_DISPLAY_COUNT`/`EXPANDED_DISPLAY_COUNT` in `top-matches.ts`'s 
+  `curateTopMatches`) — never the true uncurated full list.
+- Rank badges are stable: always computed from the pool's canonical 
+  Best-Match order (`rankByUserId`), independent of whatever sort is 
+  currently reordering the visible list, and independent of which tab is 
+  active — confirmed live that a friend shows their real overall rank 
+  (e.g. "8") on the Friends tab, not "1st among friends."
+- Real bug fixed along the way: the taste-score card's new dismiss ("X", 
+  persisted via `localStorage`) was unclickable — `MatchRing`'s absolutely-
+  positioned SVG, painted after the button in DOM order, was intercepting 
+  the click. Fixed with `z-10` on the button.
+
+**Detail page (`/compare/[username]`)**:
+- Header rebuilt: single-person profile block (avatar, name, `@username`, 
+  real `location` field now fetched, a `topSharedGenre` pill) + a separate 
+  match-score ring — replacing the old 3-column You/%/Them grid. TopNav 
+  title changed from "Compare" to the person's name.
+- Old `CompareStatsRow`/`DisagreementsRail`/`MatchedBookRow` all deleted 
+  (fully unused after the rebuild, confirmed via grep before deleting).
+- New 3 stat tiles: Shared Books, Favorites unread, and a third slot that 
+  went through two iterations — "They haven't read" (`discoveryCounts.
+  otherUnread`, a new symmetric mirror of `discoveryCount` via 
+  `getDiscoveryCounts` in `taste-match.ts`) read as confusing (a stat about 
+  *their* side with no linked section anywhere on the page), replaced with 
+  **Disagreements** (`disagreeOn.length`) — a single number that maps 
+  directly to the mismatched badges visible in Shared Ranking below.
+- Callout box: tiered copy (85%+ / 65%+ match) with a real second line 
+  ("You agreed on N of your M shared books"), not a fabricated percentile.
+- New `AgreementBreakdown` component (3 bars, "Reading volume" dropped from 
+  the reference's 4th metric per feedback). "Top tier agreement" 
+  (`bothLove.length / sharedBookCount`, i.e. only counting pairs where 
+  *both* rated A-tier+) was renamed and **redefined** to **Tier Alignment** 
+  (`(sharedBookCount - disagreeOn.length) / sharedBookCount`) after live 
+  testing exposed it as misleading: a 95%-match pair with zero real 
+  disagreements across 12 shared books still showed "50%," since half their 
+  agreed books only reached B/B or C/C, never both A+. Tier Alignment 
+  measures the thing the label actually implies. Genre alignment and Low 
+  tier agreement kept their original, correctly-narrow definitions.
+- New **Shared Ranking** section (`SharedRankingRow`) replaces the old 
+  three-way split (Top Books You Both Love / Shared Dislikes / Biggest 
+  Differences) with one unified list — every shared book, both people's 
+  tier badges side by side, sorted best-agreement-first. Turned out to need 
+  zero new backend logic: `getComparisonSummary` already returned this via 
+  its `shared` array. Capped at 5 with a "View all" link.
+- Recommendations section restyled specifically for this page only (every 
+  other surface using `getMatchRecommendations`/`RecommendationRow` — the 
+  standalone Recommendations page, Library's TBR rail, Profile/Explore's 
+  rail — is untouched): new `RecommendationCoverStrip` 
+  (`src/components/recommendation-cover-strip.tsx`), a plain cover strip 
+  (cover + the other person's tier badge + title/author, no match% badge or 
+  Add button), vs. the list-row style everywhere else. New `theirTier` 
+  field added to `MatchRecommendation` to back the badge. Heading went 
+  through several names, landing on **"From {FirstName}'s Favorites"** — 
+  first word of their display name only, falling back to the full username 
+  when there's no display name. `MatchRecommendationsRail` and 
+  `RecommendationRow`'s now-dead `"list"` variant were deleted once nothing 
+  else referenced them.
+- "View more" (inline with the heading, right-aligned — matching Shared 
+  Ranking's own header row) expands the strip into a wrapping row of the 
+  *same fixed-size* covers, never a stretchy grid. Real bug fixed here too: 
+  `BookDetailDrawer`'s own trigger is `w-full`, which is harmless in a 
+  non-wrapping scroll strip (gets shrunk to fit) but claims an entire row 
+  for itself the moment `flex-wrap` is enabled — confirmed live (covers 
+  rendered one per row instead of four) before moving the fixed-width 
+  wrapper outside the drawer instead of inside it.
+
 Do not implement features from future sprints until explicitly instructed.
 
 ## Roadmap

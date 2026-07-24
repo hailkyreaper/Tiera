@@ -1,19 +1,22 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AlertTriangle, Bookmark, BookOpen, MapPin, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import {
   getBookScores,
   getComparisonSummary,
+  getDiscoveryCounts,
+  computeGenreAlignment,
   getMatchRecommendations,
   MIN_RECOMMENDATION_SHARED_BOOKS,
   MIN_RECOMMENDATION_MATCH_PERCENTAGE,
 } from "@/lib/db/taste-match";
 import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
-import { MatchedBookRow } from "@/components/matched-book-row";
-import { CompareStatsRow } from "@/components/compare-stats-row";
-import { DisagreementsRail } from "@/components/disagreements-rail";
-import { MatchRecommendationsRail } from "@/components/match-recommendations-rail";
+import { SharedRankingRow } from "@/components/shared-ranking-row";
+import { AgreementBreakdown } from "@/components/agreement-breakdown";
+import { RecommendationCoverStrip } from "@/components/recommendation-cover-strip";
+import { MatchRing } from "@/components/match-ring";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/avatar";
@@ -24,13 +27,36 @@ type ProfileRow = {
   display_name: string | null;
   avatar_url: string | null;
 };
+type TheirProfileRow = ProfileRow & { location: string | null };
+
+// Same "?limit=" + "View More" pagination shape as the standalone
+// Recommendations page (recommendations/page.tsx) — default matches
+// getMatchRecommendations' own default of 4.
+const DEFAULT_RECS_LIMIT = 4;
+const RECS_PAGE_SIZE = 4;
+
+// How many rows of the Shared Ranking list show before "View all" —
+// unlike Recommendations (which fetches externally), the full list is
+// already in memory from getComparisonSummary, so "View all" just lifts
+// the slice rather than paging through more queries.
+const DEFAULT_SHARED_DISPLAY = 5;
 
 export default async function CompareWithUserPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ recsLimit?: string; allShared?: string }>;
 }) {
   const { username } = await params;
+  const { recsLimit: rawRecsLimit, allShared: rawAllShared } =
+    await searchParams;
+  const parsedRecsLimit = parseInt(rawRecsLimit ?? "", 10);
+  const recsLimit =
+    Number.isFinite(parsedRecsLimit) && parsedRecsLimit > 0
+      ? parsedRecsLimit
+      : DEFAULT_RECS_LIMIT;
+  const showAllShared = rawAllShared === "true";
   const supabase = await createClient();
 
   const {
@@ -53,9 +79,9 @@ export default async function CompareWithUserPage({
   const them = assertNoSupabaseError(
     await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, display_name, avatar_url, location")
       .ilike("username", username)
-      .maybeSingle<ProfileRow>(),
+      .maybeSingle<TheirProfileRow>(),
     "fetching their profile",
   );
 
@@ -74,8 +100,61 @@ export default async function CompareWithUserPage({
     );
   }
 
-  const { match, bothLove, disagreeOn, sharedDislikes, topSharedGenre } =
-    await getComparisonSummary(supabase, me.id, them.id);
+  // Fetched once, reused for discovery counts below and the recommendation-
+  // impression analytics further down — getComparisonSummary computes its
+  // own copies of these internally too (a small accepted redundant read,
+  // traded for not having to plumb score maps out of its return shape).
+  const [summary, myScores, theirScores] = await Promise.all([
+    getComparisonSummary(supabase, me.id, them.id),
+    getBookScores(supabase, me.id),
+    getBookScores(supabase, them.id),
+  ]);
+  const { match, bothLove, disagreeOn, sharedDislikes, shared, topSharedGenre } =
+    summary;
+
+  const discoveryCounts =
+    match.percentage !== null
+      ? await getDiscoveryCounts(supabase, me.id, them.id, myScores, theirScores)
+      : null;
+
+  const genreAlignment = computeGenreAlignment(shared, topSharedGenre);
+  // % of shared books where you're NOT in a real disagreement (gap < 2) —
+  // not just the narrower "both rated it A-tier or higher." That narrower
+  // version (bothLove.length / sharedBookCount) read as misleadingly low
+  // for pairs who agree closely but rarely both reach A/S specifically —
+  // confirmed live: a 95%-match pair with 0 real disagreements across 12
+  // shared books still showed "50% top tier agreement," since half their
+  // agreed-upon books topped out at B or C for both, not A+.
+  const tierAlignment =
+    match.sharedBookCount > 0
+      ? Math.round(
+          ((match.sharedBookCount - disagreeOn.length) /
+            match.sharedBookCount) *
+            100,
+        )
+      : 0;
+  const lowTierAgreement =
+    match.sharedBookCount > 0
+      ? Math.round((sharedDislikes.length / match.sharedBookCount) * 100)
+      : 0;
+
+  let calloutHeadline: string | null = null;
+  if (match.percentage !== null) {
+    if (match.percentage >= 85) {
+      calloutHeadline = "You have amazing taste in common!";
+    } else if (match.percentage >= MIN_RECOMMENDATION_MATCH_PERCENTAGE) {
+      calloutHeadline = "You have great taste in common!";
+    }
+  }
+  const showCallout = calloutHeadline !== null && bothLove.length > 0;
+
+  const sortedShared = [...shared].sort(
+    (a, b) => b.scoreA + b.scoreB - (a.scoreA + a.scoreB),
+  );
+  const hasMoreShared = sortedShared.length > DEFAULT_SHARED_DISPLAY;
+  const sharedToShow = showAllShared
+    ? sortedShared
+    : sortedShared.slice(0, DEFAULT_SHARED_DISPLAY);
 
   // Recommendations (and every summary panel below) only make sense once
   // there's a real match — see the audit: this used to run unconditionally,
@@ -92,20 +171,21 @@ export default async function CompareWithUserPage({
     match.percentage !== null &&
     match.percentage >= MIN_RECOMMENDATION_MATCH_PERCENTAGE &&
     match.sharedBookCount >= MIN_RECOMMENDATION_SHARED_BOOKS
-      ? await getMatchRecommendations(supabase, me.id, them.id, match.percentage)
+      ? await getMatchRecommendations(
+          supabase,
+          me.id,
+          them.id,
+          match.percentage,
+          recsLimit,
+        )
       : [];
 
-  if (matchRecommendations.length > 0) {
-    // getComparisonSummary already computes both people's book scores
-    // internally to build `match` — these two calls are a small redundant
-    // read (getBookScores itself, not the rest of the summary), traded for
-    // not having to plumb ranked-counts out of getComparisonSummary's
-    // return shape just for this analytics log.
-    const [myScores, theirScores] = await Promise.all([
-      getBookScores(supabase, me.id),
-      getBookScores(supabase, them.id),
-    ]);
+  const recsMoreHref =
+    matchRecommendations.length === recsLimit
+      ? `/compare/${username}?recsLimit=${recsLimit + RECS_PAGE_SIZE}`
+      : undefined;
 
+  if (matchRecommendations.length > 0) {
     await recordRecommendationImpressions(
       supabase,
       matchRecommendations.map((recommendation) => ({
@@ -124,156 +204,166 @@ export default async function CompareWithUserPage({
     );
   }
 
+  const theirName = them.display_name ?? them.username;
+  // "Maya Summers" -> "Maya" for the recommendations heading — first name
+  // only reads friendlier than a full display name or a bare username
+  // there. Falls back to the full username when there's no display name
+  // (usernames don't really have a "first" part to split on).
+  const theirFirstName = them.display_name
+    ? them.display_name.split(" ")[0]
+    : them.username;
+  // "View more" (below) extends the cover strip into a wrapping grid
+  // rather than adding more items to scroll through sideways — this is
+  // true once recsLimit has been bumped past its default via that link.
+  const recsExpanded = recsLimit > DEFAULT_RECS_LIMIT;
+
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 xl:max-w-4xl">
-        <TopNav title="Compare" center />
+        <TopNav title={theirName} center />
 
-        {/* No card fill or border (user's call) — just an equal-thirds
-         * grid so every column is exactly the same width regardless of its
-         * content's natural size, with each grid item centering its own
-         * content. Equal flex-1 widths alone (the original approach)
-         * got the math right but uneven column heights (e.g. a wrapping
-         * display name) still read as misaligned with nothing to visually
-         * anchor each section. */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
-            <Avatar
-              src={me.avatar_url}
-              name={me.username}
-              imageSize={64}
-              sizeClassName="size-16"
-              textClassName="text-lg"
-              className="ring-4 ring-primary"
-            />
-            {/* w-full on the text itself (not just the wrapper) is
-             * load-bearing: this wrapper's items-center sizes each child
-             * to its own content width by default (no stretch), so
-             * truncate has nothing smaller than the text to clip against
-             * without it — same underlying issue as BookDetailDrawer's
-             * missing min-w-0 earlier, one layer further in. */}
-            <div className="flex w-full min-w-0 flex-col items-center">
-              <span className="text-sm font-semibold text-foreground">You</span>
-              <span className="w-full truncate text-xs text-muted-foreground">
-                @{me.username}
+        <div className="flex items-start gap-4">
+          <Avatar
+            src={them.avatar_url}
+            name={them.username}
+            imageSize={72}
+            sizeClassName="size-[72px]"
+            textClassName="text-xl"
+          />
+
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-1">
+            <span className="block w-fit max-w-full truncate text-lg font-bold text-foreground">
+              {theirName}
+            </span>
+            <Link
+              href={`/u/${them.username}`}
+              className="block w-fit max-w-full truncate text-sm text-muted-foreground hover:underline"
+            >
+              @{them.username}
+            </Link>
+            {them.location && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="size-3.5 shrink-0" />
+                {them.location}
               </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-1 p-1.5 text-center">
-            {match.percentage === null ? (
-              <p className="text-sm text-muted-foreground">
-                Not enough shared books yet ({match.sharedBookCount}/3)
-              </p>
-            ) : (
-              <>
-                <span className="text-4xl font-bold text-primary sm:text-5xl">
-                  {match.percentage}%
-                </span>
-                <span className="text-sm font-medium text-muted-foreground">
-                  Taste Match
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {match.sharedBookCount} shared books
-                </span>
-              </>
+            )}
+            {topSharedGenre && (
+              <span className="mt-1.5 w-fit rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary-link">
+                {topSharedGenre}
+              </span>
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-2 p-1.5 text-center">
-            <Avatar
-              src={them.avatar_url}
-              name={them.username}
-              imageSize={64}
-              sizeClassName="size-16"
-              textClassName="text-lg"
-              className="ring-4 ring-primary"
-            />
-            <div className="flex w-full min-w-0 flex-col items-center">
-              {them.display_name && (
-                <span className="w-full truncate text-sm font-semibold text-foreground">
-                  {them.display_name}
+          {match.percentage !== null ? (
+            <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
+              <MatchRing percentage={match.percentage} size={72} strokeWidth={5}>
+                <span className="text-base font-extrabold text-foreground">
+                  {match.percentage}%
                 </span>
-              )}
-              <Link
-                href={`/u/${them.username}`}
-                className={
-                  them.display_name
-                    ? "w-full truncate text-xs text-muted-foreground hover:underline"
-                    : "w-full truncate text-sm font-semibold text-foreground hover:underline"
-                }
-              >
-                @{them.username}
-              </Link>
+              </MatchRing>
+              <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Taste Match
+              </span>
             </div>
-          </div>
+          ) : (
+            <p className="w-28 shrink-0 text-right text-xs text-muted-foreground">
+              Not enough shared books yet ({match.sharedBookCount}/3)
+            </p>
+          )}
         </div>
 
-        {match.percentage !== null && (
+        {match.percentage !== null && discoveryCounts && (
           <>
-            <CompareStatsRow
-              sharedFavoritesCount={bothLove.length}
-              sharedDislikesCount={sharedDislikes.length}
-              disagreementsCount={disagreeOn.length}
-              topSharedGenre={topSharedGenre}
-            />
-
-            {/* MIN_PANEL_BOOKS gates topSharedGenre (an inference drawn
-             * from bothLove — see taste-match.ts) since a genre tag off a
-             * single book reads as a confident claim the data doesn't
-             * support. It deliberately does NOT gate these two lists: they
-             * just literally list whichever shared books qualify, so
-             * showing 1 is accurate, not misleading — and gating them here
-             * previously contradicted CompareStatsRow's raw count right
-             * above (stat said "1," panel said "No shared dislikes yet"). */}
-            <div className="flex flex-col gap-3 text-left">
-              <h2 className="text-lg font-semibold text-foreground">
-                Top Books You Both Love
-              </h2>
-              {bothLove.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No shared favorites yet.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {bothLove.slice(0, 5).map((book) => (
-                    <MatchedBookRow key={book.bookId} book={book} />
-                  ))}
-                </div>
-              )}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center gap-1 rounded-sm bg-card p-3 text-center">
+                <Bookmark className="size-4 text-primary" />
+                <span className="text-lg font-bold text-foreground">
+                  {match.sharedBookCount}
+                </span>
+                <span className="text-[10.5px] text-muted-foreground">
+                  Shared Books
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-sm bg-card p-3 text-center">
+                <BookOpen className="size-4 text-primary" />
+                <span className="text-lg font-bold text-foreground">
+                  {discoveryCounts.viewerUnread}
+                </span>
+                <span className="text-[10.5px] text-muted-foreground">
+                  Favorites unread
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-sm bg-card p-3 text-center">
+                <AlertTriangle className="size-4 text-primary" />
+                <span className="text-lg font-bold text-foreground">
+                  {disagreeOn.length}
+                </span>
+                <span className="text-[10.5px] text-muted-foreground">
+                  Disagreements
+                </span>
+              </div>
             </div>
 
+            {showCallout && (
+              <div className="flex items-start gap-2.5 rounded-sm bg-primary/10 p-3.5">
+                <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                <p className="text-sm text-foreground">
+                  <span className="font-semibold">{calloutHeadline}</span>{" "}
+                  <span className="text-muted-foreground">
+                    You agreed on {bothLove.length} of your{" "}
+                    {match.sharedBookCount} shared books.
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <AgreementBreakdown
+              tierAlignment={tierAlignment}
+              genreAlignment={genreAlignment}
+              lowTierAgreement={lowTierAgreement}
+            />
+
             <div className="flex flex-col gap-3 text-left">
-              <h2 className="text-lg font-semibold text-foreground">
-                Shared Dislikes
-              </h2>
-              {sharedDislikes.length === 0 ? (
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Shared Ranking
+                </h2>
+                {hasMoreShared && !showAllShared && (
+                  <Link
+                    href={`/compare/${username}?allShared=true&recsLimit=${recsLimit}`}
+                    className="text-sm font-medium text-primary-link"
+                  >
+                    View all
+                  </Link>
+                )}
+              </div>
+              {sharedToShow.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No shared dislikes yet.
+                  No shared books yet.
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {sharedDislikes.slice(0, 5).map((book) => (
-                    <MatchedBookRow key={book.bookId} book={book} />
+                  {sharedToShow.map((book) => (
+                    <SharedRankingRow key={book.bookId} book={book} />
                   ))}
                 </div>
               )}
             </div>
 
             {/* Below xl, the right-rail aside further down doesn't render
-             * at all (it's xl:flex) — this was the only place Biggest
-             * Differences/Recommendations ever showed, so mobile/tablet
-             * never saw them. Same data, rendered again here and hidden at
-             * xl (where the aside takes over instead), matching the
-             * "duplicate but only one ever visible via CSS" approach
-             * already used elsewhere in the app. */}
-            {(disagreeOn.length > 0 || matchRecommendations.length > 0) && (
-              <div className="flex flex-col gap-4 xl:hidden">
-                <DisagreementsRail books={disagreeOn.slice(0, 5)} bare />
-                <MatchRecommendationsRail
+             * at all (it's xl:flex) — this was the only place
+             * Recommendations ever showed, so mobile/tablet never saw it.
+             * Same data, rendered again here and hidden at xl (where the
+             * aside takes over instead), matching the "duplicate but only
+             * one ever visible via CSS" approach already used elsewhere in
+             * the app. */}
+            {matchRecommendations.length > 0 && (
+              <div className="xl:hidden">
+                <RecommendationCoverStrip
                   recommendations={matchRecommendations}
-                  path={`/compare/${username}`}
-                  bare
+                  heading={`From ${theirFirstName}'s Favorites`}
+                  moreHref={recsMoreHref}
+                  expanded={recsExpanded}
                 />
               </div>
             )}
@@ -287,16 +377,16 @@ export default async function CompareWithUserPage({
         </Link>
       </div>
 
-      {match.percentage !== null &&
-        (disagreeOn.length > 0 || matchRecommendations.length > 0) && (
-          <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 xl:flex">
-            <DisagreementsRail books={disagreeOn.slice(0, 5)} />
-            <MatchRecommendationsRail
-              recommendations={matchRecommendations}
-              path={`/compare/${username}`}
-            />
-          </aside>
-        )}
+      {match.percentage !== null && matchRecommendations.length > 0 && (
+        <aside className="sticky top-4 hidden h-fit w-96 shrink-0 flex-col gap-4 rounded-sm bg-card p-6 xl:flex">
+          <RecommendationCoverStrip
+            recommendations={matchRecommendations}
+            heading={`From ${theirFirstName}'s Favorites`}
+            moreHref={recsMoreHref}
+            expanded={recsExpanded}
+          />
+        </aside>
+      )}
     </div>
   );
 }

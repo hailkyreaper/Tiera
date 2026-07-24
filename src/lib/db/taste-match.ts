@@ -337,6 +337,82 @@ export async function getComparisonSummary(
   };
 }
 
+export type DiscoveryCounts = {
+  // Their favorites (S/A tier) not in your library.
+  viewerUnread: number;
+  // Your favorites (S/A tier) not in their library.
+  otherUnread: number;
+};
+
+const DISCOVERY_TIER_THRESHOLD = TIER_SCORES.A;
+
+// Symmetric mirror of top-matches.ts's discoveryCount, for one already-known
+// pair rather than a batch of candidates — backs the Compare detail page's
+// "Favorites unread" / "They haven't read" stat tiles. Takes both people's
+// already-fetched score maps (the caller already has these from
+// getComparisonSummary's own inputs) rather than recomputing them here.
+export async function getDiscoveryCounts(
+  supabase: SupabaseServerClient,
+  viewerId: string,
+  otherId: string,
+  viewerScores: Map<string, number>,
+  otherScores: Map<string, number>,
+): Promise<DiscoveryCounts> {
+  const [viewerLibraryResult, otherLibraryResult] = await Promise.all([
+    supabase.from("user_books").select("book_id").eq("user_id", viewerId),
+    supabase.from("user_books").select("book_id").eq("user_id", otherId),
+  ]);
+  const viewerLibraryRows = assertNoSupabaseError(
+    viewerLibraryResult,
+    "fetching viewer's library for discovery counts",
+  );
+  const otherLibraryRows = assertNoSupabaseError(
+    otherLibraryResult,
+    "fetching other user's library for discovery counts",
+  );
+
+  const viewerLibrary = new Set([
+    ...(viewerLibraryRows ?? []).map((row) => row.book_id as string),
+    ...viewerScores.keys(),
+  ]);
+  const otherLibrary = new Set([
+    ...(otherLibraryRows ?? []).map((row) => row.book_id as string),
+    ...otherScores.keys(),
+  ]);
+
+  let viewerUnread = 0;
+  for (const [bookId, score] of otherScores) {
+    if (score >= DISCOVERY_TIER_THRESHOLD && !viewerLibrary.has(bookId)) {
+      viewerUnread += 1;
+    }
+  }
+
+  let otherUnread = 0;
+  for (const [bookId, score] of viewerScores) {
+    if (score >= DISCOVERY_TIER_THRESHOLD && !otherLibrary.has(bookId)) {
+      otherUnread += 1;
+    }
+  }
+
+  return { viewerUnread, otherUnread };
+}
+
+// "Genre alignment" — of the books you both ranked, what fraction share
+// your Top Shared Genre? A real, derivable ratio (reuses the same `shared`
+// array getComparisonSummary already returns, no new query) rather than an
+// invented sub-score. null — renders nothing — whenever topSharedGenre
+// itself is null, the same honesty rule that field already follows.
+export function computeGenreAlignment(
+  shared: SharedBook[],
+  topSharedGenre: string | null,
+): number | null {
+  if (!topSharedGenre || shared.length === 0) return null;
+  const matching = shared.filter((book) =>
+    (book.categories ?? []).includes(topSharedGenre),
+  ).length;
+  return Math.round((matching / shared.length) * 100);
+}
+
 const SCORE_TO_TIER: Record<number, string> = Object.fromEntries(
   Object.entries(TIER_SCORES).map(([tier, score]) => [score, tier]),
 );
@@ -483,6 +559,11 @@ export type MatchRecommendation = {
   matchPercentage: number;
   description: string | null;
   averageRating: number | null;
+  // How the *other* person tiered this book — not used by the default
+  // list-row rendering (RecommendationRow), but backs Compare detail's own
+  // cover-strip variant, which shows a tier badge per cover the way
+  // Shared Ranking does.
+  theirTier: string;
 };
 
 // Only recommend books the other person rated highly enough to mean "they
@@ -502,13 +583,11 @@ const RECOMMENDATION_TIER_THRESHOLD = TIER_SCORES.A;
 export const MIN_RECOMMENDATION_SHARED_BOOKS = 8;
 
 // Recommendations need a real, above-baseline match, not just "some
-// overlap" — a distinct constant from top-matches.ts's
-// PREFERRED_MATCH_THRESHOLD (both currently 65, chosen as the same "beats
-// the ~61% random-chance baseline" bar) since one governs whether someone
-// shows up in Top Matches at all (a ranking/display decision) and this one
-// governs whether we suggest specific books off a match (a content-quality
-// decision) — kept separate so retuning one doesn't silently retune the
-// other.
+// overlap" — chosen as the same "beats the ~61% random-chance baseline" bar
+// top-matches.ts's own ranking uses, but kept as its own separate constant
+// since this one specifically governs whether we suggest specific books off
+// a match (a content-quality decision), not whether someone shows up in Top
+// Matches at all — retuning one shouldn't silently retune the other.
 export const MIN_RECOMMENDATION_MATCH_PERCENTAGE = 65;
 
 // "Based on this match, you might like" — the other user's top N
@@ -540,7 +619,7 @@ export async function getMatchRecommendations(
   return candidates
     .filter(({ score }) => score >= RECOMMENDATION_TIER_THRESHOLD)
     .slice(0, limit)
-    .map(({ book }) => ({
+    .map(({ book, score }) => ({
       bookId: book.id,
       title: book.title,
       authors: book.authors,
@@ -548,5 +627,6 @@ export async function getMatchRecommendations(
       matchPercentage,
       description: book.description,
       averageRating: book.average_rating,
+      theirTier: scoreToTier(score),
     }));
 }

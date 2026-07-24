@@ -4,8 +4,8 @@ import {
   TIER_SCORES,
   type SupabaseServerClient,
 } from "@/lib/db/taste-match";
-import type { FavoriteBook } from "@/lib/db/favorites";
 import { assertNoSupabaseError } from "@/lib/supabase/assert";
+import { shortenGenre } from "@/lib/genre-labels";
 
 export type TopMatchPerson = {
   userId: string;
@@ -21,8 +21,16 @@ export type TopMatchPerson = {
   // percentage itself — no extra query.
   sharedBookCount: number;
   booksRankedCount: number;
+  // How many of their S/A-tier books aren't already in the viewer's
+  // library — surfaced on the card as "N of their favorites you haven't
+  // read." 0 when includeDetails is false.
+  discoveryCount: number;
+  // Their top 3 most-ranked categories — reintroduced for the redesigned
+  // Top Matches list's genre-tag pills (design2/"compare final.png").
+  // Removed earlier this session for being filler unrelated to the viewer;
+  // brought back once the card actually had a spot for it that wasn't
+  // "just decoration." Empty when includeDetails is false.
   topGenres: string[];
-  topFavorites: FavoriteBook[];
 };
 
 type ProfileRow = {
@@ -36,11 +44,10 @@ type ItemRow = {
   tier_list_id: string;
   tier: string;
   book_id: string;
-  books: { id: string; title: string; thumbnail_url: string | null; categories: string[] | null };
+  books: { categories: string[] | null } | null;
 };
 
 const TOP_GENRES_LIMIT = 3;
-const TOP_FAVORITES_LIMIT = 3;
 
 // Powers both the Compare landing page's "All" tab (every user with a
 // computable match) and "Friends" tab (same ranking, restricted to people
@@ -48,18 +55,11 @@ const TOP_FAVORITES_LIMIT = 3;
 // just a different candidate pool. Also powers the Explore sidebar rail
 // (`includeDetails: false, limit: N`).
 //
-// Used to call getBookScores/getTopGenres/getFavoriteBooks per candidate,
-// inside a sequential for-loop — each of those three re-fetched the same
-// user's tier_lists and tier_list_items independently, so a Top Matches
-// list with N candidates issued up to 6N sequential DB round-trips (100+
-// for even a modest user base) before any sorting could happen. This now
-// batch-fetches every candidate's tier_lists and tier_list_items in 2
-// queries total, then computes matches/genres/favorites entirely in
-// memory — a fixed ~4 queries regardless of candidate count or
-// `includeDetails`. getBookScores/getTopGenres/getFavoriteBooks themselves
-// are untouched — they're still used elsewhere as single-user lookups
-// (Profile, favorites pages, list detail) where a per-call round-trip is
-// fine.
+// Batch-fetches every candidate's tier_lists and tier_list_items in 2
+// queries total (plus one more for the viewer's own library, only when
+// includeDetails needs discoveryCount), then computes match percentages,
+// discoveryCount, and agreedCount entirely in memory — a fixed handful of
+// queries regardless of candidate count.
 export async function getTopMatches(
   supabase: SupabaseServerClient,
   viewerId: string,
@@ -124,12 +124,17 @@ export async function getTopMatches(
 
   const itemsByUser = new Map<string, ItemRow[]>();
   if (allListIds.length > 0) {
+    // categories are only ever read when includeDetails needs topGenres —
+    // the join is skipped entirely for the Explore rail's
+    // `includeDetails: false` call, keeping that path as light as before.
+    const itemsSelect = includeDetails
+      ? "tier_list_id, tier, book_id, books(categories)"
+      : "tier_list_id, tier, book_id";
     const itemRows = assertNoSupabaseError(
       await supabase
         .from("tier_list_items")
-        .select("tier_list_id, tier, book_id, books(id, title, thumbnail_url, categories)")
+        .select(itemsSelect)
         .in("tier_list_id", allListIds)
-        .order("created_at", { ascending: false })
         .returns<ItemRow[]>(),
       "fetching top match candidates' ranked items",
     );
@@ -141,6 +146,26 @@ export async function getTopMatches(
       if (list) list.push(item);
       else itemsByUser.set(userId, [item]);
     }
+  }
+
+  // Only fetched when includeDetails is set — discoveryCount is the one
+  // piece of per-candidate data that needs to know what the *viewer*
+  // already owns, not just the candidate's own ranked items. Skipped
+  // entirely for the Explore rail's `includeDetails: false` call, which
+  // doesn't render it.
+  let viewerLibrary: Set<string> | null = null;
+  if (includeDetails) {
+    const libraryRows = assertNoSupabaseError(
+      await supabase
+        .from("user_books")
+        .select("book_id")
+        .eq("user_id", viewerId),
+      "fetching viewer's library for top match discovery counts",
+    );
+    viewerLibrary = new Set([
+      ...(libraryRows ?? []).map((row) => row.book_id as string),
+      ...viewerScores.keys(),
+    ]);
   }
 
   const results: TopMatchPerson[] = [];
@@ -168,37 +193,41 @@ export async function getTopMatches(
     const match = computeMatch(viewerScores, theirScores);
     if (match.percentage === null) continue;
 
+    let discoveryCount = 0;
     let topGenres: string[] = [];
-    const topFavorites: FavoriteBook[] = [];
 
-    if (includeDetails) {
-      // Same tally getTopGenres does.
-      const tally = new Map<string, number>();
+    if (includeDetails && viewerLibrary) {
+      const favoriteBookIds = new Set<string>();
       for (const item of rankedItems) {
-        for (const category of item.books.categories ?? []) {
-          tally.set(category, (tally.get(category) ?? 0) + 1);
+        if (item.tier === "S" || item.tier === "A") {
+          favoriteBookIds.add(item.book_id);
         }
       }
-      topGenres = [...tally.entries()]
+      for (const bookId of favoriteBookIds) {
+        if (!viewerLibrary.has(bookId)) discoveryCount += 1;
+      }
+
+      // Normalize before tallying (not after) so equivalent catalog forms —
+      // e.g. "Science Fiction" and "Hard Science Fiction" — merge into one
+      // "Sci-Fi" count instead of splitting it across near-duplicate raw
+      // strings. shortenGenre is an allowlist (see genre-labels.ts): most of
+      // the real catalog's ~99 distinct category strings are Open Library
+      // topical/setting tags ("Schools In Fiction", "Washington (State) --
+      // Fiction"), not real genres, and a plain length cap can't tell those
+      // apart from genuine short genres — so anything unmapped is dropped
+      // outright, not just truncated.
+      const genreTally = new Map<string, number>();
+      for (const item of rankedItems) {
+        for (const category of item.books?.categories ?? []) {
+          const label = shortenGenre(category);
+          if (!label) continue;
+          genreTally.set(label, (genreTally.get(label) ?? 0) + 1);
+        }
+      }
+      topGenres = [...genreTally.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, TOP_GENRES_LIMIT)
-        .map(([category]) => category);
-
-      // Same S-then-A fill/dedup getFavoriteBooks does — items is already
-      // ordered by created_at desc from the batch query above.
-      const seen = new Set<string>();
-      outer: for (const tier of ["S", "A"] as const) {
-        for (const item of items) {
-          if (topFavorites.length >= TOP_FAVORITES_LIMIT) break outer;
-          if (item.tier !== tier || seen.has(item.books.id)) continue;
-          seen.add(item.books.id);
-          topFavorites.push({
-            bookId: item.books.id,
-            title: item.books.title,
-            thumbnail: item.books.thumbnail_url,
-          });
-        }
-      }
+        .map(([label]) => label);
     }
 
     results.push({
@@ -209,8 +238,8 @@ export async function getTopMatches(
       matchPercentage: match.percentage,
       sharedBookCount: match.sharedBookCount,
       booksRankedCount: theirScores.size,
+      discoveryCount,
       topGenres,
-      topFavorites,
     });
   }
 
@@ -223,9 +252,8 @@ export async function getTopMatches(
 }
 
 // Two people with completely uncorrelated taste still average ~61% under
-// computeMatch's tier-gap formula (see PREFERRED_MATCH_THRESHOLD below) —
-// used here as the "no real evidence" baseline that a thin match gets
-// pulled toward.
+// computeMatch's tier-gap formula — used here as the "no real evidence"
+// baseline that a thin match gets pulled toward.
 const RANDOM_BASELINE_PERCENTAGE = 61;
 
 // How many shared books it takes to trust a match's raw percentage at face
@@ -251,33 +279,24 @@ function weightedRankScore(
   );
 }
 
-// Below this, a match isn't a real signal — computeMatch's tier-gap formula
-// means two people with completely uncorrelated taste still average ~61%
-// (tiers are usually only 1-2 apart out of a possible 5 even at random), so
-// anything meaningfully below that is actively worse than chance, not just
-// a weak match.
-const PREFERRED_MATCH_THRESHOLD = 65;
+// The Top Matches list shows a flat 10 at a time by default, expanding to a
+// flat 15 (never the true full list) via "View more" (compare/page.tsx) —
+// no separate "backfill if thin" quality bar needed here; sortedMatches is
+// already ranked best-first, so a flat slice already shows the best N
+// regardless of how many clear any particular quality bar.
+export const DEFAULT_DISPLAY_COUNT = 10;
+export const EXPANDED_DISPLAY_COUNT = 15;
 
-// If fewer than this many clear the preferred threshold, backfill with the
-// next-best matches anyway so a small user base doesn't leave the list
-// empty or sparse — same prefer-high-quality/fall-back-rather-than-show-
-// nothing pattern the standalone Recommendations feature already uses for
-// its own candidate pool (lib/db/recommendations.ts's CANDIDATE_POOL_SIZE).
-const MIN_DISPLAY_COUNT = 5;
-
-// Curates an already-sorted (desc) match list for actual display: everyone
-// at/above PREFERRED_MATCH_THRESHOLD, or the top MIN_DISPLAY_COUNT overall
-// if fewer than that many clear the bar. Deliberately separate from
-// getTopMatches itself — callers that need the *true* full count (e.g. the
-// "you match with N% of users" coverage stat) should keep using the raw
-// list, not this curated view.
+// Curates an already-sorted (desc) match list for actual display: the top
+// DEFAULT_DISPLAY_COUNT, or EXPANDED_DISPLAY_COUNT once "View more" has been
+// clicked. Deliberately separate from getTopMatches itself — callers that
+// need the *true* full count (e.g. the "you match with N% of users"
+// coverage stat) should keep using the raw list, not this curated view.
 export function curateTopMatches(
   sortedMatches: TopMatchPerson[],
+  { expanded = false }: { expanded?: boolean } = {},
 ): TopMatchPerson[] {
-  const strongCount = sortedMatches.filter(
-    (person) => person.matchPercentage >= PREFERRED_MATCH_THRESHOLD,
-  ).length;
-  return sortedMatches.slice(0, Math.max(strongCount, MIN_DISPLAY_COUNT));
+  return sortedMatches.slice(0, expanded ? EXPANDED_DISPLAY_COUNT : DEFAULT_DISPLAY_COUNT);
 }
 
 // Every other profile that exists, regardless of whether a match is

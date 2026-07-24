@@ -1,18 +1,17 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getTopMatches,
-  getOtherUserCount,
-  curateTopMatches,
-} from "@/lib/db/top-matches";
+import { getTopMatches, getOtherUserCount, curateTopMatches } from "@/lib/db/top-matches";
 import { TasteScoreCard } from "@/components/taste-score-card";
 import { TopMatchCard } from "@/components/top-match-card";
-import { SegmentedTabs } from "@/components/segmented-tabs";
-import { CompareSortSelect } from "@/components/compare-sort-select";
+import { CompareTabs } from "@/components/compare-tabs";
+import { InfoPopover } from "@/components/info-popover";
 
-type Tab = "all" | "friends";
-type Sort = "match" | "ranked";
+// Just two tabs — "top" (curated best matches) and "friends" — per direct
+// feedback; an "All Matches" third tab and a sort/filter control were both
+// tried and dropped as unnecessary.
+type Tab = "top" | "friends";
 
 async function goToCompare(formData: FormData) {
   "use server";
@@ -25,11 +24,13 @@ async function goToCompare(formData: FormData) {
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; sort?: string }>;
+  searchParams: Promise<{ tab?: string; expanded?: string }>;
 }) {
-  const { tab: rawTab, sort: rawSort } = await searchParams;
-  const tab: Tab = rawTab === "friends" ? "friends" : "all";
-  const sort: Sort = rawSort === "ranked" ? "ranked" : "match";
+  const { tab: rawTab, expanded: rawExpanded } = await searchParams;
+  const tab: Tab = rawTab === "friends" ? "friends" : "top";
+  // "Top Matches" shows 10 by default, 15 once expanded — never the true
+  // full list (see curateTopMatches).
+  const expanded = rawExpanded === "true";
 
   const supabase = await createClient();
   const {
@@ -40,34 +41,31 @@ export default async function ComparePage({
     redirect("/login");
   }
 
-  // Always compute the "All" list — it drives the taste-score card up top
-  // regardless of which tab is active, so switching tabs doesn't make that
-  // number jump around.
+  // Always compute the full list — it drives the taste-score card up top
+  // regardless of which tab is active, and is also what rank badges are
+  // always computed against (see rankByUserId below).
   const [allMatches, otherUserCount] = await Promise.all([
     getTopMatches(supabase, user.id),
     getOtherUserCount(supabase, user.id),
   ]);
 
-  // Friends is people you already know/follow — shown as-is regardless of
-  // match quality, since the point there is "compare with people I know,"
-  // not "discover new people." Curation (prefer 65%+, backfill to 5 if
-  // that's thin) only applies to "All", where a low match is just noise
-  // against the discovery mission.
-  const unsortedMatches =
+  // Friends is people you already know/follow, shown as-is (uncurated) —
+  // the point there is "compare with people I know," not "discover new
+  // people."
+  const friendsMatches =
     tab === "friends"
       ? await getTopMatches(supabase, user.id, { followingOnly: true })
-      : curateTopMatches(allMatches);
+      : [];
 
-  // getTopMatches already returns matchPercentage-desc order — "ranked" is
-  // the only real alternative sort, backed by the same booksRankedCount
-  // field already fetched for the genre/favorites display, not a fabricated
-  // option.
+  // Rank badges always reflect a person's position in the *full* Best
+  // Match ranking (allMatches), never the currently-viewed pool's own
+  // ordering — so a friend shows their real overall standing on the
+  // Friends tab too, not just "1st, 2nd, 3rd among your friends."
+  const rankByUserId = new Map(allMatches.map((person, i) => [person.userId, i + 1]));
+
   const matches =
-    sort === "ranked"
-      ? [...unsortedMatches].sort(
-          (a, b) => b.booksRankedCount - a.booksRankedCount,
-        )
-      : unsortedMatches;
+    tab === "friends" ? friendsMatches : curateTopMatches(allMatches, { expanded });
+  const hasMore = tab === "top" && !expanded && allMatches.length > matches.length;
 
   const bestMatch = allMatches[0]?.matchPercentage ?? null;
   const matchedUserPercentage =
@@ -78,16 +76,32 @@ export default async function ComparePage({
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 xl:max-w-4xl">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-semibold text-foreground">
-              Top Matches
+              Compare
             </h1>
-            <p className="text-sm text-muted-foreground">
-              People who think like you.
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Sparkles className="size-3.5 text-primary" />
+              Find people who match your taste in books.
             </p>
           </div>
-          <CompareSortSelect />
+          {bestMatch !== null && (
+            <InfoPopover>
+              <p className="font-medium text-foreground">{bestMatch}%</p>
+              <p className="mt-1">
+                Your single highest taste match with anyone on Tiera — how
+                well your top match&apos;s book ratings line up with yours.
+              </p>
+              <p className="mt-2 font-medium text-foreground">
+                {matchedUserPercentage}% of users
+              </p>
+              <p className="mt-1">
+                How many people on Tiera share enough ranked books with you
+                (3+) to even calculate a match percentage for.
+              </p>
+            </InfoPopover>
+          )}
         </div>
 
         {bestMatch !== null && (
@@ -97,11 +111,11 @@ export default async function ComparePage({
           />
         )}
 
-        <SegmentedTabs
+        <CompareTabs
           basePath="/compare"
           paramName="tab"
           tabs={[
-            { value: "all", label: "All" },
+            { value: "top", label: "Top Matches" },
             { value: "friends", label: "Friends" },
           ]}
           current={tab}
@@ -135,11 +149,24 @@ export default async function ComparePage({
               : "Not enough shared books with anyone yet — rank more books to see matches here."}
           </p>
         ) : (
-          <div className="flex flex-col divide-y divide-border rounded-sm bg-card px-4">
+          <div className="flex flex-col gap-3">
             {matches.map((person) => (
-              <TopMatchCard key={person.userId} person={person} />
+              <TopMatchCard
+                key={person.userId}
+                person={person}
+                rank={rankByUserId.get(person.userId) ?? 1}
+              />
             ))}
           </div>
+        )}
+
+        {hasMore && (
+          <Link
+            href="/compare?tab=top&expanded=true"
+            className="pb-1 text-center text-sm font-semibold text-primary-link"
+          >
+            View more
+          </Link>
         )}
       </div>
     </div>

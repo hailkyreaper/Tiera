@@ -1,6 +1,6 @@
 import { BookCover } from "@/components/book-cover";
 import { MatchBadge } from "@/components/match-badge";
-import { Button } from "@/components/ui/button";
+import { AddBookButton } from "@/components/add-book-button";
 import { BookDetailDrawer } from "@/components/tier-list/book-detail-drawer";
 import {
   addRecommendationToLibrary,
@@ -36,14 +36,19 @@ export function RecommendationRow({
   // one surface at once).
   source: RecommendationSource;
 }) {
+  const addFields = { bookId: recommendation.bookId, path, source };
+
   return (
     <div className="flex items-center gap-3 rounded-sm bg-card p-3 ring-1 ring-foreground/10">
       {/* Cover + text wrapped in the same detail drawer used elsewhere for
        * viewing a book's synopsis — gives a real middle funnel stage
        * between "shown" and "added" (previously nothing: a recommendation
        * could only be ignored outright or committed to via Add, with no way
-       * to tell those two apart). The Add button stays outside this
-       * trigger so it doesn't also pop the drawer open. */}
+       * to tell those two apart). The drawer also carries its own "Add to
+       * My List" button (addAction/addFields below) so adding doesn't
+       * require closing back out to this row's own Add button. The row's
+       * Add button stays outside the trigger so it doesn't also pop the
+       * drawer open. */}
       <BookDetailDrawer
         book={{
           id: recommendation.bookId,
@@ -58,6 +63,8 @@ export function RecommendationRow({
           recommendation.bookId,
           source,
         )}
+        addAction={addRecommendationToLibrary}
+        addFields={addFields}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <div className="w-12 shrink-0">
@@ -78,14 +85,12 @@ export function RecommendationRow({
           </div>
         </div>
       </BookDetailDrawer>
-      <form action={addRecommendationToLibrary}>
-        <input type="hidden" name="bookId" value={recommendation.bookId} />
-        <input type="hidden" name="path" value={path} />
-        <input type="hidden" name="source" value={source} />
-        <Button type="submit" size="sm">
-          Add
-        </Button>
-      </form>
+      <AddBookButton
+        action={addRecommendationToLibrary}
+        fields={addFields}
+        label="Add to My List"
+        size="sm"
+      />
     </div>
   );
 }

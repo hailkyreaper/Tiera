@@ -156,7 +156,7 @@ async function BookSearch({
             key={book.id}
             book={book}
             action={addBookToLibrary}
-            buttonLabel="Add"
+            buttonLabel="Add to My List"
           />
         ))}
       </div>

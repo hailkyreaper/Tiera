@@ -3,6 +3,7 @@
 import { Drawer } from "@base-ui/react/drawer";
 import { Star } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
+import { AddBookButton } from "@/components/add-book-button";
 
 export type DrawerBook = {
   id: string;
@@ -17,6 +18,8 @@ export function BookDetailDrawer({
   book,
   children,
   onOpen,
+  addAction,
+  addFields,
 }: {
   book: DrawerBook;
   children: React.ReactNode;
@@ -24,6 +27,13 @@ export function BookDetailDrawer({
   // recommendation_outcomes is. Callers that care (RecommendationRow) pass
   // a bound server action; every other caller just omits this.
   onOpen?: () => void;
+  // Opt-in "Add to My List" button rendered at the bottom of the drawer —
+  // only shown when a caller actually has somewhere for the add to go
+  // (a recommendation not yet in the viewer's library). Callers that don't
+  // pass these (Shared Ranking, Library tab, tier-row previews — books
+  // already ranked/owned) render the drawer with no add action at all.
+  addAction?: (formData: FormData) => void | Promise<void>;
+  addFields?: Record<string, string>;
 }) {
   return (
     <Drawer.Root
@@ -63,6 +73,15 @@ export function BookDetailDrawer({
               <Drawer.Description className="text-left text-sm leading-relaxed text-muted-foreground">
                 {book.description || "No synopsis available for this book."}
               </Drawer.Description>
+              {addAction && addFields && (
+                <AddBookButton
+                  action={addAction}
+                  fields={addFields}
+                  label="Add to My List"
+                  variant="default"
+                  className="w-full shrink-0"
+                />
+              )}
             </Drawer.Content>
           </Drawer.Popup>
         </Drawer.Viewport>

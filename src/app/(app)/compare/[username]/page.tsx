@@ -13,12 +13,11 @@ import {
   MIN_RECOMMENDATION_MATCH_PERCENTAGE,
 } from "@/lib/db/taste-match";
 import { recordRecommendationImpressions } from "@/lib/db/recommendation-outcomes";
-import { SharedRankingRow } from "@/components/shared-ranking-row";
+import { SharedRankingSection } from "@/components/shared-ranking-section";
 import { AgreementBreakdown } from "@/components/agreement-breakdown";
 import { RecommendationCoverStrip } from "@/components/recommendation-cover-strip";
 import { MatchRing } from "@/components/match-ring";
 import { TopNav } from "@/components/top-nav";
-import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/avatar";
 
 type ProfileRow = {
@@ -29,34 +28,22 @@ type ProfileRow = {
 };
 type TheirProfileRow = ProfileRow & { location: string | null };
 
-// Same "?limit=" + "View More" pagination shape as the standalone
-// Recommendations page (recommendations/page.tsx) — default matches
-// getMatchRecommendations' own default of 4.
-const DEFAULT_RECS_LIMIT = 4;
-const RECS_PAGE_SIZE = 4;
-
-// How many rows of the Shared Ranking list show before "View all" —
-// unlike Recommendations (which fetches externally), the full list is
-// already in memory from getComparisonSummary, so "View all" just lifts
-// the slice rather than paging through more queries.
-const DEFAULT_SHARED_DISPLAY = 5;
+// Recommendations are fetched once, generously, up front — "View more"
+// (inside RecommendationCoverStrip) reveals the rest client-side from what's
+// already in memory, rather than navigating back here for another page of
+// results. This cap just bounds the one-time fetch; it's not a display
+// limit (RecommendationCoverStrip's own DEFAULT_DISPLAY is).
+const MAX_RECS_FETCH = 40;
+// Impressions are only logged for what's actually visible on first load —
+// matches RecommendationCoverStrip's own default display count.
+const RECS_IMPRESSION_COUNT = 4;
 
 export default async function CompareWithUserPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ recsLimit?: string; allShared?: string }>;
 }) {
   const { username } = await params;
-  const { recsLimit: rawRecsLimit, allShared: rawAllShared } =
-    await searchParams;
-  const parsedRecsLimit = parseInt(rawRecsLimit ?? "", 10);
-  const recsLimit =
-    Number.isFinite(parsedRecsLimit) && parsedRecsLimit > 0
-      ? parsedRecsLimit
-      : DEFAULT_RECS_LIMIT;
-  const showAllShared = rawAllShared === "true";
   const supabase = await createClient();
 
   const {
@@ -151,10 +138,6 @@ export default async function CompareWithUserPage({
   const sortedShared = [...shared].sort(
     (a, b) => b.scoreA + b.scoreB - (a.scoreA + a.scoreB),
   );
-  const hasMoreShared = sortedShared.length > DEFAULT_SHARED_DISPLAY;
-  const sharedToShow = showAllShared
-    ? sortedShared
-    : sortedShared.slice(0, DEFAULT_SHARED_DISPLAY);
 
   // Recommendations (and every summary panel below) only make sense once
   // there's a real match — see the audit: this used to run unconditionally,
@@ -176,19 +159,14 @@ export default async function CompareWithUserPage({
           me.id,
           them.id,
           match.percentage,
-          recsLimit,
+          MAX_RECS_FETCH,
         )
       : [];
-
-  const recsMoreHref =
-    matchRecommendations.length === recsLimit
-      ? `/compare/${username}?recsLimit=${recsLimit + RECS_PAGE_SIZE}`
-      : undefined;
 
   if (matchRecommendations.length > 0) {
     await recordRecommendationImpressions(
       supabase,
-      matchRecommendations.map((recommendation) => ({
+      matchRecommendations.slice(0, RECS_IMPRESSION_COUNT).map((recommendation) => ({
         viewerUserId: me.id,
         sourceUserId: them.id,
         bookId: recommendation.bookId,
@@ -212,10 +190,7 @@ export default async function CompareWithUserPage({
   const theirFirstName = them.display_name
     ? them.display_name.split(" ")[0]
     : them.username;
-  // "View more" (below) extends the cover strip into a wrapping grid
-  // rather than adding more items to scroll through sideways — this is
-  // true once recsLimit has been bumped past its default via that link.
-  const recsExpanded = recsLimit > DEFAULT_RECS_LIMIT;
+  const recsPath = `/compare/${username}`;
 
   return (
     <div className="flex w-full flex-1 gap-6 p-4 lg:p-6">
@@ -323,32 +298,7 @@ export default async function CompareWithUserPage({
               lowTierAgreement={lowTierAgreement}
             />
 
-            <div className="flex flex-col gap-3 text-left">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Shared Ranking
-                </h2>
-                {hasMoreShared && !showAllShared && (
-                  <Link
-                    href={`/compare/${username}?allShared=true&recsLimit=${recsLimit}`}
-                    className="text-sm font-medium text-primary-link"
-                  >
-                    View all
-                  </Link>
-                )}
-              </div>
-              {sharedToShow.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No shared books yet.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {sharedToShow.map((book) => (
-                    <SharedRankingRow key={book.bookId} book={book} />
-                  ))}
-                </div>
-              )}
-            </div>
+            <SharedRankingSection books={sortedShared} />
 
             {/* Below xl, the right-rail aside further down doesn't render
              * at all (it's xl:flex) — this was the only place
@@ -362,19 +312,14 @@ export default async function CompareWithUserPage({
                 <RecommendationCoverStrip
                   recommendations={matchRecommendations}
                   heading={`From ${theirFirstName}'s Favorites`}
-                  moreHref={recsMoreHref}
-                  expanded={recsExpanded}
+                  path={recsPath}
+                  source="compare_detail"
+                  bleed
                 />
               </div>
             )}
           </>
         )}
-
-        <Link href={`/u/${them.username}`}>
-          <Button type="button" variant="outline" className="w-full">
-            View Full Profile
-          </Button>
-        </Link>
       </div>
 
       {match.percentage !== null && matchRecommendations.length > 0 && (
@@ -382,8 +327,8 @@ export default async function CompareWithUserPage({
           <RecommendationCoverStrip
             recommendations={matchRecommendations}
             heading={`From ${theirFirstName}'s Favorites`}
-            moreHref={recsMoreHref}
-            expanded={recsExpanded}
+            path={recsPath}
+            source="compare_detail"
           />
         </aside>
       )}

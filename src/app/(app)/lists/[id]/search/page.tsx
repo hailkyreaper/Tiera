@@ -68,7 +68,7 @@ export default async function ListSearchPage({
               book={book}
               action={addToUnrankedAndStay}
               extraFields={{ tierListId: id, q: q ?? "" }}
-              buttonLabel="Add"
+              buttonLabel="Add to My List"
             />
           ))}
         </div>

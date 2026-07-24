@@ -132,7 +132,7 @@ export function BookSearchInput({
                   <AddBookButton
                     action={action}
                     fields={{ ...bookFormFields(book), q: query, ...extraFields }}
-                    label="Add"
+                    label="Add to My List"
                     variant="link"
                     size="xs"
                     className="px-0 no-underline hover:underline"

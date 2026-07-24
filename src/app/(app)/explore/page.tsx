@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { assertNoSupabaseError } from "@/lib/supabase/assert";
 import { ExploreListCard } from "@/components/explore/list-card";
 import { SegmentedTabs } from "@/components/segmented-tabs";
+import { CompareTabs } from "@/components/compare-tabs";
 import { TopMatchesRail } from "@/components/top-matches-rail";
 import { TrendingThisWeekRail } from "@/components/trending-this-week-rail";
 import { PopularGenresRail } from "@/components/popular-genres-rail";
@@ -202,9 +203,11 @@ export default async function ExplorePage({
           </Link>
         </div>
 
-        {/* Mobile/tablet: original single 3-tab bar — see MobileExploreTab. */}
+        {/* Mobile/tablet: original single 3-tab bar — see MobileExploreTab.
+         * Same underline-style CompareTabs used by Compare, stretched edge
+         * to edge — unifies the two pages' primary tab look. */}
         <div className="lg:hidden">
-          <SegmentedTabs
+          <CompareTabs
             basePath="/explore"
             tabs={[
               { value: "for-you", label: "For You" },
@@ -216,9 +219,11 @@ export default async function ExplorePage({
         </div>
 
         {/* Desktop only: For You/Following, plus a nested Popular/Recent
-         * sort toggle under For You. */}
-        <div className="hidden items-center justify-between gap-2 lg:flex">
-          <SegmentedTabs
+         * sort toggle under For You. The nested toggle stays the smaller
+         * pill-style SegmentedTabs — a secondary control, not the page's
+         * primary navigation. */}
+        <div className="hidden flex-col gap-2 lg:flex">
+          <CompareTabs
             basePath="/explore"
             tabs={[
               { value: "for-you", label: "For You" },
@@ -228,16 +233,18 @@ export default async function ExplorePage({
           />
 
           {tab === "for-you" && (
-            <SegmentedTabs
-              basePath="/explore"
-              paramName="sort"
-              extraParams={{ tab: "for-you" }}
-              tabs={[
-                { value: "popular", label: "Popular" },
-                { value: "recent", label: "Recent" },
-              ]}
-              current={sort}
-            />
+            <div className="flex justify-end">
+              <SegmentedTabs
+                basePath="/explore"
+                paramName="sort"
+                extraParams={{ tab: "for-you" }}
+                tabs={[
+                  { value: "popular", label: "Popular" },
+                  { value: "recent", label: "Recent" },
+                ]}
+                current={sort}
+              />
+            </div>
           )}
         </div>
 

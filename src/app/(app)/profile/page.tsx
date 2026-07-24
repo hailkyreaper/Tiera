@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { List, Sparkles } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { updateProfile } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -107,6 +107,12 @@ export default async function ProfilePage({
       .eq("id", user.id)
       .maybeSingle<ProfileRow>(),
     "fetching profile",
+  );
+
+  // A brand-new account with nothing filled in yet — used to show a
+  // friendlier nudge toward Edit Profile instead of just a blank bio area.
+  const hasProfileInfo = Boolean(
+    profile?.bio || profile?.display_name || profile?.avatar_url,
   );
 
   const myLists = assertNoSupabaseError(
@@ -241,6 +247,18 @@ export default async function ProfilePage({
                   metaInline
                   className="flex flex-col items-start gap-1 text-left"
                 />
+                {!hasProfileInfo && (
+                  <p className="text-left text-xs text-muted-foreground">
+                    Your profile is looking a little empty —{" "}
+                    <Link
+                      href="/profile?edit=true"
+                      className="text-primary-link underline"
+                    >
+                      add a photo and bio
+                    </Link>{" "}
+                    so others can get to know you.
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -281,12 +299,26 @@ export default async function ProfilePage({
               </div>
 
               {edit !== "true" && (
-                <ProfileBio
-                  bio={profile?.bio}
-                  location={profile?.location}
-                  joinedDate={joinedDate}
-                  className="flex flex-col items-start gap-1 pt-2 text-left"
-                />
+                <>
+                  <ProfileBio
+                    bio={profile?.bio}
+                    location={profile?.location}
+                    joinedDate={joinedDate}
+                    className="flex flex-col items-start gap-1 pt-2 text-left"
+                  />
+                  {!hasProfileInfo && (
+                    <p className="pt-1 text-left text-xs text-muted-foreground">
+                      Your profile is looking a little empty —{" "}
+                      <Link
+                        href="/profile?edit=true"
+                        className="text-primary-link underline"
+                      >
+                        add a photo and bio
+                      </Link>{" "}
+                      so others can get to know you.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -371,9 +403,23 @@ export default async function ProfilePage({
                     Lists
                   </h2>
                   {listCards.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No tier lists yet.
-                    </p>
+                    <div className="flex flex-col items-center gap-3 rounded-sm bg-card p-8 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <List className="size-6" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          Create your first tier list
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Rank your favorite books and share your taste with
+                          others.
+                        </p>
+                      </div>
+                      <Link href="/lists">
+                        <Button type="button">Create List</Button>
+                      </Link>
+                    </div>
                   ) : (
                     listCards.map((list) => (
                       <ExploreListCard

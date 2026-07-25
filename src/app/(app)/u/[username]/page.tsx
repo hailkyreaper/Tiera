@@ -69,6 +69,15 @@ export default async function PublicUserPage({
           .neq("tier", "unranked")
       : { count: 0 };
 
+  // Same "Following" stat the owner's own /profile page already shows —
+  // this page's third stat used to be a permanently-static "Avg Match"
+  // placeholder (no avg-match algorithm exists), so it's replaced with the
+  // same real, already-computed count rather than left dead.
+  const { count: followingCount } = await supabase
+    .from("follows")
+    .select("following_id", { count: "exact", head: true })
+    .eq("follower_id", profile.id);
+
   const joinedDate = new Date(profile.created_at).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -98,6 +107,40 @@ export default async function PublicUserPage({
       <div className="flex flex-col gap-3 px-4 pt-4">
         <div className="flex items-center justify-between">
           <BackButton />
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="rounded-full p-1">
+              <Avatar
+                src={profile.avatar_url}
+                name={profile.username}
+                imageSize={144}
+                sizeClassName="size-16"
+                textClassName="text-2xl"
+                className="ring-2 ring-primary"
+              />
+            </div>
+
+            <div className="flex min-w-0 flex-col items-start">
+              {profile.display_name && (
+                <p className="truncate text-lg font-semibold text-foreground">
+                  {profile.display_name}
+                </p>
+              )}
+              <p
+                className={cn(
+                  "truncate",
+                  profile.display_name
+                    ? "text-sm text-muted-foreground"
+                    : "text-lg font-semibold text-foreground",
+                )}
+              >
+                @{profile.username}
+              </p>
+            </div>
+          </div>
+
           {user && (
             <FollowButton
               targetUserId={profile.id}
@@ -105,37 +148,6 @@ export default async function PublicUserPage({
               isFollowing={isFollowing}
             />
           )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="rounded-full p-1">
-            <Avatar
-              src={profile.avatar_url}
-              name={profile.username}
-              imageSize={144}
-              sizeClassName="size-16"
-              textClassName="text-2xl"
-              className="ring-2 ring-primary"
-            />
-          </div>
-
-          <div className="flex min-w-0 flex-col items-start">
-            {profile.display_name && (
-              <p className="truncate text-lg font-semibold text-foreground">
-                {profile.display_name}
-              </p>
-            )}
-            <p
-              className={cn(
-                "truncate",
-                profile.display_name
-                  ? "text-sm text-muted-foreground"
-                  : "text-lg font-semibold text-foreground",
-              )}
-            >
-              @{profile.username}
-            </p>
-          </div>
         </div>
 
         <ProfileBio
@@ -146,7 +158,7 @@ export default async function PublicUserPage({
           className="flex flex-col items-start gap-1 text-left"
         />
 
-        <div className="flex w-full divide-x divide-border/60 border-y border-border/60 py-3">
+        <div className="flex w-full divide-x divide-border/60 border-b border-border/60 py-3">
           <div className="flex flex-1 flex-col items-center">
             <span className="text-lg font-semibold text-foreground">
               {listsCount}
@@ -164,11 +176,11 @@ export default async function PublicUserPage({
             </span>
           </div>
           <div className="flex flex-1 flex-col items-center">
-            <span className="text-lg font-semibold text-muted-foreground">
-              —
+            <span className="text-lg font-semibold text-foreground">
+              {followingCount ?? 0}
             </span>
             <span className="text-xs text-muted-foreground uppercase">
-              Avg Match
+              Following
             </span>
           </div>
         </div>
@@ -179,6 +191,12 @@ export default async function PublicUserPage({
           books={favoriteBooks}
           viewMoreHref={`/u/${profile.username}/favorites`}
         />
+
+        {/* Same plain hairline ProfileTabs uses on the owner's own /profile
+         * page (border-b only, no border-t — see that component's own fix
+         * for the double-border bug) — this page has no Lists/Library tab
+         * toggle to render, just the divider at the same visual weight. */}
+        <div className="w-full border-b border-border" />
 
         <div className="flex w-full flex-col gap-3">
           <h2 className="text-xs font-semibold text-left text-muted-foreground uppercase">
